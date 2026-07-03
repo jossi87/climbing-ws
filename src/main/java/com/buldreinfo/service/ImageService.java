@@ -8,6 +8,7 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -27,8 +28,8 @@ import javax.imageio.ImageWriter;
 import javax.imageio.metadata.IIOMetadata;
 import javax.imageio.stream.ImageOutputStream;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Service;
@@ -47,7 +48,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class ImageService {
 	public static final int IMAGE_WEB_HEIGHT = 1440;
 	public static final int IMAGE_WEB_WIDTH = 2560;
-	private static final Logger logger = LogManager.getLogger();
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 	private static final Pattern VIMEO_PATTERN = Pattern.compile("vimeo\\.com/(?:video/)?([0-9]+)", Pattern.CASE_INSENSITIVE);
 	private static final Pattern YT_PATTERN = Pattern.compile("(?:youtube\\.com/(?:[^/]+/.+/|(?:v|e(?:mbed)?)/|.*[?&]v=)|youtu\\.be/)([^\"&?/\\s]{11})", Pattern.CASE_INSENSITIVE);

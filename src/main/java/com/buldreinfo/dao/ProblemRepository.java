@@ -49,8 +49,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Repository
 public class ProblemRepository {
 	@FunctionalInterface
-	public interface MediaProblemResolver {
-		List<Media> resolve(int areaId, int sectorId, int problemId);
+	public interface ProblemMediaResolver {
+		List<Media> resolve(int sectorId, int problemId);
 	}
 	private final JdbcClient jdbcClient;
 	private final ObjectMapper objectMapper;
@@ -90,7 +90,7 @@ public class ProblemRepository {
 			CompletableFuture<List<ExternalLink>> linksFuture,
 			Function<Integer, List<Coordinates>> outlineResolver,
 			Function<Integer, List<Trail>> trailsResolver,
-			MediaProblemResolver mediaResolver,
+			ProblemMediaResolver mediaResolver,
 			Function<Integer, List<Media>> mediaGuestbookResolver) {
 
 		boolean isTodo = authUserId.isPresent() && jdbcClient.sql("SELECT 1 FROM todo WHERE user_id = ? AND problem_id = ?")
@@ -182,15 +182,18 @@ public class ProblemRepository {
 						List<User> fa = (faStr == null || faStr.isEmpty()) ? null : objectMapper.readValue("[" + faStr + "]", new TypeReference<List<User>>() {});
 						int coordId = rs.getInt("coordinates_id");
 						var coords = coordId == 0 ? null : new Coordinates(coordId, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0);
-						var allMedia = mediaResolver.resolve(areaId, sectorId, id);
-						var partitioned = Optional.ofNullable(allMedia).orElse(List.of()).stream().collect(Collectors.partitioningBy(x -> x.problems().stream().anyMatch(mp -> mp.trivia() && mp.problemId() == reqId)));
+						var allMedia = mediaResolver.resolve(sectorId, id);
+						var partitioned = allMedia.stream()
+								.collect(Collectors.partitioningBy(x -> x.problems().stream().anyMatch(mp -> mp.trivia() && mp.problemId() == reqId)));
 						var triviaMedia = partitioned.get(true);
 						var media = partitioned.get(false);
 						var sectionsStr = rs.getString("compiled_sections");
 						List<ProblemSection> sections = (sectionsStr == null || sectionsStr.isEmpty()) ? new ArrayList<>() : new ArrayList<>(objectMapper.readValue("[" + sectionsStr + "]", new TypeReference<List<ProblemSection>>() {}));
 						if (media != null && !sections.isEmpty()) {
 							for (var section : sections) {
-								var sectionMedia = media.stream().filter(x -> x.problems().stream().anyMatch(y -> y.problemId() == reqId && y.problemPitch() == section.nr())).toList();
+								var sectionMedia = media.stream()
+										.filter(x -> x.problems().stream().anyMatch(y -> y.problemId() == reqId && y.problemPitch() == section.nr()))
+										.toList();
 								media.removeAll(sectionMedia);
 								sections.set(sections.indexOf(section), section.withMedia(sectionMedia));
 							}

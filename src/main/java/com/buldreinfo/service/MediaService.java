@@ -3,7 +3,6 @@ package com.buldreinfo.service;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -15,8 +14,6 @@ import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,7 +34,6 @@ import com.buldreinfo.model.Svg;
 
 @Service
 public class MediaService {
-	private static final Logger logger = LogManager.getLogger();
 	private final ActivityRepository activityRepo;
 	private final ImageService imageService;
 	private final MediaRepository mediaRepo;
@@ -152,8 +148,7 @@ public class MediaService {
 		return mediaRepo.getMediaPendingAnalysis();
 	}
 
-	public List<Media> getMediaProblem(Setup s, Optional<Integer> authUserId, int areaId, int sectorId, int problemId, boolean showHiddenMedia) {
-		var startNanos = System.nanoTime();
+	public List<Media> getMediaProblem(Setup s, Optional<Integer> authUserId, int sectorId, int problemId, boolean showHiddenMedia) {
 		List<Media> media = mediaRepo.getMediaProblemCombined(authUserId, sectorId, problemId);
 		if (media != null && !media.isEmpty()) {
 			var mediaWithRequestedTopoLine = new HashSet<Media>();
@@ -168,17 +163,11 @@ public class MediaService {
 				media = media.stream().filter(m -> m.svgs() == null || m.svgs().isEmpty()).toList();
 			}
 		}
-		List<Media> result = media.isEmpty() ? null : media;
-		logger.debug("getMediaProblem(areaId={}, sectorId={}, problemId={}, showHiddenMedia={}) - media.size()={}, duration={}", 
-				areaId, sectorId, problemId, showHiddenMedia, result == null ? 0 : result.size(), Duration.ofNanos(System.nanoTime() - startNanos));
-		return result;
+		return media;
 	}
 
 	public List<Media> getMediaSectorThumbnails(Optional<Integer> authUserId, int idSector) {
-		var startNanos = System.nanoTime();
-		List<Media> allMedia = mediaRepo.getMediaSectorThumbnails(authUserId, idSector);
-		logger.debug("getMediaSectorThumbnails(idSector={}) - allMedia.size()={}, duration={}", idSector, allMedia.size(), Duration.ofNanos(System.nanoTime() - startNanos));
-		return allMedia;
+		return mediaRepo.getMediaSectorThumbnails(authUserId, idSector);
 	}
 
 	public Map<Integer, List<Media>> getMediaTrails(Optional<Integer> authUserId, Collection<Integer> trailIds) {
@@ -244,8 +233,8 @@ public class MediaService {
 		if (m.photographer() == null || m.photographer().name() == null || m.photographer().name().isBlank()) throw new IllegalArgumentException("A valid photographer must be specified to update media context.");
 
 		var associations = m.ensureCorrectMediaAssociations(authUserId);
-		var startNanos = System.nanoTime();
 		final var mediaId = m.identity().id();
+
 		final var storageType = StorageType.fromExtension(m.suffix()).orElseThrow();
 
 		ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(authUserId, mediaId);
@@ -280,9 +269,8 @@ public class MediaService {
 		.map(MediaProblem::problemId)
 		.distinct()
 		.forEach(activityRepo::fillActivity);
-
-		logger.debug("updateMedia(authUserId={}, m={}) duration={}", authUserId, m, Duration.ofNanos(System.nanoTime() - startNanos));
 	}
+
 
 	public void updateMediaFocusAndActionStatus() {
 		mediaRepo.updateMediaFocusAndActionStatus();

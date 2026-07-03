@@ -1,6 +1,5 @@
 package com.buldreinfo.dao;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -8,8 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -29,7 +26,6 @@ import com.buldreinfo.model.Type;
 
 @Repository
 public class RegionRepository {
-	private static final Logger logger = LogManager.getLogger();
 	private final JdbcClient jdbcClient;
 
 	public RegionRepository(JdbcClient jdbcClient) {
@@ -111,7 +107,6 @@ public class RegionRepository {
 	@Cacheable(value = CacheConstants.REGION_CACHE_NAME, key = "'setups'")
 	@Transactional(readOnly = true)
 	public List<Setup> getSetups() {
-		var start = System.nanoTime();
 		var compassDirections = getCompassDirections();
 		var converterCache = new HashMap<Integer, GradeConverter>();
 
@@ -138,7 +133,6 @@ public class RegionRepository {
 							.build();
 				}).list();
 
-		logger.debug("getSetups() - res.size()={}, duration={}", res.size(), Duration.ofNanos(System.nanoTime() - start));
 		return res;
 	}
 

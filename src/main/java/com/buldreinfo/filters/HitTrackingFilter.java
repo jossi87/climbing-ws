@@ -1,14 +1,15 @@
 package com.buldreinfo.filters;
 
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HexFormat;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Component;
@@ -25,7 +26,7 @@ import jakarta.servlet.http.HttpServletResponse;
 public class HitTrackingFilter extends OncePerRequestFilter {
 	public static final String SHOULD_UPDATE_HITS_KEY = "shouldUpdateHits";
 	private static final long HITS_COOLDOWN_MILLIS = Duration.ofMinutes(30).toMillis();
-	private static final Logger logger = LogManager.getLogger();
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	private static String anonymizeIp(String ip) {
 		if (ip == null || ip.isBlank()) return "";
 		String clientIp = ip.contains(",") ? ip.split(",")[0].trim() : ip.trim();

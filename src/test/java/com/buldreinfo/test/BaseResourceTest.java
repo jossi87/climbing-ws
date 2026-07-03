@@ -3,10 +3,15 @@ package com.buldreinfo.test;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import java.lang.invoke.MethodHandles;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.extension.TestWatcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
@@ -34,10 +39,18 @@ public abstract class BaseResourceTest {
 	protected static final int BULDREINFO_MEDIA_ID_WITH_CHAPTERS_PROBLEM_ID = 1665;
 	protected static final int BULDREINFO_PROBLEM_ID_VISIBLE = 1193;
 	protected static final int BULDREINFO_SECTOR_ID_VISIBLE = 47;
-	protected static final Logger logger = LogManager.getLogger();
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	protected static final int USER_ID_NORMAL = 1049;
 	protected static final int USER_ID_SUPERADMIN = 1;
 	@Autowired protected RegionRepository regionRepo;
+
+	@RegisterExtension
+	static TestWatcher testWatcher = new TestWatcher() {
+		@Override
+		public void testFailed(ExtensionContext context, Throwable cause) {
+			logger.error("TEST FAILED: {} - {}", context.getDisplayName(), cause.getMessage(), cause);
+		}
+	};
 
 	@BeforeAll
 	public void warmUp() {

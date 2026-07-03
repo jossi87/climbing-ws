@@ -4,14 +4,15 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.lang.invoke.MethodHandles;
 import java.net.URI;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.http.CacheControl;
@@ -62,9 +63,7 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestController
 @RequestMapping("/media")
 public class MediaController {
-
-	private static final Logger logger = LogManager.getLogger();
-
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	private final ImageService imageService;
 	private final InstagramService instagramService;
 	private final MediaService mediaService;

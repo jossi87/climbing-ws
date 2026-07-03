@@ -1,7 +1,9 @@
 package com.buldreinfo.tracking;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import java.lang.invoke.MethodHandles;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.scheduling.annotation.Async;
@@ -12,13 +14,10 @@ import com.buldreinfo.config.AsyncConfig;
 
 @Component
 public class HitTrackingListener {
-
-	private static final Logger logger = LogManager.getLogger();
-
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	public record AreaHitEvent(int areaId) {}
 	public record SectorHitEvent(int sectorId) {}
 	public record ProblemHitEvent(int problemId) {}
-
 	private final JdbcClient jdbcClient;
 
 	public HitTrackingListener(JdbcClient jdbcClient) {

@@ -1,11 +1,12 @@
 package com.buldreinfo.infrastructure;
 
+import java.lang.invoke.MethodHandles;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -19,7 +20,7 @@ import jakarta.servlet.http.HttpServletRequest;
 public class DynamicCorsConfigurationSource implements CorsConfigurationSource {
 	private static final String LOCAL_DEV_ORIGIN = "http://localhost:3001";
 	private static final String LOCAL_SWAGGER_ORIGIN = "http://localhost:8080";
-	private static final Logger logger = LogManager.getLogger();
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final RegionRepository regionRepo;
 

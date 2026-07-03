@@ -1,11 +1,12 @@
 package com.buldreinfo.batch.maintenance;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.buldreinfo.io.StorageManager;
 
@@ -17,7 +18,7 @@ import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 public class S3BucketDeleteResized {
-    private static final Logger logger = LogManager.getLogger();
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     private final AtomicInteger deleteCount = new AtomicInteger(0);
 
     private void deleteBatch(StorageManager storage, List<ObjectIdentifier> objects) {

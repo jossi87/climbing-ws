@@ -2,14 +2,15 @@ package com.buldreinfo.service;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 
 import javax.imageio.ImageIO;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.buldreinfo.beans.S3KeyGenerator;
@@ -18,7 +19,7 @@ import com.buldreinfo.io.StorageManager;
 
 @Service
 public class VideoService {
-	private static final Logger logger = LogManager.getLogger();
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	private static final String FFMPEG_DEFAULT = "ffmpeg";
 
 	private final StorageManager storage;
@@ -30,7 +31,6 @@ public class VideoService {
 	}
 
 	public void extractThumbnail(int idMedia, Path src, int thumbnailSeconds) throws IOException, InterruptedException {
-		var start = System.nanoTime();
 		Path tempThumb = Files.createTempFile("thumb-" + idMedia, ".jpg");
 		try {
 			String seekFlag = thumbnailSeconds < 0 ? "-sseof" : "-ss";
@@ -50,7 +50,6 @@ public class VideoService {
 		} finally {
 			Files.deleteIfExists(tempThumb);
 		}
-		logger.info("extractThumbnail(idMedia={}, src={}, thumbnailSeconds={}) - duration={}ms", idMedia, src, thumbnailSeconds, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 	}
 
 	public void processVideo(int idMedia, StorageType storageType, int thumbnailSeconds) throws IOException {

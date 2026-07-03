@@ -12,10 +12,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,7 +41,6 @@ import com.buldreinfo.model.Type;
 
 @Repository
 public class HierarchyRepository {
-	private static final Logger logger = LogManager.getLogger();
 	private final JdbcClient jdbcClient;
 	private final SectorRepository sectorRepo;
 
@@ -554,8 +550,6 @@ public class HierarchyRepository {
 		res.sort((r1, r2) -> Long.compare(r2.hits(), r1.hits()));
 		res.addAll(users);
 		res.addAll(filteredExternal);
-
-		logger.debug("getSearch(search={}) - res.size()={}", search, res.size());
 		return res;
 	}
 
@@ -639,7 +633,6 @@ public class HierarchyRepository {
 
 	@Transactional(readOnly = true)
 	public Toc getToc(Optional<Integer> authUserId, Setup setup) {
-		var start = System.nanoTime();
 		var sqlStr = """
 				WITH req AS (
 				    SELECT ? auth_user_id, ? region_id
@@ -820,7 +813,6 @@ public class HierarchyRepository {
 			r.areas().sort(Comparator.comparing(TocArea::name));
 			r.areas().forEach(TocArea::orderSectors);
 		});
-		logger.debug("getToc(authUserId={}, setup={}) - duration={}ms", authUserId, setup, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 

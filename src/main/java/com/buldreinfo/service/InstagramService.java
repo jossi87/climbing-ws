@@ -1,6 +1,7 @@
 package com.buldreinfo.service;
 
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -11,8 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 
@@ -25,7 +26,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 public class InstagramService {
 	public record InstagramMedia(String cdnUrl, boolean isVideo, int mediaIndex) {}
 	private static final Pattern ALLOWED_CDN_PATTERN = Pattern.compile("^https://[^/]+\\.(cdninstagram\\.com|fbcdn\\.net)/.*$");
-	private static final Logger logger = LogManager.getLogger();
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	public static String extractInstagramShortcode(String url) {
 		String cleanUrl = url.split("\\?")[0];
 		if (cleanUrl.endsWith("/")) {

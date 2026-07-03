@@ -12,8 +12,6 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -33,7 +31,6 @@ public class ActivityRepository {
 	private static final String ACTIVITY_TYPE_MEDIA = "MEDIA";
 	private static final String ACTIVITY_TYPE_TICK = "TICK";
 	private static final String ACTIVITY_TYPE_TICK_REPEAT = "TICK_REPEAT";
-	private static final Logger logger = LogManager.getLogger();
 
 	private final JdbcClient jdbcClient;
 	private final JdbcTemplate jdbcTemplate;
@@ -349,7 +346,6 @@ public class ActivityRepository {
 			});
 		}
 
-		logger.debug("getActivity(offset={}) - res.size()={}", offset, res.size());
 		return res;
 	}
 

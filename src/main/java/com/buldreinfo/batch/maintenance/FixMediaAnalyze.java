@@ -1,5 +1,6 @@
 package com.buldreinfo.batch.maintenance;
 
+import java.lang.invoke.MethodHandles;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -9,8 +10,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.TransientDataAccessException;
 
 import com.buldreinfo.beans.S3KeyGenerator;
@@ -22,7 +23,7 @@ public class FixMediaAnalyze {
 	private final ImageClassifierService imageClassifierService;
 	private final MediaService mediaService;
 	private final Path localBucketRoot;
-	private static final Logger logger = LogManager.getLogger();
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	private final ExecutorService executor = Executors.newFixedThreadPool(8);
 	private final List<String> warnings = Collections.synchronizedList(new ArrayList<>());
 

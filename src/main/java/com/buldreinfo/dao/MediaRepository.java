@@ -1,6 +1,5 @@
 package com.buldreinfo.dao;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -13,8 +12,6 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -38,7 +35,6 @@ public class MediaRepository {
 	public record EmbeddedVideo(int id, String suffix, String embedUrl) {}
 	public record MediaAssociation(String table, String column, int columnId, boolean hasPitch) {}
 
-	private static final Logger logger = LogManager.getLogger();
 	private final JdbcClient jdbcClient;
 	private final JdbcTemplate jdbcTemplate;
 	private final ObjectMapper objectMapper;
@@ -68,8 +64,6 @@ public class MediaRepository {
 		jdbcClient.sql("DELETE FROM media_ml_label WHERE media_id=?").param(1, idMedia).update();
 		jdbcClient.sql("DELETE FROM media_ml_object WHERE media_id=?").param(1, idMedia).update();
 		jdbcClient.sql("DELETE FROM media_ml_analysis WHERE media_id=?").param(1, idMedia).update();
-
-		logger.debug("Deleted existing AI analysis for idMedia={}", idMedia);
 	}
 
 	@Transactional(readOnly = true)
@@ -396,7 +390,6 @@ public class MediaRepository {
 
 	@Transactional(readOnly = true)
 	public List<Media> getMediaGuestbook(Optional<Integer> authUserId, int guestbookId) {
-		var startNanos = System.nanoTime();
 		var sql = """
 				WITH req AS (
 				    SELECT ? auth_user_id, ? guestbook_id
@@ -519,15 +512,13 @@ public class MediaRepository {
 				GROUP BY req.auth_user_id, m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.uploader_user_id, m.updated_at, m.description, m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname, mg.guestbook_id
 				ORDER BY m.is_movie, m.embed_url, m.id
 				""";
-		List<Media> res = jdbcClient.sql(sql)
+		return jdbcClient.sql(sql)
 				.params(authUserId.orElse(0), guestbookId)
 				.query((rs, _) -> Media.fromResultSet(objectMapper, rs, authUserId))
 				.list();
-
-		logger.debug("getMediaGuestbook(guestbookId={}) - res.size={}, duration={}", guestbookId, res.size(), Duration.ofNanos(System.nanoTime() - startNanos));
-		return res;
 	}
-	
+
+
 	@Transactional(readOnly = true)
 	public List<Integer> getMediaIdsForSorting(MediaAssociation result) {
 		var orderClause = result.hasPitch() ? "IFNULL(x.pitch,0), " : "";
@@ -799,8 +790,8 @@ public class MediaRepository {
 
 	@Transactional(readOnly = true)
 	public Map<Integer, List<Media>> getMediaTrails(Optional<Integer> authUserId, Collection<Integer> trailIds) {
-		var startNanos = System.nanoTime();
 		var res = new HashMap<Integer, List<Media>>();
+
 		if (trailIds.isEmpty()) {
 			return res;
 		}
@@ -936,8 +927,8 @@ public class MediaRepository {
 			var trailId = rs.getInt("trail_id");
 			res.computeIfAbsent(trailId, _ -> new ArrayList<>()).add(Media.fromResultSet(objectMapper, rs, authUserId));
 		});
-		logger.debug("getMediaTrails(trailIds.size()={}) - res.size()={}, duration={}", trailIds.size(), res.size(), Duration.ofNanos(System.nanoTime() - startNanos));
 		return res;
+
 	}
 
 	@Transactional(readOnly = true)
@@ -950,8 +941,8 @@ public class MediaRepository {
 
 	@Transactional(readOnly = true)
 	public List<Media> getProfileMedia(Optional<Integer> authUserId, int reqId, boolean captured) {
-		var startNanos = System.nanoTime();
 		var targetFilter = captured 
+
 				? "m.photographer_user_id = req.target_user_id" 
 						: "EXISTS (SELECT 1 FROM media_user mu WHERE mu.media_id = m.id AND mu.user_id = req.target_user_id)";
 		var sql = """
@@ -1100,13 +1091,11 @@ public class MediaRepository {
 				ORDER BY m.id DESC
 				""".replace("__TARGET_FILTER__", targetFilter);
 
-		List<Media> res = jdbcClient.sql(sql)
+		return jdbcClient.sql(sql)
 				.params(reqId, authUserId.orElse(0))
 				.query((rs, _) -> Media.fromResultSet(objectMapper, rs, authUserId))
 				.list();
 
-		logger.debug("getProfileMedia(reqId={}, captured={}, duration={})", reqId, captured, Duration.ofNanos(System.nanoTime() - startNanos));
-		return res;
 	}
 
 	@Transactional
@@ -1287,7 +1276,6 @@ public class MediaRepository {
 			.params(dateTaken, width, height, is360, idMedia)
 			.update();
 		}
-		logger.debug("setMediaMetadata(idMedia={}, width={}, height={}, dateTaken={}, is360={}) - success", idMedia, width, height, dateTaken, is360);
 	}
 
 	@Transactional

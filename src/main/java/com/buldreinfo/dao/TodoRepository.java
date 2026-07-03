@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Optional;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,7 +15,6 @@ import com.buldreinfo.model.User;
 
 @Repository
 public class TodoRepository {
-	private static final Logger logger = LogManager.getLogger();
 	private final JdbcClient jdbcClient;
 
 	public TodoRepository(JdbcClient jdbcClient) {
@@ -94,7 +91,6 @@ public class TodoRepository {
 			p.partners().add(User.from(userId, userName));
 		});
 
-		logger.debug("getTodo(authUserId={}, idArea={}, idSector={}) - res={}", authUserId, idArea, idSector, result);
 		return result;
 	}
 

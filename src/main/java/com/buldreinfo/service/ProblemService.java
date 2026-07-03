@@ -62,7 +62,7 @@ public class ProblemService {
 				linksFuture,
 				sectorId -> sectorRepo.getSectorOutline(sectorId),
 				sectorId -> sectorRepo.getSectorTrails(Collections.singleton(sectorId), trailIds -> mediaService.getMediaTrails(authUserId, trailIds)).get(sectorId),
-				(areaId, sectorId, problemId) -> mediaService.getMediaProblem(setup, authUserId, areaId, sectorId, problemId, showHiddenMedia),
+				(sectorId, problemId) -> mediaService.getMediaProblem(setup, authUserId, sectorId, problemId, showHiddenMedia),
 				guestbookId -> mediaService.getMediaGuestbook(authUserId, guestbookId)
 				);
 

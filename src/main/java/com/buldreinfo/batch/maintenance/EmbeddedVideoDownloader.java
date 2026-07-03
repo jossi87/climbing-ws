@@ -2,6 +2,7 @@ package com.buldreinfo.batch.maintenance;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -11,8 +12,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.beans.StorageType;
@@ -21,7 +22,7 @@ import com.buldreinfo.service.ImageService;
 import com.buldreinfo.service.MediaService;
 
 public class EmbeddedVideoDownloader {
-	private static final Logger logger = LogManager.getLogger();
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	private final ExecutorService executor = Executors.newFixedThreadPool(12);
 	private final Path ffmpegPath;
 	private final ImageService imageService;

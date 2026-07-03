@@ -2,8 +2,8 @@ package com.buldreinfo.dao;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.sql.SQLException;
-import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -18,8 +18,8 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -53,8 +53,8 @@ import com.buldreinfo.model.UserRegion;
 
 @Repository
 public class UserRepository {
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	public static final int USER_ID_UNKNOWN = 1049;
-	private static final Logger logger = LogManager.getLogger();
 	private final JdbcClient jdbcClient;
 
 	public UserRepository(JdbcClient jdbcClient) {
@@ -310,8 +310,6 @@ public class UserRepository {
 
 	@Transactional(readOnly = true)
 	public List<ProfileDiscipline> getProfileDisciplines(Setup setup, int userId) {
-		var start = System.nanoTime();
-
 		var res = jdbcClient.sql("""
 				WITH req AS (
 				    SELECT ? AS user_id, ? AS req_is_bouldering, ? AS req_is_climbing, ? AS req_is_ice
@@ -441,14 +439,11 @@ public class UserRepository {
 			result.add(new ProfileDiscipline(currentType, currentUrl, distributions));
 		}
 
-		logger.debug("getProfileDisciplines(userId={}) - res.size()={}, duration={}", userId, result.size(), Duration.ofNanos(System.nanoTime() - start));
 		return result;
 	}
 
 	@Transactional(readOnly = true)
 	public ProfileIdentity getProfileIdentity(Setup setup, int userId) {
-		var start = System.nanoTime();
-
 		var res = jdbcClient.sql("""
 				SELECT u.firstname, u.lastname, u.email_visible_to_all, u.theme_preference,
 				       m.id AS media_id, UNIX_TIMESTAMP(m.updated_at) AS media_version_stamp,
@@ -489,14 +484,11 @@ public class UserRepository {
 				.optional()
 				.orElseThrow(() -> new NoSuchElementException("Could not find user with id=" + userId));
 
-		logger.debug("getProfileIdentity(authUserId={}) - res={}, duration={}", userId, res, Duration.ofNanos(System.nanoTime() - start));
 		return res;
 	}
 
 	@Transactional(readOnly = true)
 	public ProfileKpis getProfileKpis(int userId) {
-		var start = System.nanoTime();
-
 		ProfileKpis res = jdbcClient.sql("""
 				WITH req AS (SELECT ? user_id),
 				valid_media AS (
@@ -529,13 +521,11 @@ public class UserRepository {
 						))
 				.single();
 
-		logger.debug("getProfileKpis(userId={}) - res={}, duration={}", userId, res, Duration.ofNanos(System.nanoTime() - start));
 		return res;
 	}
 
 	@Transactional(readOnly = true)
 	public ProfileTodo getProfileTodo(Optional<Integer> authUserId, Setup setup, int userId) {
-		var start = System.nanoTime();
 		ProfileTodo res = new ProfileTodo(new ArrayList<>());
 		Map<Integer, ProfileTodoArea> areaLookup = new HashMap<>();
 		Map<Integer, ProfileTodoSector> sectorLookup = new HashMap<>();
@@ -609,7 +599,6 @@ public class UserRepository {
 		.list();
 
 		res.areas().sort(Comparator.comparing(ProfileTodoArea::name));
-		logger.debug("getProfileTodo(id={}) - duration={}", userId, Duration.ofNanos(System.nanoTime() - start));
 		return res;
 	}
 
@@ -675,7 +664,6 @@ public class UserRepository {
 					sheet.writeString("DESCRIPTION", rs.getString("comment"));
 					sheet.writeHyperlink("URL", rs.getString("url"));
 				} catch (Exception e) {
-					logger.error("Error processing row for sheet processing", e);
 					throw new RuntimeException(e);
 				}
 			};
@@ -913,13 +901,10 @@ public class UserRepository {
 				.filter(Objects::nonNull)
 				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
-		logger.debug("getProblemCoordinates(idProblems.size()={}) - res.size()={}", idProblems.size(), res.size());
 		return res;
 	}
 
 	private List<UserRegion> getUserRegion(int userId, Setup setup) {
-		var start = System.nanoTime();
-
 		List<UserRegion> res = jdbcClient.sql("""
 				WITH req AS (SELECT ? region_id, ? user_id),
 				target_types AS (SELECT rt.type_id FROM region_type rt JOIN req ON rt.region_id = req.region_id),
@@ -955,7 +940,6 @@ public class UserRepository {
 						))
 				.list();
 
-		logger.debug("getUserRegion() - res.size()={}, duration={}", res.size(), Duration.ofNanos(System.nanoTime() - start));
 		return res;
 	}
 
@@ -982,7 +966,6 @@ public class UserRepository {
 			.update();
 		}
 
-		logger.debug("addUser(email={}, firstname={}, lastname={}) - id={}", email, firstname, lastname, id);
 		return id;
 	}
 

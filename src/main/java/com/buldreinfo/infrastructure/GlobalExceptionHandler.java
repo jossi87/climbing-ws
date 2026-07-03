@@ -1,13 +1,14 @@
 package com.buldreinfo.infrastructure;
 
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,7 +30,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
-	private static final Logger logger = LogManager.getLogger();
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	@ExceptionHandler(Exception.class)
 	public ResponseEntity<Object> handleException(Exception e) {

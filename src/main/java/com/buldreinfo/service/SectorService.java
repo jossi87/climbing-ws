@@ -1,6 +1,5 @@
 package com.buldreinfo.service;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -12,8 +11,6 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,7 +29,6 @@ import com.buldreinfo.util.GeoUtils;
 
 @Service
 public class SectorService {
-	private static final Logger logger = LogManager.getLogger();
 	private final AreaRepository areaRepo;
 	private final ExternalLinksRepository externalLinksRepo;
 	private final GeoService geoService;
@@ -57,7 +53,6 @@ public class SectorService {
 
 	@Transactional(readOnly = true)
 	public Sector getSector(Optional<Integer> authUserId, boolean orderByGrade, Setup setup, int reqId) {
-		var startNanos = System.nanoTime();
 		try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 			var outlineFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorOutline(reqId), executor);
 			var trailsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorTrails(Collections.singleton(reqId), trailIds -> mediaService.getMediaTrails(authUserId, trailIds)), executor);
@@ -83,10 +78,10 @@ public class SectorService {
 				throw new NoSuchElementException("Could not find sector with id=" + reqId);
 			}
 
-			logger.debug("getSector(authUserId={}, orderByGrade={}, reqId={}) - duration={}", authUserId, orderByGrade, reqId, Duration.ofNanos(System.nanoTime() - startNanos));
 			return s;
 		}
 	}
+
 
 	@Transactional
 	public Redirect setSector(Optional<Integer> authUserId, Setup setup, Sector s) {

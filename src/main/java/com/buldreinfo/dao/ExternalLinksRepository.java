@@ -1,10 +1,7 @@
 package com.buldreinfo.dao;
 
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
@@ -14,7 +11,6 @@ import com.buldreinfo.model.ExternalLink;
 
 @Repository
 public class ExternalLinksRepository {
-	private static final Logger logger = LogManager.getLogger();
 	private final JdbcClient jdbcClient;
 
 	public ExternalLinksRepository(JdbcClient jdbcClient) {
@@ -23,7 +19,6 @@ public class ExternalLinksRepository {
 
 	@Transactional(readOnly = true)
 	public List<ExternalLink> getExternalLinks(int areaId, int sectorId, int problemId) {
-		var start = System.nanoTime();
 		var sql = """
 				WITH req AS (
 				    SELECT ? AS req_area_id, ? AS req_sector_id, ? AS req_problem_id
@@ -79,7 +74,6 @@ public class ExternalLinksRepository {
 						rs.getBoolean("is_inherited")
 						)).list();
 
-		logger.debug("getExternalLinks(areaId={}, sectorId={}, problemId={}) - res.size()={}, duration={}ms", areaId, sectorId, problemId, res.size(), TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 

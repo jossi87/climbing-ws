@@ -1,10 +1,11 @@
 package com.buldreinfo.helpers;
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.model.CompassDirection;
@@ -65,7 +66,7 @@ public class GeoHelper {
 		}
 	}
 
-	private static Logger logger = LogManager.getLogger();
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	
 	public static CompassDirection calculateCompassDirection(Setup setup, List<Coordinates> outline) {
 		final String direction = calculateWallDirection(setup, outline);

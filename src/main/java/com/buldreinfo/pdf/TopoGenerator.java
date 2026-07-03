@@ -16,7 +16,7 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.time.Duration;
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -29,8 +29,8 @@ import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.io.StorageManager;
@@ -38,8 +38,8 @@ import com.buldreinfo.model.MediaSvgElement;
 import com.buldreinfo.model.Svg;
 
 public class TopoGenerator {
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	private final static Pattern COORD_PATTERN = Pattern.compile("(-?\\d+\\.?\\d*)\\s*,?\\s*(-?\\d+\\.?\\d*)");
-	private static final Logger logger = LogManager.getLogger();
 	private final static Pattern PATH_TOKEN_PATTERN = Pattern.compile("([a-zA-Z])|([-+]?(?:\\d*\\.\\d+|\\d+)(?:[eE][-+]?\\d+)?)");
 
 	private static Stroke createStroke(double width, String dash) {
@@ -192,8 +192,6 @@ public class TopoGenerator {
 	}
 
 	protected static byte[] generateTopo(StorageManager storage, int mediaId, int width, int height, List<MediaSvgElement> mediaSvgs, List<Svg> svgs, PdfMediaScaler.MediaRegion region, int targetRes, int highlightProbId, int highlightPitch) throws IOException {
-		var start = System.nanoTime();
-
 		int finalWidth = region != null ? region.width() : width;
 		float scale = Math.max(1.0f, (float) targetRes / finalWidth);
 		int exportWidth = (int) (finalWidth * scale);
@@ -305,7 +303,6 @@ public class TopoGenerator {
 
 			writer.write(null, new IIOImage(img, null, null), param);
 
-			logger.debug("generateTopo(mediaId={}, width={}, height={}, mediaSvgs.size()={}, svgs.size()={}, region={}, targetRes={}, highlightProbId={}, highlightPitch={}) - duration={}", mediaId, width, height, mediaSvgs == null ? 0 : mediaSvgs.size(), svgs == null ? 0 : svgs.size(), region, targetRes, highlightProbId, highlightPitch, Duration.ofNanos(System.nanoTime() - start));
 			return baos.toByteArray();
 		} finally {
 			writer.dispose();

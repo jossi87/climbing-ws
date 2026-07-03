@@ -3,10 +3,7 @@ package com.buldreinfo.dao;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -29,7 +26,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Repository
 public class FrontpageRepository {
-	private static final Logger logger = LogManager.getLogger();
 	private final JdbcClient jdbcClient;
 	private final ObjectMapper objectMapper;
 
@@ -40,8 +36,6 @@ public class FrontpageRepository {
 
 	@Transactional(readOnly = true)
 	public List<FrontpageFirstAscent> getFrontpageFirstAscents(Optional<Integer> authUserId, Setup setup) {
-		var start = System.nanoTime();
-
 		RowMapper<FrontpageFirstAscent> mapper = (rs, rowNum) -> {
 			try {
 				var ts = rs.getTimestamp("activity_timestamp").toLocalDateTime();
@@ -72,7 +66,6 @@ public class FrontpageRepository {
 						users
 						);
 			} catch (Exception e) {
-				logger.error("Error mapping FrontpageFirstAscent at row index: " + rowNum, e);
 				throw new RuntimeException("Mapping failure at row " + rowNum, e);
 			}
 		};
@@ -125,14 +118,11 @@ public class FrontpageRepository {
 				.query(mapper)
 				.list();
 
-		logger.debug("getFrontpageFirstAscents(authUserId={}, setup={}) - duration={}ms", authUserId, setup, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 
 	@Transactional(readOnly = true)
 	public List<FrontpageLastComment> getFrontpageLastComments(Optional<Integer> authUserId, Setup setup) {
-		var start = System.nanoTime();
-
 		RowMapper<FrontpageLastComment> mapper = (rs, _) -> {
 			var ts = rs.getTimestamp("activity_timestamp").toLocalDateTime();
 			int mediaId = rs.getInt("media_id");
@@ -185,14 +175,11 @@ public class FrontpageRepository {
 				.query(mapper)
 				.list();
 
-		logger.debug("getFrontpageLastComments(authUserId={}, setup={}) - duration={}ms", authUserId, setup, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 
 	@Transactional(readOnly = true)
 	public List<FrontpageRecentAscent> getFrontpageNewestAscents(Optional<Integer> authUserId, Setup setup) {
-		var start = System.nanoTime();
-
 		RowMapper<FrontpageRecentAscent> mapper = (rs, _) -> {
 			var ts = rs.getTimestamp("activity_timestamp").toLocalDateTime();
 			String tickGrade = rs.getString("tick_grade");
@@ -273,14 +260,11 @@ public class FrontpageRepository {
 				.query(mapper)
 				.list();
 
-		logger.debug("getFrontpageNewestAscents(authUserId={}, setup={}), duration={}ms", authUserId, setup, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 
 	@Transactional(readOnly = true)
 	public List<FrontpageNewestMedia> getFrontpageNewestMedia(Optional<Integer> authUserId, Setup setup) {
-		var start = System.nanoTime();
-
 		RowMapper<FrontpageNewestMedia> mapper = (rs, _) -> new FrontpageNewestMedia(
 				new MediaIdentity(
 						rs.getInt("media_id"),
@@ -342,14 +326,11 @@ public class FrontpageRepository {
 				.query(mapper)
 				.list();
 
-		logger.debug("getFrontpageNewestMedia(authUserId={}, setup={}), duration={}ms", authUserId, setup, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 
 	@Transactional(readOnly = true)
 	public List<FrontpageRandomMedia> getFrontpageRandomMedia(Setup setup) {
-		var start = System.nanoTime();
-
 		RowMapper<FrontpageRandomMedia> mapper = (rs, _) -> {
 			try {
 				int idMedia = rs.getInt("id_media");
@@ -436,14 +417,11 @@ public class FrontpageRepository {
 				.query(mapper)
 				.list();
 
-		logger.debug("getFrontpageRandomMedia(setup={}) - res.size()={}, duration={}ms", setup, res.size(), TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 
 	@Transactional(readOnly = true)
 	public FrontpageStats getFrontpageStats(Optional<Integer> authUserId, Setup setup) {
-		var start = System.nanoTime();
-
 		FrontpageStats res = jdbcClient.sql("""
 				WITH req AS (SELECT ? auth_user_id, ? region_id)
 				SELECT COUNT(DISTINCT a.id) areas,
@@ -468,7 +446,6 @@ public class FrontpageRepository {
 						))
 				.single();
 
-		logger.debug("getFrontpageStats(authUserId={}, setup={}) - duration={}ms", authUserId, setup, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 }

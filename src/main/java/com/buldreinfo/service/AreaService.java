@@ -6,11 +6,8 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,7 +23,6 @@ import com.buldreinfo.model.Redirect;
 
 @Service
 public class AreaService {
-	private static final Logger logger = LogManager.getLogger();
 	private final AreaRepository areaRepo;
 	private final GeoService geoService;
 	private final HierarchyRepository hierarchyRepo;
@@ -47,8 +43,6 @@ public class AreaService {
 
 	@Transactional(readOnly = true)
 	public Area getArea(Setup setup, Optional<Integer> authUserId, int reqId) {
-		var start = System.nanoTime();
-
 		var allMedia = mediaService.getMediaArea(authUserId, reqId, false);
 		var partitioned = Optional.ofNullable(allMedia).orElse(List.of()).stream().collect(Collectors.partitioningBy(x -> x.areas().stream().anyMatch(MediaArea::trivia)));
 
@@ -97,7 +91,6 @@ public class AreaService {
 				.forEach(s -> { a.sectors().add(s); a.sectorOrder().add(new AreaSectorOrder(s.id(), s.name(), s.sorting())); });
 			}
 		}
-		logger.debug("getArea(authUserId={}, reqId={}) - duration={}ms", authUserId, reqId, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return a;
 	}
 

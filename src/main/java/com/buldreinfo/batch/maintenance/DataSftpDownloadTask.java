@@ -1,13 +1,14 @@
 package com.buldreinfo.batch.maintenance;
 
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.schmizz.sshj.SSHClient;
 import net.schmizz.sshj.sftp.RemoteResourceInfo;
@@ -15,7 +16,7 @@ import net.schmizz.sshj.sftp.SFTPClient;
 import net.schmizz.sshj.transport.verification.PromiscuousVerifier;
 
 public class DataSftpDownloadTask {
-    private static final Logger logger = LogManager.getLogger();
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     private final String sshHost;
     private final String sshUser;
     private final String sshKeyPath;

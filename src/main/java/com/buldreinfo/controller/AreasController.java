@@ -4,8 +4,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -46,7 +44,6 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestController
 @RequestMapping("/areas")
 public class AreasController {
-	private static final Logger logger = LogManager.getLogger();
 	private final ApplicationEventPublisher eventPublisher;
 	private final RequestContext requestContext;
 	private final StorageManager storage;
@@ -111,7 +108,6 @@ public class AreasController {
 			try (PdfGenerator generator = new PdfGenerator(storage, leafletPrintService, output)) {
 				generator.writeArea(setup, area, gradeDistribution, sectors);
 			} catch (Exception e) {
-				logger.error("PDF generation failed: {}", e.getMessage(), e);
 				throw new InternalServerErrorException("PDF generation failed", e);
 			}
 		};

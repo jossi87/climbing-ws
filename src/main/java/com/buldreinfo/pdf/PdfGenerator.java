@@ -3,6 +3,7 @@ package com.buldreinfo.pdf;
 import java.awt.Color;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.invoke.MethodHandles;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -19,8 +20,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.openpdf.text.Anchor;
 import org.openpdf.text.BadElementException;
 import org.openpdf.text.Chunk;
@@ -44,6 +43,8 @@ import org.openpdf.text.pdf.PdfPTable;
 import org.openpdf.text.pdf.PdfPageEventHelper;
 import org.openpdf.text.pdf.PdfTemplate;
 import org.openpdf.text.pdf.PdfWriter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.beans.Setup;
@@ -173,7 +174,7 @@ public class PdfGenerator implements AutoCloseable {
 	private static final Font FONT_SMALL = new Font(Font.HELVETICA, 5, Font.ITALIC);
 	private final static int IMAGE_STAR_SIZE = 7;
 
-	private static final Logger logger = LogManager.getLogger();
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	private static final Pattern URL_PATTERN = Pattern.compile("(https?://\\S+)");
 	private final Document document;
 	private final Set<Integer> mediaIdProcessed = new HashSet<>();

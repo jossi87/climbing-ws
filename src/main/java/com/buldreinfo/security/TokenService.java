@@ -1,12 +1,13 @@
 package com.buldreinfo.security;
 
 import java.io.ByteArrayInputStream;
+import java.lang.invoke.MethodHandles;
 import java.net.URI;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Optional;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
@@ -31,7 +32,7 @@ import com.buldreinfo.service.MediaService;
 @Service
 public class TokenService {
     private static final String DOMAIN = "climbing.eu.auth0.com";
-    private static final Logger logger = LogManager.getLogger();
+    private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     private final CacheManager cacheManager;
     private final JwkProvider jwkProvider;
     private final MediaService mediaService;

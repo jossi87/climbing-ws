@@ -1,5 +1,6 @@
 package com.buldreinfo.batch.maintenance;
 
+import java.lang.invoke.MethodHandles;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
@@ -8,8 +9,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.buldreinfo.io.StorageManager;
 
@@ -18,7 +19,7 @@ import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 public class S3BucketDownloadBatch {
-	private static final Logger logger = LogManager.getLogger();
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	private final Path localMediaRoot;
 	private final StorageManager storage;
 	private final ExecutorService executor = Executors.newFixedThreadPool(16);

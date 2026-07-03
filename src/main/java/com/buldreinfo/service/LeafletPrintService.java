@@ -1,6 +1,7 @@
 package com.buldreinfo.service;
 
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -9,8 +10,8 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Optional;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.buldreinfo.leafletprint.beans.Leaflet;
@@ -24,7 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 @Service
 public class LeafletPrintService {
-	private static final Logger logger = LogManager.getLogger();
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	private static final String RENDERER_URL = "http://climbing-leaflet-renderer:3000/render";
 
 	private final HttpClient httpClient;

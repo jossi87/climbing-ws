@@ -2,8 +2,6 @@ package com.buldreinfo.controller;
 
 import java.util.List;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -42,7 +40,6 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestController
 @RequestMapping("/sectors")
 public class SectorsController {
-	private static final Logger logger = LogManager.getLogger();
 	private final ApplicationEventPublisher eventPublisher;
 	private final RequestContext requestContext;
 	private final StorageManager storage;
@@ -101,7 +98,6 @@ public class SectorsController {
 			try (PdfGenerator generator = new PdfGenerator(storage, leafletPrintService, output)) {
 				generator.writeArea(setup, area, gradeDistribution, List.of(sector));
 			} catch (Exception e) {
-				logger.error(e.getMessage(), e);
 				throw new InternalServerErrorException("PDF generation failed", e);
 			}
 		};

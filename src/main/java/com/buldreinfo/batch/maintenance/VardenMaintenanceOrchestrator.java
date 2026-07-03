@@ -1,11 +1,12 @@
 package com.buldreinfo.batch.maintenance;
 
+import java.lang.invoke.MethodHandles;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 
@@ -16,7 +17,7 @@ import com.buldreinfo.service.ImageService;
 import com.buldreinfo.service.MediaService;
 
 public class VardenMaintenanceOrchestrator {
-	private static final Logger logger = LogManager.getLogger();
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	private static final String SSH_HOST = "172.232.129.122";
 	private static final String SSH_USER = "root";
 	private static final String SSH_KEY_PATH = System.getProperty("user.home") + "/.ssh/id_rsa";

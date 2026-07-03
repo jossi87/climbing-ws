@@ -1,13 +1,10 @@
 package com.buldreinfo.dao;
 
-import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
@@ -23,7 +20,6 @@ import com.buldreinfo.util.StringUtils;
 
 @Repository
 public class TickRepository {
-	private static final Logger logger = LogManager.getLogger();
 	private final JdbcClient jdbcClient;
 
 	public TickRepository(JdbcClient jdbcClient) {
@@ -32,7 +28,6 @@ public class TickRepository {
 
 	@Transactional(readOnly = true)
 	public Ticks getTicks(Optional<Integer> authUserId, Setup setup, int page) {
-		var start = System.nanoTime();
 		final var take = 200;
 		var skip = (page - 1) * take;
 
@@ -85,7 +80,6 @@ public class TickRepository {
 				}).list();
 
 		var numPages = (int) Math.ceil((double) totalCount[0] / take);
-		logger.debug("getTicks(page={}) - totalCount={}, duration={}", page, totalCount[0], Duration.ofNanos(System.nanoTime() - start));
 		return new Ticks(ticks, page, numPages);
 	}
 
