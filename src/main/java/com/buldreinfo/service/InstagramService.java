@@ -1,6 +1,7 @@
 package com.buldreinfo.service;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.invoke.MethodHandles;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -10,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -64,6 +66,26 @@ public class InstagramService {
 		this.objectMapper = objectMapper;
 	}
 
+	public byte[] fetchMediaBytes(URI validatedUri) {
+	    try {
+	        HttpRequest request = HttpRequest.newBuilder()
+	                .uri(validatedUri)
+	                .GET()
+	                .build();
+
+	        HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+
+	        if (response.statusCode() != 200) {
+	            throw new IOException("Failed to fetch media: " + response.statusCode());
+	        }
+
+	        return response.body();
+	    } catch (IOException | InterruptedException e) {
+	        Thread.currentThread().interrupt();
+	        throw new UncheckedIOException(new IOException("Media fetch interrupted or failed", e));
+	    }
+	}
+	
 	public List<InstagramMedia> resolveMedia(String instagramUrl) {
 		try {
 			if (instagramUrl == null || !instagramUrl.matches("^(https?://)?(www\\.)?instagram\\.com/(p|reel|tv)/.+")) {

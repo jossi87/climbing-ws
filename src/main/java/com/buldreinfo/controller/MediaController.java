@@ -2,13 +2,13 @@ package com.buldreinfo.controller;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.lang.invoke.MethodHandles;
 import java.net.URI;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -208,27 +208,27 @@ public class MediaController {
 			throw new TooManyRequestsException("Daily limit reached");
 
 		mediaPayload.ensureCorrectMediaAssociations(authUserId);
+
 		if (isVideo) {
 			var storageType = StorageType.MP4;
 			int id = mediaService.addMediaVideoPlaceholder(authUserId, mediaPayload, storageType);
 			CompletableFuture.runAsync(() -> {
 				try {
 					byte[] videoData;
-					try (InputStream is = validatedUri.toURL().openStream()) {
-						videoData = storage.readBoundedStream(is);
-					} catch (IOException e) {
+					try {
+						videoData = instagramService.fetchMediaBytes(validatedUri);
+					} catch (Exception e) {
 						logger.warn("Initial instagram video link expired, attempting fallback re-scrape for id=" + id, e);
 						List<InstagramService.InstagramMedia> fresh = instagramService.resolveMedia(mediaPayload.embedUrl());
-						InstagramService.InstagramMedia target = fresh.stream().filter(md -> md.mediaIndex() == mediaIndex).findFirst().orElse(fresh.get(0));
+						InstagramService.InstagramMedia target = fresh.stream()
+								.filter(md -> md.mediaIndex() == mediaIndex).findFirst().orElse(fresh.get(0));
 						mediaService.logInstagramScrape(authUserId, mediaPayload.embedUrl(), fresh.size());
-						try (InputStream is = InstagramService.validateInstagramCdnUrl(target.cdnUrl()).toURL().openStream()) {
-							videoData = storage.readBoundedStream(is);
-						}
+						videoData = instagramService.fetchMediaBytes(InstagramService.validateInstagramCdnUrl(target.cdnUrl()));
 					}
 					storage.uploadBytes(S3KeyGenerator.getOriginalMp4(id, storageType), videoData, storageType);
 					videoService.processVideo(id, storageType, mediaPayload.thumbnailSeconds());
-				} catch (IOException e) {
-					throw new UncheckedIOException(e);
+				} catch (Exception e) {
+					throw new CompletionException(e);
 				}
 			}, videoProcessingExecutor)
 			.exceptionally(ex -> {
@@ -239,17 +239,18 @@ public class MediaController {
 		}
 
 		byte[] imageData;
-		try (InputStream is = validatedUri.toURL().openStream()) {
-			imageData = storage.readBoundedStream(is);
-		} catch (IOException e) {
+		try {
+			imageData = instagramService.fetchMediaBytes(validatedUri);
+		} catch (Exception e) {
 			logger.warn("Initial instagram image link expired, attempting fallback re-scrape", e);
 			List<InstagramService.InstagramMedia> fresh = instagramService.resolveMedia(mediaPayload.embedUrl());
-			InstagramService.InstagramMedia target = fresh.stream().filter(md -> md.mediaIndex() == mediaIndex).findFirst().orElse(fresh.get(0));
+			InstagramService.InstagramMedia target = fresh.stream()
+					.filter(md -> md.mediaIndex() == mediaIndex).findFirst().orElse(fresh.get(0));
 			mediaService.logInstagramScrape(authUserId, mediaPayload.embedUrl(), fresh.size());
-			try (InputStream is = InstagramService.validateInstagramCdnUrl(target.cdnUrl()).toURL().openStream()) {
-				imageData = storage.readBoundedStream(is);
-			} catch (IOException ex) {
-				throw new UncheckedIOException(ex.getMessage(), ex);
+			try {
+				imageData = instagramService.fetchMediaBytes(InstagramService.validateInstagramCdnUrl(target.cdnUrl()));
+			} catch (Exception ex) {
+				throw new RuntimeException("Failed to fetch image", ex);
 			}
 		}
 		final byte[] finalData = imageData;
