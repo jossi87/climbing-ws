@@ -377,7 +377,7 @@ public class SectorRepository {
 			idSector = keyHolder.getKey().intValue();
 		}
 
-		jdbcClient.sql("DELETE FROM sector_outline WHERE sector_id=?").param(1, idSector).update();
+		jdbcClient.sql("DELETE FROM sector_outline WHERE sector_id=?").param(idSector).update();
 		if (s.outline() != null && !s.outline().isEmpty()) {
 			int[] sorting = {0};
 			for (Coordinates coord : s.outline()) {
@@ -442,7 +442,7 @@ public class SectorRepository {
 			spec.params(sectorId, problemId, problemNewNr);
 		}
 		else if (problemNewNr != 0) {
-			spec.param(1, sectorId);
+			spec.param(sectorId);
 		}
 		else {
 			return;
@@ -478,20 +478,20 @@ public class SectorRepository {
 				trailId = keyHolder.getKey().intValue();
 			}
 
-			jdbcClient.sql("DELETE FROM trail_coordinate WHERE trail_id = ?").param(1, trailId).update();
+			jdbcClient.sql("DELETE FROM trail_coordinate WHERE trail_id = ?").param(trailId).update();
 			if (t.path() != null) {
 				int[] sort = {0};
 				for (Coordinates coord : t.path()) 
 					jdbcClient.sql("INSERT INTO trail_coordinate (trail_id, coordinates_id, sorting) VALUES (?, ?, ?)").params(trailId, coord.id(), sort[0]++).update();
 			}
 
-			jdbcClient.sql("DELETE FROM trail_marker WHERE trail_id = ?").param(1, trailId).update();
+			jdbcClient.sql("DELETE FROM trail_marker WHERE trail_id = ?").param(trailId).update();
 			if (t.markers() != null) {
 				for (Trail.TrailMarker m : t.markers()) 
 					if (m.coordinates() != null) jdbcClient.sql("INSERT INTO trail_marker (trail_id, coordinates_id, label) VALUES (?, ?, ?)").params(trailId, m.coordinates().id(), m.label()).update();
 			}
 
-			jdbcClient.sql("DELETE FROM sector_trail WHERE trail_id = ?").param(1, trailId).update();
+			jdbcClient.sql("DELETE FROM sector_trail WHERE trail_id = ?").param(trailId).update();
 			if (t.sectors() != null) {
 				for (Trail.TrailSector s : t.sectors()) 
 					jdbcClient.sql("INSERT INTO sector_trail (sector_id, trail_id) VALUES (?, ?)").params(s.sectorId(), trailId).update();

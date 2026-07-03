@@ -43,7 +43,7 @@ public class ActivityRepository {
 	@Transactional
 	public void fillActivity(int idProblem) {
 		jdbcClient.sql("DELETE FROM activity WHERE problem_id=?")
-		.param(1, idProblem)
+		.param(idProblem)
 		.update();
 
 		List<ActivityRecord> batch = new ArrayList<>();
@@ -57,7 +57,7 @@ public class ActivityRepository {
 				LEFT JOIN fa f ON p.id=f.problem_id
 				WHERE p.id=? AND (g.grade!='n/a' OR f.user_id IS NOT NULL)
 				""")
-		.param(1, idProblem)
+		.param(idProblem)
 		.query(rs -> {
 			int uid = rs.getInt("user_id");
 			int pid = rs.getInt("id");
@@ -86,7 +86,7 @@ public class ActivityRepository {
 				WHERE mp.problem_id = ? AND m.deleted_timestamp IS NULL
 				ORDER BY m.date_created ASC
 				""")
-		.param(1, idProblem)
+		.param(idProblem)
 		.query(rs -> {
 			int id = rs.getInt("id");
 			LocalDateTime cur = rs.getObject("date_created", LocalDateTime.class);
@@ -115,7 +115,7 @@ public class ActivityRepository {
 		}
 
 		jdbcClient.sql("SELECT id, user_id, date FROM tick WHERE problem_id=?")
-		.param(1, idProblem)
+		.param(idProblem)
 		.query(rs -> {
 			int id = rs.getInt("id");
 			int uid = rs.getInt("user_id");
@@ -125,7 +125,7 @@ public class ActivityRepository {
 		});
 
 		jdbcClient.sql("SELECT r.id, t.user_id, r.date FROM tick t JOIN tick_repeat r ON t.id=r.tick_id WHERE t.problem_id=?")
-		.param(1, idProblem)
+		.param(idProblem)
 		.query(rs -> {
 			int id = rs.getInt("id");
 			int uid = rs.getInt("user_id");
@@ -134,7 +134,7 @@ public class ActivityRepository {
 		});
 
 		jdbcClient.sql("SELECT id, post_time FROM guestbook WHERE problem_id=?")
-		.param(1, idProblem)
+		.param(idProblem)
 		.query(rs -> {
 			int id = rs.getInt("id");
 			LocalDateTime pt = rs.getObject("post_time", LocalDateTime.class);
