@@ -7,6 +7,7 @@ import java.lang.invoke.MethodHandles;
 import java.net.URI;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
@@ -195,70 +196,46 @@ public class MediaController {
 	}
 
 	@Operation(summary = "Commit verified Instagram media to application storage")
-	@PostMapping("/instagram-save")
-	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
-	public ResponseEntity<Media> postMediaInstagramSave(@RequestHeader("X-Selected-Cdn-Url") String selectedCdnUrl,
-			@RequestHeader("X-Selected-Is-Video") boolean isVideo,
-			@RequestHeader("X-Selected-Media-Index") int mediaIndex,
-			@RequestBody Media mediaPayload) {
-		if (mediaPayload == null) throw new ValidationFailedException("Media payload missing");
-		URI validatedUri = InstagramService.validateInstagramCdnUrl(selectedCdnUrl);
-		var authUserId = requestContext.getAuthenticatedUserId();
-		if (mediaService.getDailyInstagramScrapeCount(authUserId) > 50)
-			throw new TooManyRequestsException("Daily limit reached");
+    @PostMapping("/instagram-save")
+    @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
+    public ResponseEntity<Media> postMediaInstagramSave(
+            @RequestHeader("X-Selected-Cdn-Url") String selectedCdnUrl,
+            @RequestHeader("X-Selected-Is-Video") boolean isVideo,
+            @RequestHeader("X-Selected-Media-Index") int mediaIndex,
+            @RequestBody Media mediaPayload) {
 
-		mediaPayload.ensureCorrectMediaAssociations(authUserId);
+        if (mediaPayload == null) throw new ValidationFailedException("Media payload missing");
+        
+        var authUserId = requestContext.getAuthenticatedUserId();
+        if (mediaService.getDailyInstagramScrapeCount(authUserId) > 50) {
+            throw new TooManyRequestsException("Daily limit reached");
+        }
 
-		if (isVideo) {
-			var storageType = StorageType.MP4;
-			int id = mediaService.addMediaVideoPlaceholder(authUserId, mediaPayload, storageType);
-			CompletableFuture.runAsync(() -> {
-				try {
-					byte[] videoData;
-					try {
-						videoData = instagramService.fetchMediaBytes(validatedUri);
-					} catch (Exception e) {
-						logger.warn("Initial instagram video link expired, attempting fallback re-scrape for id=" + id, e);
-						List<InstagramService.InstagramMedia> fresh = instagramService.resolveMedia(mediaPayload.embedUrl());
-						InstagramService.InstagramMedia target = fresh.stream()
-								.filter(md -> md.mediaIndex() == mediaIndex).findFirst().orElse(fresh.get(0));
-						mediaService.logInstagramScrape(authUserId, mediaPayload.embedUrl(), fresh.size());
-						videoData = instagramService.fetchMediaBytes(InstagramService.validateInstagramCdnUrl(target.cdnUrl()));
-					}
-					storage.uploadBytes(S3KeyGenerator.getOriginalMp4(id, storageType), videoData, storageType);
-					videoService.processVideo(id, storageType, mediaPayload.thumbnailSeconds());
-				} catch (Exception e) {
-					throw new CompletionException(e);
-				}
-			}, videoProcessingExecutor)
-			.exceptionally(ex -> {
-				logger.error("Async video save failed", ex);
-				return null;
-			});
-			return ResponseEntity.ok(mediaService.getMedia(authUserId, id));
-		}
+        mediaPayload.ensureCorrectMediaAssociations(authUserId);
 
-		byte[] imageData;
-		try {
-			imageData = instagramService.fetchMediaBytes(validatedUri);
-		} catch (Exception e) {
-			logger.warn("Initial instagram image link expired, attempting fallback re-scrape", e);
-			List<InstagramService.InstagramMedia> fresh = instagramService.resolveMedia(mediaPayload.embedUrl());
-			InstagramService.InstagramMedia target = fresh.stream()
-					.filter(md -> md.mediaIndex() == mediaIndex).findFirst().orElse(fresh.get(0));
-			mediaService.logInstagramScrape(authUserId, mediaPayload.embedUrl(), fresh.size());
-			try {
-				imageData = instagramService.fetchMediaBytes(InstagramService.validateInstagramCdnUrl(target.cdnUrl()));
-			} catch (Exception ex) {
-				throw new RuntimeException("Failed to fetch image", ex);
-			}
-		}
-		final byte[] finalData = imageData;
-		int newId = mediaService.addMediaImage(authUserId, mediaPayload, StorageType.JPG, () -> new ByteArrayInputStream(finalData));
-		return ResponseEntity.ok(mediaService.getMedia(authUserId, newId));
-	}
+        if (isVideo) {
+            var storageType = StorageType.MP4;
+            int id = mediaService.addMediaVideoPlaceholder(authUserId, mediaPayload, storageType);
+            
+            CompletableFuture.runAsync(() -> {
+                try {
+                    byte[] videoData = fetchWithFallback(selectedCdnUrl, mediaPayload.embedUrl(), mediaIndex, authUserId);
+                    storage.uploadBytes(S3KeyGenerator.getOriginalMp4(id, storageType), videoData, storageType);
+                    videoService.processVideo(id, storageType, mediaPayload.thumbnailSeconds());
+                } catch (Exception e) {
+                    throw new CompletionException(e);
+                }
+            }, videoProcessingExecutor);
+            
+            return ResponseEntity.ok(mediaService.getMedia(authUserId, id));
+        }
 
-	@Operation(summary = "Scrape Instagram URL metadata for frontend preview box")
+        byte[] imageData = fetchWithFallback(selectedCdnUrl, mediaPayload.embedUrl(), mediaIndex, authUserId);
+        int newId = mediaService.addMediaImage(authUserId, mediaPayload, StorageType.JPG, () -> new ByteArrayInputStream(imageData));
+        return ResponseEntity.ok(mediaService.getMedia(authUserId, newId));
+    }
+
+    @Operation(summary = "Scrape Instagram URL metadata for frontend preview box")
 	@PostMapping("/instagram-scrape")
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	public ResponseEntity<List<InstagramService.InstagramMedia>> postMediaInstagramScrape(@RequestParam(name = "url") String url) {
@@ -403,4 +380,25 @@ public class MediaController {
 		}
 		return createRedirect(key, version);
 	}
+
+	private byte[] fetchWithFallback(String cdnUrl, String embedUrl, int mediaIndex, Optional<Integer> authUserId) {
+        URI validatedUri = InstagramService.validateUrl(cdnUrl, "cdninstagram.com", "fbcdn.net");
+        try {
+            return instagramService.fetchMediaBytes(validatedUri);
+        } catch (Exception e) {
+        	logger.warn(e.getMessage(), e);
+            URI validatedEmbedUri = InstagramService.validateUrl(embedUrl, "instagram.com");
+            List<InstagramService.InstagramMedia> fresh = instagramService.resolveMedia(validatedEmbedUri.toString());
+            
+            InstagramService.InstagramMedia target = fresh.stream()
+                    .filter(md -> md.mediaIndex() == mediaIndex)
+                    .findFirst()
+                    .orElse(fresh.get(0));
+                    
+            mediaService.logInstagramScrape(authUserId, validatedEmbedUri.toString(), fresh.size());
+            
+            URI freshUri = InstagramService.validateUrl(target.cdnUrl(), "cdninstagram.com", "fbcdn.net");
+            return instagramService.fetchMediaBytes(freshUri);
+        }
+    }
 }

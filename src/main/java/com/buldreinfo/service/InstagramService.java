@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.lang.invoke.MethodHandles;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -40,26 +41,33 @@ public class InstagramService {
 		return "unknown";
 	}
 
-	public static URI validateInstagramCdnUrl(String urlString) {
+	public static URI validateUrl(String urlString, String... allowedSuffixes) {
 		if (urlString == null) {
 			throw new IllegalArgumentException("URL cannot be null");
 		}
 		try {
-			URI uri = URI.create(urlString);
-			String host = uri.getHost();
-			if (host != null && (host.endsWith(".cdninstagram.com") || host.endsWith(".fbcdn.net"))) {
-				return uri;
+			URI uri = new URI(urlString);
+			if (!"https".equalsIgnoreCase(uri.getScheme())) {
+				throw new IllegalArgumentException("Only HTTPS scheme is allowed");
 			}
-		} catch (IllegalArgumentException _) {
-			// Fall through to throw below
+			String host = uri.getHost();
+			if (host != null) {
+				for (String suffix : allowedSuffixes) {
+					if (host.equals(suffix) || host.endsWith("." + suffix)) {
+						return uri;
+					}
+				}
+			}
+		} catch (URISyntaxException e) {
+			throw new IllegalArgumentException("Invalid URL syntax", e);
 		}
-		throw new IllegalArgumentException("Unauthorized or malicious media storage URL: " + urlString);
+		throw new IllegalArgumentException("Unauthorized URL: " + urlString);
 	}
 
 	private final AppConfig appConfig;
+
 	private final HttpClient httpClient;
 	private final ObjectMapper objectMapper;
-
 	public InstagramService(AppConfig appConfig, HttpClient httpClient, ObjectMapper objectMapper) {
 		this.appConfig = appConfig;
 		this.httpClient = httpClient;
@@ -67,25 +75,30 @@ public class InstagramService {
 	}
 
 	public byte[] fetchMediaBytes(URI validatedUri) {
-	    try {
-	        HttpRequest request = HttpRequest.newBuilder()
-	                .uri(validatedUri)
-	                .GET()
-	                .build();
+		String host = validatedUri.getHost();
+		if (host == null || (!host.endsWith(".cdninstagram.com") && !host.endsWith(".fbcdn.net"))) {
+			throw new IllegalArgumentException("Unauthorized host");
+		}
 
-	        HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+		try {
+			HttpRequest request = HttpRequest.newBuilder()
+					.uri(validatedUri)
+					.GET()
+					.build();
 
-	        if (response.statusCode() != 200) {
-	            throw new IOException("Failed to fetch media: " + response.statusCode());
-	        }
+			HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
 
-	        return response.body();
-	    } catch (IOException | InterruptedException e) {
-	        Thread.currentThread().interrupt();
-	        throw new UncheckedIOException(new IOException("Media fetch interrupted or failed", e));
-	    }
+			if (response.statusCode() != 200) {
+				throw new IOException("Failed to fetch media: " + response.statusCode());
+			}
+
+			return response.body();
+		} catch (IOException | InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new UncheckedIOException(new IOException("Media fetch interrupted or failed", e));
+		}
 	}
-	
+
 	public List<InstagramMedia> resolveMedia(String instagramUrl) {
 		try {
 			if (instagramUrl == null || !instagramUrl.matches("^(https?://)?(www\\.)?instagram\\.com/(p|reel|tv)/.+")) {
