@@ -245,8 +245,22 @@ public class ActivityRepository {
 		res.forEach(act -> act.getActivityIds().forEach(id -> activityLookup.put(id, act)));
 
 		if (!tickIds.isEmpty()) {
-			String ids = tickIds.stream().map(String::valueOf).collect(Collectors.joining(","));
-			jdbcClient.sql("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex, t.comment description, t.stars, g.grade FROM activity a JOIN tick t ON a.problem_id=t.problem_id LEFT JOIN grade g ON t.grade_id=g.id JOIN user u ON t.user_id=u.id AND a.user_id=u.id LEFT JOIN media m ON u.media_id=m.id LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id WHERE a.id IN (" + ids + ") ORDER BY u.firstname, u.lastname")
+			var inClause = String.join(",", Collections.nCopies(tickIds.size(), "?"));
+			jdbcClient.sql("""
+					SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
+					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp,
+					       mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
+					       t.comment description, t.stars, g.grade
+					FROM activity a
+					JOIN tick t ON a.problem_id=t.problem_id
+					LEFT JOIN grade g ON t.grade_id=g.id
+					JOIN user u ON t.user_id=u.id AND a.user_id=u.id
+					LEFT JOIN media m ON u.media_id=m.id
+					LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+					WHERE a.id IN (%s)
+					ORDER BY u.firstname, u.lastname
+					""".formatted(inClause))
+			.params(new ArrayList<>(tickIds))
 			.query(rs -> {
 				var a = activityLookup.get(rs.getInt("id"));
 				if (a != null) {
@@ -261,8 +275,23 @@ public class ActivityRepository {
 		}
 
 		if (!repeatIds.isEmpty()) {
-			String ids = repeatIds.stream().map(String::valueOf).collect(Collectors.joining(","));
-			jdbcClient.sql("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex, r.comment description, t.stars, g.grade FROM activity a JOIN user u ON a.user_id=u.id JOIN tick t ON a.problem_id=t.problem_id AND u.id=t.user_id LEFT JOIN grade g ON t.grade_id=g.id JOIN tick_repeat r ON a.tick_repeat_id=r.id AND t.id=r.tick_id LEFT JOIN media m ON u.media_id=m.id LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id WHERE a.id IN (" + ids + ") ORDER BY u.firstname, u.lastname")
+			var inClause = String.join(",", Collections.nCopies(repeatIds.size(), "?"));
+			jdbcClient.sql("""
+					SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
+					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp,
+					       mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
+					       r.comment description, t.stars, g.grade
+					FROM activity a
+					JOIN user u ON a.user_id=u.id
+					JOIN tick t ON a.problem_id=t.problem_id AND u.id=t.user_id
+					LEFT JOIN grade g ON t.grade_id=g.id
+					JOIN tick_repeat r ON a.tick_repeat_id=r.id AND t.id=r.tick_id
+					LEFT JOIN media m ON u.media_id=m.id
+					LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+					WHERE a.id IN (%s)
+					ORDER BY u.firstname, u.lastname
+					""".formatted(inClause))
+			.params(new ArrayList<>(repeatIds))
 			.query(rs -> {
 				var a = activityLookup.get(rs.getInt("id"));
 				if (a != null) {
@@ -277,8 +306,25 @@ public class ActivityRepository {
 		}
 
 		if (!gbIds.isEmpty()) {
-			String ids = gbIds.stream().map(String::valueOf).collect(Collectors.joining(","));
-			jdbcClient.sql("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, ma.id avatar_media_id, UNIX_TIMESTAMP(ma.updated_at) avatar_version_stamp, mama.focus_x avatar_focus_x, mama.focus_y avatar_focus_y, mama.primary_color_hex avatar_primary_color_hex, g.message, mg.media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex, m.is_movie, m.is_360, m.embed_url FROM activity a JOIN guestbook g ON a.guestbook_id=g.id JOIN user u ON g.user_id=u.id LEFT JOIN media ma ON u.media_id=ma.id LEFT JOIN media_ml_analysis mama ON ma.id=mama.media_id LEFT JOIN media_guestbook mg ON g.id=mg.guestbook_id LEFT JOIN media m ON mg.media_id=m.id LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id WHERE a.id IN (" + ids + ") AND m.deleted_user_id IS NULL")
+			var inClause = String.join(",", Collections.nCopies(gbIds.size(), "?"));
+			jdbcClient.sql("""
+					SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
+					       ma.id avatar_media_id, UNIX_TIMESTAMP(ma.updated_at) avatar_version_stamp,
+					       mama.focus_x avatar_focus_x, mama.focus_y avatar_focus_y, mama.primary_color_hex avatar_primary_color_hex,
+					       g.message, mg.media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp,
+					       mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
+					       m.is_movie, m.is_360, m.embed_url
+					FROM activity a
+					JOIN guestbook g ON a.guestbook_id=g.id
+					JOIN user u ON g.user_id=u.id
+					LEFT JOIN media ma ON u.media_id=ma.id
+					LEFT JOIN media_ml_analysis mama ON ma.id=mama.media_id
+					LEFT JOIN media_guestbook mg ON g.id=mg.guestbook_id
+					LEFT JOIN media m ON mg.media_id=m.id
+					LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+					WHERE a.id IN (%s) AND m.deleted_user_id IS NULL
+					""".formatted(inClause))
+			.params(new ArrayList<>(gbIds))
 			.query(rs -> {
 				var a = activityLookup.get(rs.getInt("id"));
 				if (a != null) {
@@ -294,8 +340,21 @@ public class ActivityRepository {
 		}
 
 		if (!faIds.isEmpty()) {
-			String ids = faIds.stream().map(String::valueOf).collect(Collectors.joining(","));
-			jdbcClient.sql("SELECT a.id, p.description, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex FROM activity a JOIN problem p ON a.problem_id=p.id LEFT JOIN fa ON p.id=fa.problem_id LEFT JOIN user u ON fa.user_id=u.id LEFT JOIN media m ON u.media_id=m.id LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id WHERE a.id IN (" + ids + ") ORDER BY u.firstname, u.lastname")
+			var inClause = String.join(",", Collections.nCopies(faIds.size(), "?"));
+			jdbcClient.sql("""
+					SELECT a.id, p.description, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
+					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp,
+					       mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex
+					FROM activity a
+					JOIN problem p ON a.problem_id=p.id
+					LEFT JOIN fa ON p.id=fa.problem_id
+					LEFT JOIN user u ON fa.user_id=u.id
+					LEFT JOIN media m ON u.media_id=m.id
+					LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+					WHERE a.id IN (%s)
+					ORDER BY u.firstname, u.lastname
+					""".formatted(inClause))
+			.params(new ArrayList<>(faIds))
 			.query(rs -> {
 				var a = activityLookup.get(rs.getInt("id"));
 				if (a != null) {
@@ -312,7 +371,7 @@ public class ActivityRepository {
 			if (!media) {
 				var pIds = res.stream().filter(a -> a.getActivityIds().stream().anyMatch(faIds::contains)).map(Activity::getProblemId).collect(Collectors.toSet());
 				if (!pIds.isEmpty()) {
-					String inClause = String.join(",", Collections.nCopies(pIds.size(), "?"));
+					var pInClause = String.join(",", Collections.nCopies(pIds.size(), "?"));
 					jdbcClient.sql("""
 							SELECT mp.problem_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.is_movie, m.is_360, m.embed_url 
 							FROM media_problem mp 
@@ -320,7 +379,7 @@ public class ActivityRepository {
 							LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id 
 							WHERE mp.problem_id IN (%s) AND m.deleted_user_id IS NULL 
 							ORDER BY mp.sorting
-							""".formatted(inClause))
+							""".formatted(pInClause))
 					.params(new ArrayList<>(pIds))
 					.query(rs -> {
 						int pId = rs.getInt("problem_id");
@@ -335,8 +394,25 @@ public class ActivityRepository {
 		}
 
 		if (!mediaIds.isEmpty()) {
-			String ids = mediaIds.stream().map(String::valueOf).collect(Collectors.joining(","));
-			jdbcClient.sql("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, m.id media_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.is_movie, m.is_360, m.embed_url, COALESCE(m_photographer.id, m_creator.id) photographer_media_id, UNIX_TIMESTAMP(COALESCE(m_photographer.updated_at,m_creator.updated_at)) photographer_version_stamp FROM activity a JOIN media m ON a.media_id=m.id LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id JOIN media_problem mp ON m.id=mp.media_id AND a.problem_id=mp.problem_id LEFT JOIN user u ON m.photographer_user_id=u.id LEFT JOIN media m_photographer ON u.media_id=m_photographer.id LEFT JOIN user u_creator ON m.uploader_user_id=u_creator.id LEFT JOIN media m_creator ON u_creator.media_id=m_creator.id WHERE a.id IN (" + ids + ")")
+			var mediaInClause = String.join(",", Collections.nCopies(mediaIds.size(), "?"));
+			jdbcClient.sql("""
+					SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
+					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) version_stamp,
+					       mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
+					       m.is_movie, m.is_360, m.embed_url,
+					       COALESCE(m_photographer.id, m_creator.id) photographer_media_id,
+					       UNIX_TIMESTAMP(COALESCE(m_photographer.updated_at,m_creator.updated_at)) photographer_version_stamp
+					FROM activity a
+					JOIN media m ON a.media_id=m.id
+					LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+					JOIN media_problem mp ON m.id=mp.media_id AND a.problem_id=mp.problem_id
+					LEFT JOIN user u ON m.photographer_user_id=u.id
+					LEFT JOIN media m_photographer ON u.media_id=m_photographer.id
+					LEFT JOIN user u_creator ON m.uploader_user_id=u_creator.id
+					LEFT JOIN media m_creator ON u_creator.media_id=m_creator.id
+					WHERE a.id IN (%s)
+					""".formatted(mediaInClause))
+			.params(new ArrayList<>(mediaIds))
 			.query(rs -> {
 				var a = activityLookup.get(rs.getInt("id"));
 				if (a != null) {

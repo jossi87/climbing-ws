@@ -65,7 +65,7 @@ public class SectorRepository {
 			throw new IllegalArgumentException("Insufficient permissions");
 		}
 	}
-	
+
 	@Transactional(readOnly = true)
 	public Coordinates getFirstParkingCoordinateForSectors(List<Integer> sectorIds) {
 		if (sectorIds == null || sectorIds.isEmpty()) return null;
@@ -79,10 +79,10 @@ public class SectorRepository {
 
 	@Transactional(readOnly = true)
 	public int getNextProblemNr(int sectorId) {
-	    return jdbcClient.sql("SELECT COALESCE(MAX(nr), 0) + 1 FROM problem WHERE sector_id = ?")
-	            .param(sectorId)
-	            .query((rs, _) -> rs.getInt(1))
-	            .single();
+		return jdbcClient.sql("SELECT COALESCE(MAX(nr), 0) + 1 FROM problem WHERE sector_id = ?")
+				.param(sectorId)
+				.query((rs, _) -> rs.getInt(1))
+				.single();
 	}
 
 	@Transactional(readOnly = true)
@@ -122,7 +122,17 @@ public class SectorRepository {
 		}
 
 		s.sectors().addAll(
-				jdbcClient.sql("SELECT s.id, s.locked_admin, s.locked_superadmin, s.name, s.sorting FROM ((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) WHERE a.id=? AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0)) GROUP BY s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.sorting ORDER BY s.sorting, s.name")
+				jdbcClient.sql("""
+						SELECT s.id, s.locked_admin, s.locked_superadmin, s.name, s.sorting
+						FROM area a
+						JOIN sector s ON a.id=s.area_id
+						LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
+						WHERE a.id=?
+						  AND s.trash IS NULL
+						  AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
+						GROUP BY s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name
+						ORDER BY s.sorting, s.name
+						""")
 				.params(authUserId.orElse(0), s.areaId())
 				.query((rs, _) -> new Sector.SectorJump(
 						rs.getInt("id"), 
@@ -318,7 +328,7 @@ public class SectorRepository {
 	public int setSectorDb(Optional<Integer> authUserId, Sector s, boolean isLockedAdmin, Integer parkingId, Integer calcCompass, Integer manualCompass, boolean setPermissionRecursive) {
 		Integer trashBy = s.trash() ? authUserId.get() : null;
 		int idSector;
-		
+
 		if (s.id() > 0) {
 			jdbcClient.sql("""
 					UPDATE sector s, area a, user_region ur 
@@ -350,7 +360,7 @@ public class SectorRepository {
 						UPDATE (area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id 
 						SET a.last_updated=now(), s.last_updated=now(), p.last_updated=now() WHERE s.id=?
 						""")
-				.param(1, idSector)
+				.param(idSector)
 				.update();
 			}
 		} else {
@@ -376,7 +386,7 @@ public class SectorRepository {
 				.update();
 			}
 		}
-		
+
 		return idSector;
 	}
 
