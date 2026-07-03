@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -155,41 +154,30 @@ public class MediaService {
 
 	public List<Media> getMediaProblem(Setup s, Optional<Integer> authUserId, int areaId, int sectorId, int problemId, boolean showHiddenMedia) {
 		var startNanos = System.nanoTime();
-		var sectorMediaFuture = CompletableFuture.supplyAsync(() -> getMediaSector(s, authUserId, sectorId, problemId, true, showHiddenMedia));
-
-		List<Media> pMediaList = mediaRepo.getMediaProblemRaw(authUserId, problemId);
-
-		List<Media> media = sectorMediaFuture.join();
-		if (media == null) media = new ArrayList<>();
-		media.addAll(pMediaList);
-
+		List<Media> media = mediaRepo.getMediaProblemCombined(authUserId, sectorId, problemId);
+		if (media != null && !media.isEmpty()) {
+			var mediaWithRequestedTopoLine = new HashSet<Media>();
+			for (var m : media) {
+				if (m.svgs() != null && m.svgs().stream().anyMatch(svg -> svg.problemId() == problemId)) {
+					mediaWithRequestedTopoLine.add(m);
+				}
+			}
+			if (!showHiddenMedia && !mediaWithRequestedTopoLine.isEmpty()) {
+				media = media.stream().filter(m -> m.svgs() == null || m.svgs().isEmpty() || mediaWithRequestedTopoLine.contains(m)).toList();
+			} else if (!showHiddenMedia && s.isBouldering() && problemId != 0) {
+				media = media.stream().filter(m -> m.svgs() == null || m.svgs().isEmpty()).toList();
+			}
+		}
 		List<Media> result = media.isEmpty() ? null : media;
-
 		logger.debug("getMediaProblem(areaId={}, sectorId={}, problemId={}, showHiddenMedia={}) - media.size()={}, duration={}", 
 				areaId, sectorId, problemId, showHiddenMedia, result == null ? 0 : result.size(), Duration.ofNanos(System.nanoTime() - startNanos));
 		return result;
 	}
 
-	public List<Media> getMediaSector(Setup s, Optional<Integer> authUserId, int idSector, int optionalIdProblem, boolean inherited, boolean showHiddenMedia) {
+	public List<Media> getMediaSectorThumbnails(Optional<Integer> authUserId, int idSector) {
 		var startNanos = System.nanoTime();
-		List<Media> initialList = mediaRepo.getMediaSectorRaw(authUserId, idSector, inherited);
-		
-		var allMedia = new ArrayList<Media>();
-		if (!initialList.isEmpty()) {
-			var mediaWithRequestedTopoLine = new HashSet<Media>();
-			for (var m : initialList) {
-				if (optionalIdProblem != 0 && m.svgs() != null && m.svgs().stream().anyMatch(svg -> svg.problemId() == optionalIdProblem)) {
-					mediaWithRequestedTopoLine.add(m);
-				}
-				allMedia.add(m);
-			}
-			if (!showHiddenMedia && !mediaWithRequestedTopoLine.isEmpty()) {
-				allMedia = new ArrayList<>(allMedia.stream().filter(m -> m.svgs() == null || m.svgs().isEmpty() || mediaWithRequestedTopoLine.contains(m)).toList());
-			} else if (!showHiddenMedia && s.isBouldering() && optionalIdProblem != 0) {
-				allMedia = new ArrayList<>(allMedia.stream().filter(m -> m.svgs() == null || m.svgs().isEmpty()).toList());
-			}
-		}
-		logger.debug("getMediaSector(idSector={}, optionalIdProblem={}, inherited={}, showHiddenMedia={}) - allMedia.size()={}, duration={}", idSector, optionalIdProblem, inherited, showHiddenMedia, allMedia.size(), Duration.ofNanos(System.nanoTime() - startNanos));
+		List<Media> allMedia = mediaRepo.getMediaSectorThumbnails(authUserId, idSector);
+		logger.debug("getMediaSectorThumbnails(idSector={}) - allMedia.size()={}, duration={}", idSector, allMedia.size(), Duration.ofNanos(System.nanoTime() - startNanos));
 		return allMedia;
 	}
 

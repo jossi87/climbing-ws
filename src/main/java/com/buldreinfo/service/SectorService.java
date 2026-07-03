@@ -61,7 +61,7 @@ public class SectorService {
 		try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 			var outlineFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorOutline(reqId), executor);
 			var trailsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorTrails(Collections.singleton(reqId), trailIds -> mediaService.getMediaTrails(authUserId, trailIds)), executor);
-			var mediaFuture = CompletableFuture.supplyAsync(() -> mediaService.getMediaSector(setup, authUserId, reqId, 0, false, false), executor);
+			var mediaFuture = CompletableFuture.supplyAsync(() -> mediaService.getMediaSectorThumbnails(authUserId, reqId), executor);
 			var linksFuture = CompletableFuture.supplyAsync(() -> externalLinksRepo.getExternalLinks(0, reqId, 0), executor);
 			var problemsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorProblems(setup, authUserId, 0, reqId), executor);
 
