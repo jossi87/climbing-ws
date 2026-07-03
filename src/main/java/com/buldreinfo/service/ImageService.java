@@ -15,18 +15,13 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.time.Duration;
-import java.util.Iterator;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
-import javax.imageio.ImageWriteParam;
-import javax.imageio.ImageWriter;
 import javax.imageio.metadata.IIOMetadata;
-import javax.imageio.stream.ImageOutputStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,11 +36,13 @@ import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.io.ExifReader;
 import com.buldreinfo.io.ExifReader.ImageMetadataInfo;
 import com.buldreinfo.io.ExifReader.ImageRotation;
+import com.buldreinfo.io.JpegWriter;
 import com.buldreinfo.io.StorageManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class ImageService {
+
 	public static final int IMAGE_WEB_HEIGHT = 1440;
 	public static final int IMAGE_WEB_WIDTH = 2560;
 	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -260,7 +257,7 @@ public class ImageService {
 				if (nativeMetadata == null) {
 					storage.uploadImage(keyOriginalJpg, bufferedImage, StorageType.JPG);
 				} else {
-					storage.uploadBytes(keyOriginalJpg, writeImageWithMetadata(bufferedImage, nativeMetadata, "jpg"), StorageType.JPG);
+					storage.uploadBytes(keyOriginalJpg, JpegWriter.writeJpeg(bufferedImage, nativeMetadata), StorageType.JPG);
 				}
 			} catch (Exception e) {
 				throw new RuntimeException("Original upload failed", e);
@@ -363,23 +360,5 @@ public class ImageService {
 			return resize(b, targetWidth, targetHeight);
 		}
 		return b;
-	}
-
-	private byte[] writeImageWithMetadata(BufferedImage image, IIOMetadata metadata, String format) throws IOException {
-		Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName(format);
-		if (!writers.hasNext()) throw new IOException("No writer for: " + format);
-		ImageWriter writer = writers.next();
-		try (ByteArrayOutputStream baos = new ByteArrayOutputStream(); ImageOutputStream ios = ImageIO.createImageOutputStream(baos)) {
-			writer.setOutput(ios);
-			ImageWriteParam param = writer.getDefaultWriteParam();
-			if (param.canWriteCompressed()) {
-				param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-				param.setCompressionQuality(0.9f);
-			}
-			writer.write(null, new IIOImage(image, null, metadata), param);
-			return baos.toByteArray();
-		} finally {
-			writer.dispose();
-		}
 	}
 }

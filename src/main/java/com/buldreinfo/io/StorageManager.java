@@ -14,15 +14,12 @@ import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
 
-import javax.imageio.IIOException;
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Component;
 
@@ -57,9 +54,7 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 public final class StorageManager {
 	public static final String BUCKET_NAME = "climbing-web";
 	public static final long MAX_IMAGE_UPLOAD_BYTES = 100L * 1024L * 1024L;
-
 	public static final long MAX_VIDEO_UPLOAD_BYTES = 800L * 1024L * 1024L;
-	private static final Logger logger = LoggerFactory.getLogger(StorageManager.class);
 	private static final String PROXY_PATH = "/media-proxy/";
 
 	public static String getDirectStorageUrl(String objectKey) {
@@ -249,37 +244,12 @@ public final class StorageManager {
 
 	private byte[] writeImageToBytes(String objectKey, BufferedImage image, StorageType type) throws IOException {
 		BufferedImage imageToProcess = image;
-		// Proactive check: If it's JPEG and has Alpha, flatten it immediately to avoid Huffman table issues
 		if (type.getExtension().equalsIgnoreCase("jpg") || type.getExtension().equalsIgnoreCase("jpeg")) {
-			if (image.getColorModel().hasAlpha()) {
-				logger.debug("Flattening alpha channel for JPEG image: {}", objectKey);
-				imageToProcess = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_RGB);
-				var g = imageToProcess.createGraphics();
-				try {
-					g.drawImage(image, 0, 0, java.awt.Color.WHITE, null);
-				} finally {
-					g.dispose();
-				}
-			}
+			imageToProcess = JpegWriter.ensureNoAlpha(image);
 		}
-
-		try {
-			return writeImageToBytesInternal(objectKey, imageToProcess, type);
-		} catch (IIOException e) {
-			if (e.getMessage() != null && e.getMessage().contains("Huffman")) {
-				logger.warn("JPEG Huffman table error detected after alpha flattening, retrying with fresh image copy: {}", e.getMessage());
-				BufferedImage freshCopy = new BufferedImage(imageToProcess.getWidth(), imageToProcess.getHeight(), BufferedImage.TYPE_INT_RGB);
-				var g = freshCopy.createGraphics();
-				try {
-					g.drawImage(imageToProcess, 0, 0, null);
-				} finally {
-					g.dispose();
-				}
-				return writeImageToBytesInternal(objectKey, freshCopy, type);
-			}
-			throw e;
-		}
+		return writeImageToBytesInternal(objectKey, imageToProcess, type);
 	}
+
 
 	private byte[] writeImageToBytesInternal(String objectKey, BufferedImage image, StorageType type) throws IOException {
 		boolean shouldCompress = S3KeyGenerator.shouldCompress(objectKey);
