@@ -6,7 +6,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -135,7 +134,7 @@ public class AreaRepository {
 				}).list();
 	}
 
-	public Map<Integer, AreaSector> getAreaSectors(Setup setup, Optional<Integer> authUserId, int areaId, String areaName, Function<Integer, MediaIdentity> mediaResolver) {
+	public Map<Integer, AreaSector> getAreaSectors(Setup setup, Optional<Integer> authUserId, int areaId, String areaName) {
 		var sqlStr = """
 				WITH req AS (
 				  SELECT ? auth_user_id, ? area_id
@@ -153,16 +152,32 @@ public class AreaRepository {
 				  LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				  LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=req.auth_user_id
 				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
+				),
+				ranked_sector_media AS (
+				  SELECT ms.sector_id,
+				         m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
+				         ROW_NUMBER() OVER (PARTITION BY ms.sector_id ORDER BY m.is_360, m.is_movie, m.id DESC) rn
+				  FROM req
+				  JOIN area a ON req.area_id=a.id
+				  JOIN sector s ON a.id=s.area_id
+				  JOIN media_sector ms ON s.id=ms.sector_id
+				  JOIN media m ON ms.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL
+				  LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				)
 				SELECT s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour,
 				       c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual,
-				       rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex
+				       COALESCE(rm.media_id, rsm.media_id) media_id,
+				       COALESCE(rm.media_version_stamp, rsm.media_version_stamp) media_version_stamp,
+				       COALESCE(rm.media_focus_x, rsm.media_focus_x) media_focus_x,
+				       COALESCE(rm.media_focus_y, rsm.media_focus_y) media_focus_y,
+				       COALESCE(rm.media_primary_color_hex, rsm.media_primary_color_hex) media_primary_color_hex
 				FROM req
 				JOIN area a ON a.id=req.area_id
 				JOIN sector s ON a.id=s.area_id
 				LEFT JOIN coordinates c ON s.parking_coordinates_id=c.id
 				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=req.auth_user_id
 				LEFT JOIN ranked_media rm ON s.id=rm.sector_id AND rm.rn=1
+				LEFT JOIN ranked_sector_media rsm ON s.id=rsm.sector_id AND rsm.rn=1
 				AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
 				ORDER BY s.sorting, s.name
 				""";
@@ -180,8 +195,6 @@ public class AreaRepository {
 			int mid = rs.getInt("media_id");
 			if (mid > 0) {
 				mediaIdentity = new MediaIdentity(mid, rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex"));
-			} else {
-				mediaIdentity = mediaResolver.apply(id);
 			}
 
 			sectorLookup.put(id, new AreaSector(

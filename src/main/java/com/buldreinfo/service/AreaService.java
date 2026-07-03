@@ -64,10 +64,7 @@ public class AreaService {
 			throw new NoSuchElementException("Could not find area with id=" + reqId);
 		}
 
-		var sectorLookup = areaRepo.getAreaSectors(setup, authUserId, a.id(), a.name(), sectorId -> {
-			var x = mediaService.getMediaSector(setup, authUserId, sectorId, 0, false, true);
-			return x.isEmpty() ? null : x.get(0).identity();
-		});
+		var sectorLookup = areaRepo.getAreaSectors(setup, authUserId, a.id(), a.name());
 
 		if (!sectorLookup.isEmpty()) {
 			try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
