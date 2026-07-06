@@ -75,31 +75,43 @@ public class InstagramService {
 	}
 
 	public byte[] fetchMediaBytes(URI validatedUri) {
-		String host = validatedUri.getHost();
+		String originalHost = validatedUri.getHost();
+		String path = validatedUri.getPath();
+		String query = validatedUri.getQuery();
+
 		String safeHost;
-		if ("cdninstagram.com".equals(host) || host.endsWith(".cdninstagram.com")) {
+		if ("cdninstagram.com".equals(originalHost) || (originalHost != null && originalHost.endsWith(".cdninstagram.com"))) {
 			safeHost = "cdninstagram.com";
-		} else if ("fbcdn.net".equals(host) || host.endsWith(".fbcdn.net")) {
+		} else if ("fbcdn.net".equals(originalHost) || (originalHost != null && originalHost.endsWith(".fbcdn.net"))) {
 			safeHost = "fbcdn.net";
 		} else {
 			throw new IllegalArgumentException("Unauthorized host");
 		}
-		URI safeUri = URI.create("https://" + safeHost + validatedUri.getPath() + (validatedUri.getQuery() != null ? "?" + validatedUri.getQuery() : ""));
+
+		if (path == null || !path.matches("^/[a-zA-Z0-9._/-]+$")) {
+			throw new IllegalArgumentException("Invalid path");
+		}
+
+		String queryString = (query != null && query.matches("^[a-zA-Z0-9&=?._-]+$")) ? "?" + query : "";
+
+		URI safeUri = URI.create("https://" + safeHost + path + queryString);
+
 		HttpRequest request = HttpRequest.newBuilder()
 				.uri(safeUri)
 				.GET()
 				.build();
+
 		try {
 			HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
 			if (response.statusCode() != 200) {
-				throw new IOException("Failed to fetch media: " + response.statusCode());
+				throw new IOException("Failed to fetch media");
 			}
 			return response.body();
 		} catch (IOException | InterruptedException e) {
 			if (e instanceof InterruptedException) {
 				Thread.currentThread().interrupt();
 			}
-			throw new UncheckedIOException(new IOException("Media fetch failed", e));
+			throw new UncheckedIOException(new IOException("Fetch failed", e));
 		}
 	}
 
