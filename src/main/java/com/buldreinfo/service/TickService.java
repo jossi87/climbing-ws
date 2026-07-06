@@ -1,5 +1,6 @@
 package com.buldreinfo.service;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
@@ -32,7 +33,7 @@ public class TickService {
     @Transactional
     public void setTick(Setup setup, Optional<Integer> authUserId, Tick t) {
         tickRepo.setTick(setup, authUserId, t);
-        activityRepo.fillActivity(t.idProblem());
+        activityRepo.fillActivity(List.of(t.idProblem()));
         problemRepo.updateProblemConsensusGrade(t.idProblem());
     }
 }

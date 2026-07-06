@@ -72,7 +72,9 @@ public class MediaService {
 		saveMediaContext(idMedia, associations, m, false);
 
 		if (associations == Association.PROBLEMS) {
-			m.problems().forEach(p -> activityRepo.fillActivity(p.problemId()));
+			activityRepo.fillActivity(m.problems().stream()
+					.map(MediaProblem::problemId)
+					.toList());
 		}
 
 		try (var is = inputStreamSupplier.get()) {
@@ -90,9 +92,9 @@ public class MediaService {
 		int idMedia = insertMediaMetadata(authUserId.get(), m, storageType);
 		saveMediaContext(idMedia, associations, m, false);
 		if (associations == Association.PROBLEMS) {
-			for (var problem : m.problems()) {
-				activityRepo.fillActivity(problem.problemId());
-			}
+			activityRepo.fillActivity(m.problems().stream()
+					.map(MediaProblem::problemId)
+					.toList());
 		}
 		return idMedia;
 	}
@@ -104,9 +106,9 @@ public class MediaService {
 		int idMedia = insertMediaMetadata(authUserId.get(), m, storageType);
 		saveMediaContext(idMedia, associations, m, false);
 		if (associations == Association.PROBLEMS) {
-			for (var problem : m.problems()) {
-				activityRepo.fillActivity(problem.problemId());
-			}
+			activityRepo.fillActivity(m.problems().stream()
+					.map(MediaProblem::problemId)
+					.toList());
 		}
 		return idMedia;
 	}
@@ -118,7 +120,7 @@ public class MediaService {
 		var idProblems = mediaRepo.getProblemIdsForMedia(idMedia);
 		mediaRepo.markMediaDeleted(authUserId.orElseThrow(), idMedia);
 
-		idProblems.forEach(activityRepo::fillActivity);
+		activityRepo.fillActivity(idProblems);
 	}
 
 	public void deleteMediaAnalysis(int idMedia) {
@@ -195,7 +197,7 @@ public class MediaService {
 		imageService.rotateImage(idMedia, r);
 	}
 
-	public void saveMediaAnalysis(int mediaId, int imageWidth, int imageHeight, String hexColor, List<String> labels, List<ImageClassifierService.MediaObject> objects, boolean failed) {
+	public void saveMediaAnalysis(int mediaId, int imageWidth, int imageHeight, String hexColor, List<ImageClassifierService.MediaLabel> labels, List<ImageClassifierService.MediaObject> objects, boolean failed) {
 		mediaRepo.saveMediaAnalysis(mediaId, imageWidth, imageHeight, hexColor, labels, objects, failed);
 	}
 
@@ -224,7 +226,7 @@ public class MediaService {
 		mediaRepo.batchUpdateSorting(result, idMediaList);
 
 		if (result.type() == TargetType.PROBLEM) {
-			activityRepo.fillActivity(result.columnId());
+			activityRepo.fillActivity(List.of(result.columnId()));
 		}
 	}
 
@@ -264,12 +266,13 @@ public class MediaService {
 
 		saveMediaContext(mediaId, associations, m, true);
 
-		Stream.of(originalMedia.problems(), m.problems())
-		.filter(Objects::nonNull)
-		.flatMap(List::stream)
-		.map(MediaProblem::problemId)
-		.distinct()
-		.forEach(activityRepo::fillActivity);
+		List<Integer> idProblems = Stream.of(originalMedia.problems(), m.problems())
+				.filter(Objects::nonNull)
+				.flatMap(List::stream)
+				.map(MediaProblem::problemId)
+				.distinct()
+				.toList();
+		activityRepo.fillActivity(idProblems);
 	}
 
 

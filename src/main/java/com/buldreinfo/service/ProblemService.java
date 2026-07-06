@@ -116,7 +116,7 @@ public class ProblemService {
 				);
 
 		externalLinksRepo.upsertExternalLinks(p.externalLinks(), 0, 0, idProblem);
-		activityRepo.fillActivity(idProblem);
+		activityRepo.fillActivity(List.of(idProblem));
 
 		return p.trash() ? Redirect.fromIdSector(p.sectorId()) : Redirect.fromIdProblem(idProblem);
 	}
@@ -131,7 +131,7 @@ public class ProblemService {
 		}
 
 		int idGuestbook = problemRepo.upsertCommentDb(userId, co, p);
-		activityRepo.fillActivity(co.idProblem());
+		activityRepo.fillActivity(List.of(co.idProblem()));
 		return idGuestbook;
 	}
 }

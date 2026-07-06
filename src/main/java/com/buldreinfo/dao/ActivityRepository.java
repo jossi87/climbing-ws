@@ -7,8 +7,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -24,13 +24,6 @@ import com.buldreinfo.model.MediaIdentity;
 
 @Repository
 public class ActivityRepository {
-	private record ActivityRecord(LocalDateTime ts, String type, int pid, Integer mid, Integer uid, Integer gid, Integer rid) {}
-	private static final String ACTIVITY_TYPE_FA = "FA";
-	private static final String ACTIVITY_TYPE_GUESTBOOK = "GUESTBOOK";
-	private static final String ACTIVITY_TYPE_MEDIA = "MEDIA";
-	private static final String ACTIVITY_TYPE_TICK = "TICK";
-	private static final String ACTIVITY_TYPE_TICK_REPEAT = "TICK_REPEAT";
-
 	private final JdbcClient jdbcClient;
 	private final JdbcTemplate jdbcTemplate;
 
@@ -40,119 +33,162 @@ public class ActivityRepository {
 	}
 
 	@Transactional
-	public void fillActivity(int idProblem) {
-		jdbcClient.sql("DELETE FROM activity WHERE problem_id=?")
-		.param(idProblem)
-		.update();
+	public void fillActivity(List<Integer> idProblems) {
+		if (idProblems == null || idProblems.isEmpty()) {
+			return;
+		}
+		
+		final String ACTIVITY_TYPE_FA = "FA";
+		final String ACTIVITY_TYPE_GUESTBOOK = "GUESTBOOK";
+		final String ACTIVITY_TYPE_MEDIA = "MEDIA";
+		final String ACTIVITY_TYPE_TICK = "TICK";
+		final String ACTIVITY_TYPE_TICK_REPEAT = "TICK_REPEAT";
 
+		jdbcClient.sql("DELETE FROM activity WHERE problem_id IN (:ids)")
+				.param("ids", idProblems)
+				.update();
+
+		Map<Integer, List<Integer>> faUsersMap = new HashMap<>();
+		Map<Integer, LocalDateTime> faTsMap = new HashMap<>();
+		record ActivityRecord(LocalDateTime ts, String type, int pid, Integer mid, Integer uid, Integer gid, Integer rid) {}
 		List<ActivityRecord> batch = new ArrayList<>();
-		List<Integer> faUserIds = new ArrayList<>();
-		AtomicReference<LocalDateTime> faTsRef = new AtomicReference<>();
 
 		jdbcClient.sql("""
 				SELECT p.id, p.fa_date, f.user_id
 				FROM problem p
-				JOIN grade g ON p.grade_id=g.id
-				LEFT JOIN fa f ON p.id=f.problem_id
-				WHERE p.id=? AND (g.grade!='n/a' OR f.user_id IS NOT NULL)
+				JOIN grade g ON p.grade_id = g.id
+				LEFT JOIN fa f ON p.id = f.problem_id
+				WHERE p.id IN (:ids) AND (g.grade != 'n/a' OR f.user_id IS NOT NULL)
 				""")
-		.param(idProblem)
-		.query(rs -> {
-			int uid = rs.getInt("user_id");
-			int pid = rs.getInt("id");
-			if (uid > 0) faUserIds.add(uid);
-			if (faTsRef.get() == null) {
-				LocalDate d = rs.getObject("fa_date", LocalDate.class);
-				faTsRef.set(applyIdOffset(d, pid));
-			}
-		});
+				.param("ids", idProblems)
+				.query(rs -> {
+					int pid = rs.getInt("id");
+					int uid = rs.getInt("user_id");
+					if (uid > 0) {
+						faUsersMap.computeIfAbsent(pid, _ -> new ArrayList<>()).add(uid);
+					}
+					if (!faTsMap.containsKey(pid)) {
+						LocalDate d = rs.getObject("fa_date", LocalDate.class);
+						faTsMap.put(pid, applyIdOffset(d, pid));
+					}
+				});
 
-		LocalDateTime faTs = faTsRef.get();
-		if (faTs != null || !faUserIds.isEmpty()) {
-			batch.add(new ActivityRecord(faTs != null ? faTs : applyIdOffset(null, idProblem), ACTIVITY_TYPE_FA, idProblem, null, null, null, null));
-		}
-
-		List<Integer> buf = new ArrayList<>();
-		var state = new Object() {
-			LocalDateTime anchor = faTs;
-			LocalDateTime latest = faTs;
-		};
-
+		record MediaRow(int id, LocalDateTime dateCreated) {}
+		Map<Integer, List<MediaRow>> mediaMap = new HashMap<>();
+		
 		jdbcClient.sql("""
-				SELECT m.id, m.date_created
+				SELECT mp.problem_id, m.id, m.date_created
 				FROM media_problem mp
 				JOIN media m ON mp.media_id = m.id
-				WHERE mp.problem_id = ? AND m.deleted_timestamp IS NULL
+				WHERE mp.problem_id IN (:ids) AND m.deleted_timestamp IS NULL
 				ORDER BY m.date_created ASC
 				""")
-		.param(idProblem)
-		.query(rs -> {
-			int id = rs.getInt("id");
-			LocalDateTime cur = rs.getObject("date_created", LocalDateTime.class);
+				.param("ids", idProblems)
+				.query(rs -> {
+					mediaMap.computeIfAbsent(rs.getInt("problem_id"), _ -> new ArrayList<>())
+							.add(new MediaRow(rs.getInt("id"), rs.getObject("date_created", LocalDateTime.class)));
+				});
 
-			if (state.anchor == null) {
-				state.anchor = (faTs != null) ? faTs : (cur != null ? cur : applyIdOffset(null, id));
+		record TickRow(int id, int userId, LocalDate date) {}
+		Map<Integer, List<TickRow>> tickMap = new HashMap<>();
+		
+		jdbcClient.sql("SELECT id, user_id, date, problem_id FROM tick WHERE problem_id IN (:ids)")
+				.param("ids", idProblems)
+				.query(rs -> {
+					tickMap.computeIfAbsent(rs.getInt("problem_id"), _ -> new ArrayList<>())
+							.add(new TickRow(rs.getInt("id"), rs.getInt("user_id"), rs.getObject("date", LocalDate.class)));
+				});
+
+		record RepeatRow(int id, int userId, LocalDate date) {}
+		Map<Integer, List<RepeatRow>> repeatMap = new HashMap<>();
+		
+		jdbcClient.sql("SELECT r.id, t.user_id, r.date, t.problem_id FROM tick t JOIN tick_repeat r ON t.id = r.tick_id WHERE t.problem_id IN (:ids)")
+				.param("ids", idProblems)
+				.query(rs -> {
+					repeatMap.computeIfAbsent(rs.getInt("problem_id"), _ -> new ArrayList<>())
+							.add(new RepeatRow(rs.getInt("id"), rs.getInt("user_id"), rs.getObject("date", LocalDate.class)));
+				});
+
+		record GuestbookRow(int id, LocalDateTime postTime) {}
+		Map<Integer, List<GuestbookRow>> guestbookMap = new HashMap<>();
+		
+		jdbcClient.sql("SELECT id, post_time, problem_id FROM guestbook WHERE problem_id IN (:ids)")
+				.param("ids", idProblems)
+				.query(rs -> {
+					guestbookMap.computeIfAbsent(rs.getInt("problem_id"), _ -> new ArrayList<>())
+							.add(new GuestbookRow(rs.getInt("id"), rs.getObject("post_time", LocalDateTime.class)));
+				});
+
+		for (int idProblem : idProblems) {
+			List<Integer> faUserIds = faUsersMap.getOrDefault(idProblem, List.of());
+			LocalDateTime faTs = faTsMap.get(idProblem);
+
+			if (faTs != null || !faUserIds.isEmpty()) {
+				batch.add(new ActivityRecord(faTs != null ? faTs : applyIdOffset(null, idProblem), ACTIVITY_TYPE_FA, idProblem, null, null, null, null));
 			}
 
-			boolean inFA = faTs != null && cur != null && Math.abs(ChronoUnit.DAYS.between(faTs.toLocalDate(), cur.toLocalDate())) <= 7;
-			boolean inRolling = state.anchor != null && state.anchor != faTs && cur != null && Math.abs(ChronoUnit.HOURS.between(state.anchor, cur)) <= 24;
+			List<Integer> buf = new ArrayList<>();
+			var state = new Object() {
+				LocalDateTime anchor = faTs;
+				LocalDateTime latest = faTs;
+			};
 
-			if (!inFA && !inRolling) {
-				for (int mid : buf) {
-					batch.add(new ActivityRecord(state.latest, ACTIVITY_TYPE_MEDIA, idProblem, mid, null, null, null));
+			for (MediaRow row : mediaMap.getOrDefault(idProblem, List.of())) {
+				int id = row.id();
+				LocalDateTime cur = row.dateCreated();
+
+				if (state.anchor == null) {
+					state.anchor = (faTs != null) ? faTs : (cur != null ? cur : applyIdOffset(null, id));
 				}
-				buf.clear();
-				state.anchor = (cur != null) ? cur : (faTs != null ? faTs : state.anchor);
+
+				boolean inFA = faTs != null && cur != null && Math.abs(ChronoUnit.DAYS.between(faTs.toLocalDate(), cur.toLocalDate())) <= 7;
+				boolean inRolling = state.anchor != null && state.anchor != faTs && cur != null && Math.abs(ChronoUnit.HOURS.between(state.anchor, cur)) <= 24;
+
+				if (!inFA && !inRolling) {
+					for (int mid : buf) {
+						batch.add(new ActivityRecord(state.latest, ACTIVITY_TYPE_MEDIA, idProblem, mid, null, null, null));
+					}
+					buf.clear();
+					state.anchor = (cur != null) ? cur : (faTs != null ? faTs : state.anchor);
+				}
+
+				state.latest = (inFA) ? faTs : (cur != null ? cur : state.anchor);
+				buf.add(id);
 			}
 
-			state.latest = (inFA) ? faTs : (cur != null ? cur : state.anchor);
-			buf.add(id);
-		});
+			for (int mid : buf) {
+				batch.add(new ActivityRecord(state.latest, ACTIVITY_TYPE_MEDIA, idProblem, mid, null, null, null));
+			}
 
-		for (int mid : buf) {
-			batch.add(new ActivityRecord(state.latest, ACTIVITY_TYPE_MEDIA, idProblem, mid, null, null, null));
+			for (TickRow row : tickMap.getOrDefault(idProblem, List.of())) {
+				LocalDateTime ts = (faUserIds.contains(row.userId()) && faTs != null) ? faTs : applyIdOffset(row.date(), row.id());
+				batch.add(new ActivityRecord(ts, ACTIVITY_TYPE_TICK, idProblem, null, row.userId(), null, null));
+			}
+
+			for (RepeatRow row : repeatMap.getOrDefault(idProblem, List.of())) {
+				batch.add(new ActivityRecord(applyIdOffset(row.date(), row.id()), ACTIVITY_TYPE_TICK_REPEAT, idProblem, null, row.userId(), null, row.id()));
+			}
+
+			for (GuestbookRow row : guestbookMap.getOrDefault(idProblem, List.of())) {
+				batch.add(new ActivityRecord(row.postTime() != null ? row.postTime() : applyIdOffset(null, row.id()), ACTIVITY_TYPE_GUESTBOOK, idProblem, null, null, row.id(), null));
+			}
 		}
 
-		jdbcClient.sql("SELECT id, user_id, date FROM tick WHERE problem_id=?")
-		.param(idProblem)
-		.query(rs -> {
-			int id = rs.getInt("id");
-			int uid = rs.getInt("user_id");
-			LocalDate d = rs.getObject("date", LocalDate.class);
-			LocalDateTime ts = (faUserIds.contains(uid) && faTs != null) ? faTs : applyIdOffset(d, id);
-			batch.add(new ActivityRecord(ts, ACTIVITY_TYPE_TICK, idProblem, null, uid, null, null));
-		});
-
-		jdbcClient.sql("SELECT r.id, t.user_id, r.date FROM tick t JOIN tick_repeat r ON t.id=r.tick_id WHERE t.problem_id=?")
-		.param(idProblem)
-		.query(rs -> {
-			int id = rs.getInt("id");
-			int uid = rs.getInt("user_id");
-			LocalDate d = rs.getObject("date", LocalDate.class);
-			batch.add(new ActivityRecord(applyIdOffset(d, id), ACTIVITY_TYPE_TICK_REPEAT, idProblem, null, uid, null, id));
-		});
-
-		jdbcClient.sql("SELECT id, post_time FROM guestbook WHERE problem_id=?")
-		.param(idProblem)
-		.query(rs -> {
-			int id = rs.getInt("id");
-			LocalDateTime pt = rs.getObject("post_time", LocalDateTime.class);
-			batch.add(new ActivityRecord(pt != null ? pt : applyIdOffset(null, id), ACTIVITY_TYPE_GUESTBOOK, idProblem, null, null, id, null));
-		});
-
-		jdbcTemplate.batchUpdate(
-				"INSERT INTO activity (activity_timestamp, type, problem_id, media_id, user_id, guestbook_id, tick_repeat_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-				batch,
-				100,
-				(ps, b) -> {
-					ps.setObject(1, b.ts());
-					ps.setString(2, b.type());
-					ps.setInt(3, b.pid());
-					ps.setObject(4, b.mid());
-					ps.setObject(5, b.uid());
-					ps.setObject(6, b.gid());
-					ps.setObject(7, b.rid());
-				});
+		if (!batch.isEmpty()) {
+			jdbcTemplate.batchUpdate(
+					"INSERT INTO activity (activity_timestamp, type, problem_id, media_id, user_id, guestbook_id, tick_repeat_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+					batch,
+					100,
+					(ps, b) -> {
+						ps.setObject(1, b.ts());
+						ps.setString(2, b.type());
+						ps.setInt(3, b.pid());
+						ps.setObject(4, b.mid());
+						ps.setObject(5, b.uid());
+						ps.setObject(6, b.gid());
+						ps.setObject(7, b.rid());
+					});
+		}
 	}
 
 	@Transactional(readOnly = true)

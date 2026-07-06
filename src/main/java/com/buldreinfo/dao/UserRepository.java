@@ -490,7 +490,9 @@ public class UserRepository {
 	@Transactional(readOnly = true)
 	public ProfileKpis getProfileKpis(int userId) {
 		ProfileKpis res = jdbcClient.sql("""
-				WITH req AS (SELECT ? user_id),
+				WITH req AS (
+					SELECT ? user_id
+				),
 				valid_media AS (
 				    SELECT m.id, m.is_movie, m.photographer_user_id
 				    FROM req
@@ -501,7 +503,7 @@ public class UserRepository {
 				    LEFT JOIN media_trail mt ON m.id = mt.media_id
 				    WHERE m.deleted_user_id IS NULL
 				      AND (m.photographer_user_id = req.user_id OR EXISTS (SELECT 1 FROM media_user mu WHERE mu.media_id = m.id AND mu.user_id = req.user_id))
-				      AND (mp.media_id IS NOT NULL OR ms.media_id IS NOT NULL OR ma.media_id IS NOT NULL OR mt.media_id IS NOT NULL OR m.embed_url IS NOT NULL)
+				      AND (mp.media_id IS NOT NULL OR ms.media_id IS NOT NULL OR ma.media_id IS NOT NULL OR mt.media_id IS NOT NULL)
 				)
 				SELECT 
 				    COUNT(DISTINCT CASE WHEN vm.photographer_user_id = req.user_id AND vm.is_movie = 0 THEN vm.id END) as created_img,

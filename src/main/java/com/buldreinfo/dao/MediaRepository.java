@@ -26,6 +26,7 @@ import com.buldreinfo.model.Media.Association;
 import com.buldreinfo.model.MediaSvgElementType;
 import com.buldreinfo.model.Svg;
 import com.buldreinfo.service.ImageClassifierService;
+import com.buldreinfo.service.ImageClassifierService.MediaLabel;
 import com.buldreinfo.service.ImageClassifierService.MediaObject.NormalizedVertex;
 import com.buldreinfo.util.StringUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -670,7 +671,7 @@ public class MediaRepository {
 				       ) svgs_table_json,
 				       COALESCE((SELECT mg.guestbook_id FROM media_guestbook mg WHERE mg.media_id = m.id LIMIT 1), 0) guestbook_id
 				FROM req
-				JOIN media m ON (m.id IN (SELECT ms.media_id FROM media_sector ms WHERE ms.sector_id = req.sector_id UNION SELECT mp.media_id FROM media_problem mp WHERE mp.problem_id = req.problem_id) AND m.deleted_user_id IS NULL)
+				JOIN media m ON (m.id IN (SELECT ms.media_id FROM media_sector ms WHERE ms.sector_id = req.sector_id UNION ALL SELECT mp.media_id FROM media_problem mp WHERE mp.problem_id = req.problem_id) AND m.deleted_user_id IS NULL)
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				LEFT JOIN user ph ON m.photographer_user_id = ph.id
 				LEFT JOIN media_problem mp ON mp.media_id = m.id AND mp.problem_id = req.problem_id
@@ -944,13 +945,9 @@ public class MediaRepository {
 
 	@Transactional(readOnly = true)
 	public List<Media> getProfileMedia(Optional<Integer> authUserId, int reqId, boolean captured) {
-		var targetFilter = captured 
-
-				? "m.photographer_user_id = req.target_user_id" 
-						: "EXISTS (SELECT 1 FROM media_user mu WHERE mu.media_id = m.id AND mu.user_id = req.target_user_id)";
 		var sql = """
 				WITH req AS (
-				    SELECT ? target_user_id, ? auth_user_id
+				    SELECT ? target_user_id, ? auth_user_id, ? is_captured
 				)
 				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
 				       m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds,
@@ -1060,7 +1057,10 @@ public class MediaRepository {
 				       ) svgs_table_json,
 				       COALESCE((SELECT mg.guestbook_id FROM media_guestbook mg WHERE mg.media_id = m.id LIMIT 1), 0) guestbook_id
 				FROM req
-				JOIN media m ON __TARGET_FILTER__ AND m.deleted_user_id IS NULL
+				JOIN media m ON m.deleted_user_id IS NULL AND (
+				    (req.is_captured = TRUE AND m.photographer_user_id = req.target_user_id) OR 
+				    (req.is_captured = FALSE AND EXISTS (SELECT 1 FROM media_user mu WHERE mu.media_id = m.id AND mu.user_id = req.target_user_id))
+				)
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				LEFT JOIN user ph ON m.photographer_user_id = ph.id
 
@@ -1085,20 +1085,20 @@ public class MediaRepository {
 				LEFT JOIN area a_tr ON s_tr.area_id = a_tr.id
 				LEFT JOIN user_region urt ON a_tr.region_id = urt.region_id AND urt.user_id = req.auth_user_id
 
-				WHERE (mp.media_id IS NULL OR (p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (urp.superadmin_read=1) OR (urp.admin_read=1 AND p.locked_superadmin=0))))
+				WHERE (mp.media_id IS NOT NULL OR ms.media_id IS NOT NULL OR ma.media_id IS NOT NULL OR mt.media_id IS NOT NULL)
+                  AND (mp.media_id IS NULL OR (p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (urp.superadmin_read=1) OR (urp.admin_read=1 AND p.locked_superadmin=0))))
 				  AND (ms.media_id IS NULL OR (ss.trash IS NULL AND ((ss.locked_admin=0 AND ss.locked_superadmin=0) OR (urs.superadmin_read=1) OR (urs.admin_read=1 AND ss.locked_superadmin=0))))
 				  AND (ma.media_id IS NULL OR (am.trash IS NULL AND ((am.locked_admin=0 AND am.locked_superadmin=0) OR (ura.superadmin_read=1) OR (ura.admin_read=1 AND am.locked_superadmin=0))))
 				  AND (mt.media_id IS NULL OR (s_tr.trash IS NULL AND ((s_tr.locked_admin=0 AND a_tr.locked_superadmin=0) OR (urt.superadmin_read=1) OR (urt.admin_read=1 AND a_tr.locked_superadmin=0))))
 
 				GROUP BY req.auth_user_id, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname
 				ORDER BY m.id DESC
-				""".replace("__TARGET_FILTER__", targetFilter);
+				""";
 
 		return jdbcClient.sql(sql)
-				.params(reqId, authUserId.orElse(0))
+				.params(reqId, authUserId.orElse(0), captured)
 				.query((rs, _) -> Media.fromResultSet(objectMapper, rs, authUserId))
 				.list();
-
 	}
 
 	@Transactional
@@ -1173,7 +1173,7 @@ public class MediaRepository {
 	}
 
 	@Transactional
-	public void saveMediaAnalysis(int mediaId, int imageWidth, int imageHeight, String hexColor, List<String> labels, List<ImageClassifierService.MediaObject> objects, boolean failed) {
+	public void saveMediaAnalysis(int mediaId, int imageWidth, int imageHeight, String hexColor, List<MediaLabel> labels, List<ImageClassifierService.MediaObject> objects, boolean failed) {
 		if (mediaId <= 0) throw new IllegalArgumentException("Media id required");
 
 		jdbcClient.sql("DELETE FROM media_ml_analysis WHERE media_id = ?").param(mediaId).update();
@@ -1215,26 +1215,35 @@ public class MediaRepository {
 		}
 
 		jdbcClient.sql("INSERT INTO media_ml_analysis (media_id, primary_color_hex, focus_x, focus_y, is_action_shot, failed) VALUES (?, ?, ?, ?, ?, ?)")
-		.params(mediaId, hexColor, focusX, focusY, hasPersonObject, failed)
-		.update();
+				.params(mediaId, hexColor, focusX, focusY, hasPersonObject, failed)
+				.update();
 
 		if (!failed) {
-			if (labels != null) {
-				var labelSql = "INSERT INTO media_ml_label (media_id, description, score) VALUES (?, ?, ?)";
-				for (String label : labels) {
-					jdbcClient.sql(labelSql).params(mediaId, label, 0f).update();
-				}
+			if (labels != null && !labels.isEmpty()) {
+				jdbcTemplate.batchUpdate("INSERT INTO media_ml_label (media_id, description, score) VALUES (?, ?, ?)",
+						labels, labels.size(), (ps, label) -> {
+							ps.setInt(1, mediaId);
+							ps.setString(2, label.description());
+							ps.setFloat(3, label.score());
+						});
 			}
-			if (objects != null) {
-				var objSql = "INSERT INTO media_ml_object (media_id, name, score, x_min, y_min, x_max, y_max) VALUES (?, ?, ?, ?, ?, ?, ?)";
-				for (var obj : objects) {
-					float xMin = obj.boundingPoly().normalizedVertices().stream().map(NormalizedVertex::x).min(Float::compare).orElse(0f);
-					float xMax = obj.boundingPoly().normalizedVertices().stream().map(NormalizedVertex::x).max(Float::compare).orElse(0f);
-					float yMin = obj.boundingPoly().normalizedVertices().stream().map(NormalizedVertex::y).min(Float::compare).orElse(0f);
-					float yMax = obj.boundingPoly().normalizedVertices().stream().map(NormalizedVertex::y).max(Float::compare).orElse(0f);
+			
+			if (objects != null && !objects.isEmpty()) {
+				jdbcTemplate.batchUpdate("INSERT INTO media_ml_object (media_id, name, score, x_min, y_min, x_max, y_max) VALUES (?, ?, ?, ?, ?, ?, ?)",
+						objects, objects.size(), (ps, obj) -> {
+							float xMin = obj.boundingPoly().normalizedVertices().stream().map(NormalizedVertex::x).min(Float::compare).orElse(0f);
+							float xMax = obj.boundingPoly().normalizedVertices().stream().map(NormalizedVertex::x).max(Float::compare).orElse(0f);
+							float yMin = obj.boundingPoly().normalizedVertices().stream().map(NormalizedVertex::y).min(Float::compare).orElse(0f);
+							float yMax = obj.boundingPoly().normalizedVertices().stream().map(NormalizedVertex::y).max(Float::compare).orElse(0f);
 
-					jdbcClient.sql(objSql).params(mediaId, obj.name(), obj.score(), xMin, yMin, xMax, yMax).update();
-				}
+							ps.setInt(1, mediaId);
+							ps.setString(2, obj.name());
+							ps.setFloat(3, obj.score());
+							ps.setFloat(4, xMin);
+							ps.setFloat(5, yMin);
+							ps.setFloat(6, xMax);
+							ps.setFloat(7, yMax);
+						});
 			}
 		}
 	}
