@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.IntStream;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.buldreinfo.beans.StorageType;
+import com.buldreinfo.dao.MediaRepository.MediaAssociation.TargetType;
 import com.buldreinfo.exception.ForbiddenException;
 import com.buldreinfo.model.Media;
 import com.buldreinfo.model.Media.Association;
@@ -32,7 +34,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class MediaRepository {
 	public record MediaPendingAnalysis(int id, int width, int height) {}
 	public record EmbeddedVideo(int id, String suffix, String embedUrl) {}
-	public record MediaAssociation(String table, String column, int columnId, boolean hasPitch) {}
+	public record MediaAssociation(TargetType type, int columnId, boolean hasPitch) {
+		public enum TargetType { AREA, SECTOR, TRAIL, PROBLEM }
+	}
 
 	private final JdbcClient jdbcClient;
 	private final JdbcTemplate jdbcTemplate;
@@ -49,13 +53,16 @@ public class MediaRepository {
 
 	@Transactional
 	public void batchUpdateSorting(MediaAssociation result, List<Integer> idMediaList) {
-		var updateSql = "UPDATE %s SET sorting=? WHERE %s=? AND media_id=?".formatted(result.table(), result.column());
-		jdbcTemplate.batchUpdate(updateSql, idMediaList, idMediaList.size(), (ps, mediaId) -> {
-			int i = idMediaList.indexOf(mediaId) + 1;
-			ps.setInt(1, i);
-			ps.setInt(2, result.columnId());
-			ps.setInt(3, mediaId);
-		});
+		String updateSql = switch (result.type()) {
+		case AREA -> "UPDATE media_area SET sorting=? WHERE area_id=? AND media_id=?";
+		case SECTOR -> "UPDATE media_sector SET sorting=? WHERE sector_id=? AND media_id=?";
+		case TRAIL -> "UPDATE media_trail SET sorting=? WHERE trail_id=? AND media_id=?";
+		case PROBLEM -> "UPDATE media_problem SET sorting=? WHERE problem_id=? AND media_id=?";
+		};
+		List<Object[]> batchArgs = IntStream.range(0, idMediaList.size())
+				.mapToObj(i -> new Object[]{i + 1, result.columnId(), idMediaList.get(i)})
+				.toList();
+		jdbcTemplate.batchUpdate(updateSql, batchArgs);
 	}
 
 	@Transactional
@@ -378,10 +385,11 @@ public class MediaRepository {
 					int problemId = rs.getInt("problem_id");
 					int trailId = rs.getInt("trail_id");
 
-					if (areaId > 0) return new MediaAssociation("media_area", "area_id", areaId, false);
-					if (sectorId > 0) return new MediaAssociation("media_sector", "sector_id", sectorId, false);
-					if (trailId > 0) return new MediaAssociation("media_trail", "trail_id", trailId, false);
-					if (problemId > 0) return new MediaAssociation("media_problem", "problem_id", problemId, true);
+					if (areaId > 0) return new MediaAssociation(TargetType.AREA, areaId, false);
+					if (sectorId > 0) return new MediaAssociation(TargetType.SECTOR, sectorId, false);
+					if (trailId > 0) return new MediaAssociation(TargetType.TRAIL, trailId, false);
+					if (problemId > 0) return new MediaAssociation(TargetType.PROBLEM, problemId, true);
+					
 					throw new UnsupportedOperationException("Could not find media association");
 				})
 				.single();
@@ -520,9 +528,12 @@ public class MediaRepository {
 
 	@Transactional(readOnly = true)
 	public List<Integer> getMediaIdsForSorting(MediaAssociation result) {
-		var orderClause = result.hasPitch() ? "IFNULL(x.pitch,0), " : "";
-		var sql = "SELECT m.id FROM %s x, media m WHERE x.%s=? AND x.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0 ORDER BY %s -x.sorting DESC, m.id"
-				.formatted(result.table(), result.column(), orderClause);
+		String sql = switch (result.type()) {
+			case AREA -> "SELECT m.id FROM media_area x JOIN media m ON x.media_id = m.id WHERE x.area_id = ? AND m.deleted_user_id IS NULL AND m.is_movie = 0 ORDER BY -x.sorting DESC, m.id";
+			case SECTOR -> "SELECT m.id FROM media_sector x JOIN media m ON x.media_id = m.id WHERE x.sector_id = ? AND m.deleted_user_id IS NULL AND m.is_movie = 0 ORDER BY -x.sorting DESC, m.id";
+			case TRAIL -> "SELECT m.id FROM media_trail x JOIN media m ON x.media_id = m.id WHERE x.trail_id = ? AND m.deleted_user_id IS NULL AND m.is_movie = 0 ORDER BY -x.sorting DESC, m.id";
+			case PROBLEM -> "SELECT m.id FROM media_problem x JOIN media m ON x.media_id = m.id WHERE x.problem_id = ? AND m.deleted_user_id IS NULL AND m.is_movie = 0 ORDER BY IFNULL(x.pitch,0), -x.sorting DESC, m.id";
+		};
 
 		return jdbcClient.sql(sql)
 				.param(result.columnId())

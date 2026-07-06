@@ -162,8 +162,11 @@ public final class StorageManager {
 				.httpClientBuilder(ApacheHttpClient.builder()
 						.maxConnections(100)
 						.connectionMaxIdleTime(Duration.ofSeconds(30))
+						.connectionTimeout(Duration.ofSeconds(10))
+						.socketTimeout(Duration.ofSeconds(30))
 						)
 				.build();
+
 		this.s3Presigner = S3Presigner.builder()
 				.credentialsProvider(credentialsProvider)
 				.endpointOverride(endpointUri)

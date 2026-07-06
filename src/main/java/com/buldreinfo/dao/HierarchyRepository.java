@@ -847,42 +847,47 @@ public class HierarchyRepository {
 
 	@Transactional(readOnly = true)
 	public Top getTop(Optional<Integer> authUserId, int areaId, int sectorId) {
-		var columnCondition = (sectorId > 0) ? "s.id" : "a.id";
-		int filterId = (sectorId > 0) ? sectorId : areaId;
-		var sqlStr = """
-				WITH total_problems AS (
+		String sqlStr = """
+				WITH req AS (
+					SELECT ? area_id, ? sector_id
+				),
+				total_problems AS (
 				    SELECT COUNT(DISTINCT p.id) AS sum
-				    FROM area a
+				    FROM req
+				    JOIN area a ON true
 				    JOIN sector s ON a.id = s.area_id
 				    JOIN problem p ON s.id = p.sector_id AND p.broken IS NULL
 				    JOIN grade g ON p.grade_id = g.id
 				    LEFT JOIN fa f ON p.id = f.problem_id
 				    LEFT JOIN tick t ON p.id = t.problem_id
 				    LEFT JOIN fa_aid_user aid ON p.id = aid.problem_id
-				    WHERE %1$s = ? 
+				    WHERE (a.id = req.area_id OR s.id = req.sector_id)
 				      AND (g.grade != 'n/a' OR aid.user_id IS NOT NULL OR f.user_id IS NOT NULL OR t.id IS NOT NULL)
 				),
 				user_completions AS (
 				    SELECT f.user_id, p.id AS problem_id
-				    FROM problem p
+				    FROM req
+				    JOIN problem p ON true
 				    JOIN sector s ON p.sector_id = s.id
 				    JOIN area a ON s.area_id = a.id
 				    JOIN fa f ON p.id = f.problem_id
-				    WHERE %1$s = ? AND p.broken IS NULL AND f.user_id IS NOT NULL
+				    WHERE (a.id = req.area_id OR s.id = req.sector_id) AND p.broken IS NULL AND f.user_id IS NOT NULL
 				    UNION
 				    SELECT t.user_id, p.id AS problem_id
-				    FROM problem p
+				    FROM req
+				    JOIN problem p ON true
 				    JOIN sector s ON p.sector_id = s.id
 				    JOIN area a ON s.area_id = a.id
 				    JOIN tick t ON p.id = t.problem_id
-				    WHERE %1$s = ? AND p.broken IS NULL AND t.user_id IS NOT NULL
+				    WHERE (a.id = req.area_id OR s.id = req.sector_id) AND p.broken IS NULL AND t.user_id IS NOT NULL
 				    UNION
 				    SELECT aid.user_id, p.id AS problem_id
-				    FROM problem p
+				    FROM req
+				    JOIN problem p ON true
 				    JOIN sector s ON p.sector_id = s.id
 				    JOIN area a ON s.area_id = a.id
 				    JOIN fa_aid_user aid ON p.id = aid.problem_id
-				    WHERE %1$s = ? AND p.broken IS NULL AND aid.user_id IS NOT NULL
+				    WHERE (a.id = req.area_id OR s.id = req.sector_id) AND p.broken IS NULL AND aid.user_id IS NOT NULL
 				)
 				SELECT 
 				    u.id AS user_id,
@@ -896,7 +901,7 @@ public class HierarchyRepository {
 				CROSS JOIN total_problems tp
 				GROUP BY u.id, u.firstname, u.lastname, m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, tp.sum
 				ORDER BY percentage DESC, name ASC
-				""".formatted(columnCondition);
+				""";
 		Map<Double, TopRank> topByPercentage = new LinkedHashMap<>();
 		Set<Integer> uniqueUserIds = new HashSet<>();
 		var state = new Object() {
@@ -904,7 +909,7 @@ public class HierarchyRepository {
 			int rank = 0;
 		};
 		jdbcClient.sql(sqlStr)
-		.params(filterId, filterId, filterId, filterId)
+		.params(areaId, sectorId)
 		.query(rs -> {
 			int userId = rs.getInt("user_id");
 			uniqueUserIds.add(userId);

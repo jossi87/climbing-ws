@@ -11,7 +11,6 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 @Configuration
 @EnableAsync
 public class AsyncConfig {
-
 	public static final String IMAGE_EXECUTOR_BEAN_NAME = "imageProcessingExecutor";
 	public static final String IMAGE_THREAD_PREFIX = "ImageProcessor-";
 	public static final String VIDEO_EXECUTOR_BEAN_NAME = "videoProcessingExecutor";
@@ -35,8 +34,8 @@ public class AsyncConfig {
 	public TaskExecutor videoProcessingExecutor() {
 		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 		executor.setCorePoolSize(1);
-		executor.setMaxPoolSize(1);
-		executor.setQueueCapacity(50);
+		executor.setMaxPoolSize(2);
+		executor.setQueueCapacity(10);
 		executor.setThreadNamePrefix(VIDEO_THREAD_PREFIX);
 		executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
 		executor.initialize();
