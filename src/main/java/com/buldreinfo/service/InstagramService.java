@@ -76,22 +76,19 @@ public class InstagramService {
 
 	public byte[] fetchMediaBytes(URI validatedUri) {
 		String host = validatedUri.getHost();
-		if (host == null || 
-				!(host.equals("cdninstagram.com") || host.endsWith(".cdninstagram.com") || 
-						host.equals("fbcdn.net") || host.endsWith(".fbcdn.net"))) {
+		String safeHost;
+		if ("cdninstagram.com".equals(host) || host.endsWith(".cdninstagram.com")) {
+			safeHost = "cdninstagram.com";
+		} else if ("fbcdn.net".equals(host) || host.endsWith(".fbcdn.net")) {
+			safeHost = "fbcdn.net";
+		} else {
 			throw new IllegalArgumentException("Unauthorized host");
 		}
-
-		String path = validatedUri.getPath();
-		String query = validatedUri.getQuery();
-
-		String sanitizedUriString = "https://" + host + path + (query != null ? "?" + query : "");
-
+		URI safeUri = URI.create("https://" + safeHost + validatedUri.getPath() + (validatedUri.getQuery() != null ? "?" + validatedUri.getQuery() : ""));
 		HttpRequest request = HttpRequest.newBuilder()
-				.uri(URI.create(sanitizedUriString))
+				.uri(safeUri)
 				.GET()
 				.build();
-
 		try {
 			HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
 			if (response.statusCode() != 200) {
