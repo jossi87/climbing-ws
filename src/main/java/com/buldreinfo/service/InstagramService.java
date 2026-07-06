@@ -76,32 +76,26 @@ public class InstagramService {
 
 	public byte[] fetchMediaBytes(URI validatedUri) {
 		String host = validatedUri.getHost();
-		if (host == null || (!host.equals("cdninstagram.com") && !host.endsWith(".cdninstagram.com") 
-				&& !host.equals("fbcdn.net") && !host.endsWith(".fbcdn.net"))) {
-			throw new IllegalArgumentException("Unauthorized host");
+		if (host == null || 
+				!(host.equals("cdninstagram.com") || host.endsWith(".cdninstagram.com") || host.equals("fbcdn.net") || host.endsWith(".fbcdn.net"))) {
+			throw new IllegalArgumentException("Unauthorized host: " + host);
 		}
+		URI safeUri = URI.create("https://" + host + validatedUri.getPath() + (validatedUri.getQuery() != null ? "?" + validatedUri.getQuery() : ""));
+		HttpRequest request = HttpRequest.newBuilder()
+				.uri(safeUri)
+				.GET()
+				.build();
 		try {
-			URI safeUri = new URI(
-					"https", 
-					host, 
-					validatedUri.getPath(), 
-					validatedUri.getQuery(), 
-					null
-					);
-			HttpRequest request = HttpRequest.newBuilder()
-					.uri(safeUri)
-					.GET()
-					.build();
 			HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
 			if (response.statusCode() != 200) {
 				throw new IOException("Failed to fetch media: " + response.statusCode());
 			}
 			return response.body();
-		} catch (URISyntaxException e) {
-			throw new IllegalArgumentException("Invalid URI components", e);
 		} catch (IOException | InterruptedException e) {
-			Thread.currentThread().interrupt();
-			throw new UncheckedIOException(new IOException("Media fetch interrupted or failed", e));
+			if (e instanceof InterruptedException) {
+				Thread.currentThread().interrupt();
+			}
+			throw new UncheckedIOException(new IOException("Media fetch failed", e));
 		}
 	}
 
