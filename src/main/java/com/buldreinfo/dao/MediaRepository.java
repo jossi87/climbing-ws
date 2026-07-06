@@ -34,7 +34,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class MediaRepository {
 	public record MediaPendingAnalysis(int id, int width, int height) {}
 	public record EmbeddedVideo(int id, String suffix, String embedUrl) {}
-	public record MediaAssociation(TargetType type, int columnId, boolean hasPitch) {
+	public record MediaAssociation(TargetType type, int columnId) {
 		public enum TargetType { AREA, SECTOR, TRAIL, PROBLEM }
 	}
 
@@ -385,10 +385,10 @@ public class MediaRepository {
 					int problemId = rs.getInt("problem_id");
 					int trailId = rs.getInt("trail_id");
 
-					if (areaId > 0) return new MediaAssociation(TargetType.AREA, areaId, false);
-					if (sectorId > 0) return new MediaAssociation(TargetType.SECTOR, sectorId, false);
-					if (trailId > 0) return new MediaAssociation(TargetType.TRAIL, trailId, false);
-					if (problemId > 0) return new MediaAssociation(TargetType.PROBLEM, problemId, true);
+					if (areaId > 0) return new MediaAssociation(TargetType.AREA, areaId);
+					if (sectorId > 0) return new MediaAssociation(TargetType.SECTOR, sectorId);
+					if (trailId > 0) return new MediaAssociation(TargetType.TRAIL, trailId);
+					if (problemId > 0) return new MediaAssociation(TargetType.PROBLEM, problemId);
 					
 					throw new UnsupportedOperationException("Could not find media association");
 				})
@@ -675,7 +675,7 @@ public class MediaRepository {
 				LEFT JOIN user ph ON m.photographer_user_id = ph.id
 				LEFT JOIN media_problem mp ON mp.media_id = m.id AND mp.problem_id = req.problem_id
 				GROUP BY req.auth_user_id, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, mp.milliseconds, ph.id, ph.firstname, ph.lastname
-				ORDER BY m.is_movie, m.embed_url, m.id
+				ORDER BY IFNULL(mp.problem_id,0), m.is_movie, m.embed_url, IFNULL(mp.pitch,0), -mp.sorting DESC, m.id
 				""";
 		var res = jdbcClient.sql(sql)
 				.params(authUserId.orElse(0), sectorId, problemId)

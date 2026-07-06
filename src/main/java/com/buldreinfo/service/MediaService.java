@@ -22,6 +22,7 @@ import com.buldreinfo.beans.Setup;
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.dao.ActivityRepository;
 import com.buldreinfo.dao.MediaRepository;
+import com.buldreinfo.dao.MediaRepository.MediaAssociation.TargetType;
 import com.buldreinfo.dao.ProblemRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.exception.ForbiddenException;
@@ -222,7 +223,7 @@ public class MediaService {
 
 		mediaRepo.batchUpdateSorting(result, idMediaList);
 
-		if (result.hasPitch()) {
+		if (result.type() == TargetType.PROBLEM) {
 			activityRepo.fillActivity(result.columnId());
 		}
 	}
