@@ -31,6 +31,13 @@ public class CacheConfig {
 				.expireAfterWrite(30, TimeUnit.MINUTES)
 				.maximumSize(200000));
 
+		cacheManager.registerCustomCache(CacheConstants.FRONTPAGE_CACHE_NAME,
+				Caffeine.newBuilder()
+				.recordStats()
+				.expireAfterWrite(30, TimeUnit.SECONDS)
+				.maximumSize(100)
+				.build());
+
 		return cacheManager;
 	}
 }
