@@ -86,9 +86,6 @@ public class FrontpageRepository {
 				LEFT JOIN media m ON u.media_id = m.id
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				LEFT JOIN user_region ur ON (a.region_id = ur.region_id AND ur.user_id = (SELECT auth_user_id FROM req))
-				WHERE a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
-				  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
-				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				GROUP BY x.activity_timestamp, a.id, a.name, p.id, p.name, p.locked_admin, p.locked_superadmin, ty.subtype, g.grade
 				ORDER BY x.activity_timestamp DESC, p.id DESC
 				""")
@@ -419,7 +416,7 @@ public class FrontpageRepository {
 	public FrontpageStats getFrontpageStats(Optional<Integer> authUserId, Setup setup) {
 		FrontpageStats res = jdbcClient.sql("""
 				WITH req AS (
-					SELECT ? AS auth_user_id, ? AS region_id
+				    SELECT ? AS auth_user_id, ? AS region_id
 				),
 				valid_areas AS (
 				    SELECT a.id AS area_id, ur.superadmin_read, ur.admin_read
@@ -445,9 +442,9 @@ public class FrontpageRepository {
 				      AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (va.superadmin_read=1) OR (va.admin_read=1 AND p.locked_superadmin=0))
 				)
 				SELECT 
-				    (SELECT COUNT(area_id) FROM valid_areas) AS areas,
-				    (SELECT COUNT(problem_id) FROM valid_problems) AS problems,
-				    (SELECT COUNT(t.id) FROM tick t JOIN valid_problems vp ON t.problem_id = vp.problem_id) AS ticks
+				    (SELECT COUNT(*) FROM valid_areas) AS areas,
+				    (SELECT COUNT(*) FROM valid_problems) AS problems,
+				    (SELECT COUNT(*) FROM tick t WHERE EXISTS (SELECT 1 FROM valid_problems vp WHERE vp.problem_id = t.problem_id)) AS ticks;
 				""")
 				.params(authUserId.orElse(0), setup.idRegion())
 				.query((rs, _) -> new FrontpageStats(

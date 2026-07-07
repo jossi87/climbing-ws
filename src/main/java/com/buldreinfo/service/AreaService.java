@@ -83,12 +83,14 @@ public class AreaService {
 				var trails = trailsFuture.join();
 				trails.forEach((sid, trailList) -> 
 				Optional.ofNullable(sectorLookup.get(sid))
-				.ifPresent(s -> sectorLookup.put(sid, s.withTrails(trailList)))
-						);
+				.ifPresent(s -> sectorLookup.put(sid, s.withTrails(trailList))));
 
 				areaRepo.loadSimplifiedGradeCounts(reqId, sectorLookup);
 				sectorLookup.values().stream().sorted((o1, o2) -> SectorSort.sortSector(o1.sorting(), o1.name(), o2.sorting(), o2.name()))
-				.forEach(s -> { a.sectors().add(s); a.sectorOrder().add(new AreaSectorOrder(s.id(), s.name(), s.sorting())); });
+				.forEach(s -> {
+					a.sectors().add(s);
+					a.sectorOrder().add(new AreaSectorOrder(s.id(), s.name(), s.sorting()));
+				});
 			}
 		}
 		return a;
