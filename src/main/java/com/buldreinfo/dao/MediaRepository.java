@@ -28,8 +28,8 @@ import com.buldreinfo.model.Svg;
 import com.buldreinfo.service.ImageClassifierService;
 import com.buldreinfo.service.ImageClassifierService.MediaLabel;
 import com.buldreinfo.service.ImageClassifierService.MediaObject.NormalizedVertex;
+import com.buldreinfo.util.JsonHelper;
 import com.buldreinfo.util.StringUtils;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Repository
 public class MediaRepository {
@@ -41,15 +41,15 @@ public class MediaRepository {
 
 	private final JdbcClient jdbcClient;
 	private final JdbcTemplate jdbcTemplate;
-	private final ObjectMapper objectMapper;
+	private final JsonHelper jsonHelper;
 
 	public MediaRepository(
 			JdbcClient jdbcClient,
 			JdbcTemplate jdbcTemplate,
-			ObjectMapper objectMapper) {
+			JsonHelper jsonHelper) {
 		this.jdbcClient = jdbcClient;
 		this.jdbcTemplate = jdbcTemplate;
-		this.objectMapper = objectMapper;
+		this.jsonHelper = jsonHelper;
 	}
 
 	@Transactional
@@ -207,7 +207,7 @@ public class MediaRepository {
 				""";
 		return jdbcClient.sql(sql)
 				.params(authUserId.orElse(0), id)
-				.query((rs, _) -> Media.fromResultSet(objectMapper, rs, authUserId))
+				.query((rs, _) -> Media.fromResultSet(jsonHelper, rs, authUserId))
 				.optional()
 				.orElseThrow(() -> new NoSuchElementException("Could not find media with id=" + id));
 	}
@@ -339,7 +339,7 @@ public class MediaRepository {
 					if (inherited && rs.getBoolean("trivia")) {
 						return null;
 					}
-					Media m = Media.fromResultSet(objectMapper, rs, authUserId);
+					Media m = Media.fromResultSet(jsonHelper, rs, authUserId);
 					return new Media(
 							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.suffix(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
@@ -522,7 +522,7 @@ public class MediaRepository {
 				""";
 		return jdbcClient.sql(sql)
 				.params(authUserId.orElse(0), guestbookId)
-				.query((rs, _) -> Media.fromResultSet(objectMapper, rs, authUserId))
+				.query((rs, _) -> Media.fromResultSet(jsonHelper, rs, authUserId))
 				.list();
 	}
 
@@ -687,7 +687,7 @@ public class MediaRepository {
 						long seconds = millis / 1000;
 						embedUrl += embedUrl.contains("youtu") ? "?start=" + seconds : "#t=" + seconds + "s";
 					}
-					var m = Media.fromResultSet(objectMapper, rs, authUserId);
+					var m = Media.fromResultSet(jsonHelper, rs, authUserId);
 					return new Media(
 							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.suffix(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
@@ -789,7 +789,7 @@ public class MediaRepository {
 		return jdbcClient.sql(sql)
 				.params(authUserId.orElse(0), idSector)
 				.query((rs, _) -> {
-					var m = Media.fromResultSet(objectMapper, rs, authUserId);
+					var m = Media.fromResultSet(jsonHelper, rs, authUserId);
 					return new Media(
 							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.suffix(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
@@ -930,7 +930,7 @@ public class MediaRepository {
 		.param("trailIds", trailIds)
 		.query((rs) -> {
 			var trailId = rs.getInt("trail_id");
-			res.computeIfAbsent(trailId, _ -> new ArrayList<>()).add(Media.fromResultSet(objectMapper, rs, authUserId));
+			res.computeIfAbsent(trailId, _ -> new ArrayList<>()).add(Media.fromResultSet(jsonHelper, rs, authUserId));
 		});
 		return res;
 	}
@@ -1097,7 +1097,7 @@ public class MediaRepository {
 
 		return jdbcClient.sql(sql)
 				.params(reqId, authUserId.orElse(0), captured)
-				.query((rs, _) -> Media.fromResultSet(objectMapper, rs, authUserId))
+				.query((rs, _) -> Media.fromResultSet(jsonHelper, rs, authUserId))
 				.list();
 	}
 

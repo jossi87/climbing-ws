@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 import com.buldreinfo.leafletprint.beans.Leaflet;
 import com.buldreinfo.model.LatLng;
 import com.buldreinfo.model.Sector.SectorProblem;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.buldreinfo.util.JsonHelper;
 
 /**
  * Generates map images by calling the sidecar microservice.
@@ -29,11 +29,11 @@ public class LeafletPrintService {
 	private static final String RENDERER_URL = "http://climbing-leaflet-renderer:3000/render";
 
 	private final HttpClient httpClient;
-	private final ObjectMapper objectMapper;
+	private final JsonHelper jsonHelper;
 
-	public LeafletPrintService(HttpClient httpClient, ObjectMapper objectMapper) {
+	public LeafletPrintService(HttpClient httpClient, JsonHelper jsonHelper) {
 		this.httpClient = httpClient;
-		this.objectMapper = objectMapper;
+		this.jsonHelper = jsonHelper;
 	}
 
 	public LatLng getCenter(Collection<SectorProblem> problems) {
@@ -55,7 +55,7 @@ public class LeafletPrintService {
 
 	public Optional<byte[]> takeSnapshot(Leaflet leaflet) {
 		try {
-			String json = objectMapper.writeValueAsString(leaflet);
+			String json = jsonHelper.toJson(leaflet);
 			HttpRequest request = HttpRequest.newBuilder()
 					.uri(URI.create(RENDERER_URL))
 					.header("Content-Type", "application/json")

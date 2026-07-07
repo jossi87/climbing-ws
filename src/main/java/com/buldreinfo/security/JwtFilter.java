@@ -17,7 +17,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.infrastructure.RequestContext;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.buldreinfo.util.JsonHelper;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -28,12 +28,12 @@ import jakarta.servlet.http.HttpServletResponse;
 public class JwtFilter extends OncePerRequestFilter {
 	private static final Set<String> LOGGED_HEADER_ALLOWLIST = Set.of("user-agent", "x-forwarded-for", "x-real-ip", "cf-connecting-ip", "accept-language", "origin", "referer");
 	private static final Set<String> REDACTED_HEADER_NAMES = Set.of("authorization", "cookie", "set-cookie", "x-api-key");
-	private final ObjectMapper objectMapper;
+	private final JsonHelper jsonHelper;
 	private final RequestContext requestContext;
 	private final TokenService tokenService;
 
-	public JwtFilter(ObjectMapper objectMapper, TokenService tokenService, RequestContext requestContext) {
-		this.objectMapper = objectMapper;
+	public JwtFilter(JsonHelper jsonHelper, TokenService tokenService, RequestContext requestContext) {
+		this.jsonHelper = jsonHelper;
 		this.tokenService = tokenService;
 		this.requestContext = requestContext;
 	}
@@ -74,7 +74,7 @@ public class JwtFilter extends OncePerRequestFilter {
 		if (accessToken != null && !accessToken.isBlank()) {
 			try {
 				Setup setup = requestContext.getSetup(request);
-				String headerJson = objectMapper.writeValueAsString(getHeaders(request));
+				String headerJson = jsonHelper.toJson(getHeaders(request));
 
 				tokenService.processAuthentication(accessToken, setup, headerJson)
 				.ifPresent(userId -> {

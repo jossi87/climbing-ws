@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 
 import com.buldreinfo.config.AppConfig;
 import com.buldreinfo.model.Coordinates;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.buldreinfo.util.JsonHelper;
 
 @Service
 public class ElevationService {
@@ -24,11 +24,11 @@ public class ElevationService {
 
 	private final AppConfig appConfig;
 	private final HttpClient httpClient;
-	private final ObjectMapper objectMapper;
+	private final JsonHelper jsonHelper;
 
-	public ElevationService(AppConfig appConfig, HttpClient httpClient, ObjectMapper objectMapper) {
+	public ElevationService(AppConfig appConfig, HttpClient httpClient, JsonHelper jsonHelper) {
 		this.appConfig = appConfig;
-		this.objectMapper = objectMapper;
+		this.jsonHelper = jsonHelper;
 		this.httpClient = httpClient;
 	}
 
@@ -64,7 +64,7 @@ public class ElevationService {
 				if (response.statusCode() != HttpURLConnection.HTTP_OK) {
 					throw new RuntimeException("Google Elevation API returned status " + response.statusCode());
 				}
-				GoogleResponse data = objectMapper.readValue(response.body(), GoogleResponse.class);
+				GoogleResponse data = jsonHelper.parseObject(response.body(), GoogleResponse.class);
 
 				for (ElevationResult res : data.results()) {
 					double googleLat = res.location().lat();

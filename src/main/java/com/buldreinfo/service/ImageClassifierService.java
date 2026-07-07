@@ -11,8 +11,8 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import com.buldreinfo.config.AppConfig;
+import com.buldreinfo.util.JsonHelper;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class ImageClassifierService {
@@ -25,12 +25,12 @@ public class ImageClassifierService {
 
 	private final String apiKey;
 	private final HttpClient httpClient;
-	private final ObjectMapper objectMapper;
+	private final JsonHelper jsonHelper;
 
-	public ImageClassifierService(AppConfig appConfig, HttpClient httpClient, ObjectMapper objectMapper) {
+	public ImageClassifierService(AppConfig appConfig, HttpClient httpClient, JsonHelper jsonHelper) {
 		this.apiKey = appConfig.googleApikey();
 		this.httpClient = httpClient;
-		this.objectMapper = objectMapper;
+		this.jsonHelper = jsonHelper;
 	}
 
 	public AnalysisResult analyze(byte[] imgBytesArray) {
@@ -55,7 +55,7 @@ public class ImageClassifierService {
 				throw new RuntimeException("Google Vision API error: " + response.body());
 			}
 
-			JsonNode root = objectMapper.readTree(response.body()).path("responses").path(0);
+			JsonNode root = jsonHelper.parseTree(response.body()).path("responses").path(0);
 
 			return new AnalysisResult(
 					parseHexColor(root),

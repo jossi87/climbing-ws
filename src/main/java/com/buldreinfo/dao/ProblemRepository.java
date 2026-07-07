@@ -41,10 +41,8 @@ import com.buldreinfo.model.ProblemTick;
 import com.buldreinfo.model.Trail;
 import com.buldreinfo.model.Type;
 import com.buldreinfo.model.User;
+import com.buldreinfo.util.JsonHelper;
 import com.buldreinfo.util.StringUtils;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Repository
 public class ProblemRepository {
@@ -53,11 +51,11 @@ public class ProblemRepository {
 		List<Media> resolve(int sectorId, int problemId);
 	}
 	private final JdbcClient jdbcClient;
-	private final ObjectMapper objectMapper;
+	private final JsonHelper jsonHelper;
 
-	public ProblemRepository(JdbcClient jdbcClient, ObjectMapper objectMapper) {
+	public ProblemRepository(JdbcClient jdbcClient, JsonHelper jsonHelper) {
 		this.jdbcClient = jdbcClient;
-		this.objectMapper = objectMapper;
+		this.jsonHelper = jsonHelper;
 	}
 
 	@Transactional(readOnly = true)
@@ -100,111 +98,130 @@ public class ProblemRepository {
 				.orElse(false);
 
 		Problem p = jdbcClient.sql("""
-				WITH req AS (SELECT ? auth_user_id, ? region_id, ? problem_id),
-				stars_count AS (
-				    SELECT p_sub.id AS pid, COUNT(DISTINCT t_sub.id) AS num_ticks,
-				           ROUND(ROUND(AVG(NULLIF(t_sub.stars, -1)) * 2) / 2, 1) AS stars
-				    FROM req JOIN problem p_sub ON p_sub.id = req.problem_id
-				    LEFT JOIN tick t_sub ON p_sub.id = t_sub.problem_id
-				    GROUP BY p_sub.id
-				)
-				SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, 
-				       s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, s.access_info sector_access_info, s.access_closed sector_access_closed, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour, 
-				       sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, 
-				       s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, 
-				       p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m/%y') fa_date_hr,
-				       gf.grade grade, go.grade original_grade,
-				       c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source,
-				       GROUP_CONCAT(DISTINCT 
-				           IF(u.id IS NULL, NULL, 
-				              CONCAT('{"id":', u.id, 
-				                     ',"name":"', REPLACE(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '"', '\\"'), 
-				                     '",', IF(m.id IS NULL, '"mediaIdentity":null', 
-				                                          CONCAT('"mediaIdentity":{"id":', m.id, 
-				                                                 ',"versionStamp":', COALESCE(UNIX_TIMESTAMP(m.updated_at), 0), 
-				                                                 ',"focusX":', COALESCE(mma.focus_x, 0), 
-				                                                 ',"focusY":', COALESCE(mma.focus_y, 0), '}')
-				                                   ), '}')
-				           ) ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,
-				       p.length_meter,
-				       sc_data.num_ticks, sc_data.stars,
-				       MAX(CASE WHEN (t.user_id = req.auth_user_id OR u.id = req.auth_user_id) THEN 1 END) ticked, 
-				       ty.id type_id, ty.type, ty.subtype,
-				       p.trivia, p.starting_altitude, p.aspect, p.descent,
-				       (
-				           SELECT GROUP_CONCAT(
-				               CONCAT('{"id":', ps_sub.id, ',"nr":', ps_sub.nr, ',"description":"', COALESCE(REPLACE(ps_sub.description, '"', '\\\\u0022'), ''), '","grade":"', g_sub.grade, '"}')
-				               ORDER BY ps_sub.nr SEPARATOR ','
-				           )
-				           FROM problem_section ps_sub
-				           JOIN grade g_sub ON ps_sub.grade_id = g_sub.id
-				           WHERE ps_sub.problem_id = p.id
-				       ) compiled_sections
-				FROM req
-				JOIN problem p ON p.id = req.problem_id
-				JOIN stars_count sc_data ON p.id = sc_data.pid
-				JOIN type ty ON p.type_id = ty.id
-				JOIN sector s ON p.sector_id = s.id
-				JOIN area a ON s.area_id = a.id
-				JOIN region r ON a.region_id = r.id
-				JOIN region_type rt ON r.id = rt.region_id
-				LEFT JOIN grade gf ON p.consensus_grade_id = gf.id
-				LEFT JOIN grade go ON p.grade_id = go.id
-				LEFT JOIN coordinates sc ON s.parking_coordinates_id = sc.id
-				LEFT JOIN coordinates c ON p.coordinates_id = c.id
-				LEFT JOIN fa f ON p.id = f.problem_id
-				LEFT JOIN user u ON f.user_id = u.id
-				LEFT JOIN media m ON u.media_id=m.id
-				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
-				LEFT JOIN tick t ON p.id=t.problem_id
-				LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.auth_user_id
-				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
-				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL)
-				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-				GROUP BY a.id, s.id, p.id, sc.id, c.id, ty.id, gf.grade, go.grade, sc_data.num_ticks, sc_data.stars
-				ORDER BY p.name
-				""")
-				.params(authUserId.orElse(0), setup.idRegion(), reqId)
-				.query((rs, _) -> {
-					try {
-						int sectorId = rs.getInt("sector_id");
-						String rock = rs.getString("rock");
-						var outline = outlineResolver.apply(sectorId);
-						var trails = trailsResolver.apply(sectorId);
-						var neighbours = getProblemNeighbours(authUserId, sectorId, reqId, rock);
-						int areaId = rs.getInt("area_id");
-						int parkingId = rs.getInt("sector_parking_coordinates_id");
-						var parking = parkingId == 0 ? null : new Coordinates(parkingId, rs.getDouble("sector_parking_latitude"), rs.getDouble("sector_parking_longitude"), rs.getDouble("sector_parking_elevation"), rs.getString("sector_parking_elevation_source"), 0.0);
-						var wallDirCalc = setup.getCompassDirection(rs.getInt("sector_compass_direction_id_calculated"));
-						var wallDirMan = setup.getCompassDirection(rs.getInt("sector_compass_direction_id_manual"));
-						int id = rs.getInt("id");
-						var faStr = rs.getString("fa");
-						List<User> fa = (faStr == null || faStr.isEmpty()) ? null : objectMapper.readValue("[" + faStr + "]", new TypeReference<List<User>>() {});
-						int coordId = rs.getInt("coordinates_id");
-						var coords = coordId == 0 ? null : new Coordinates(coordId, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0);
-						var allMedia = mediaResolver.resolve(sectorId, id);
-						var partitioned = allMedia.stream()
-								.collect(Collectors.partitioningBy(x -> x.problems().stream().anyMatch(mp -> mp.trivia() && mp.problemId() == reqId)));
-						var triviaMedia = partitioned.get(true);
-						var media = partitioned.get(false);
-						var sectionsStr = rs.getString("compiled_sections");
-						List<ProblemSection> sections = (sectionsStr == null || sectionsStr.isEmpty()) ? new ArrayList<>() : new ArrayList<>(objectMapper.readValue("[" + sectionsStr + "]", new TypeReference<List<ProblemSection>>() {}));
-						if (media != null && !sections.isEmpty()) {
-							for (var section : sections) {
-								var sectionMedia = media.stream()
-										.filter(x -> x.problems().stream().anyMatch(y -> y.problemId() == reqId && y.problemPitch() == section.nr()))
-										.toList();
-								media.removeAll(sectionMedia);
-								sections.set(sections.indexOf(section), section.withMedia(sectionMedia));
-							}
-						}
-						return new Problem(null, areaId, rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getString("area_name"), rs.getString("area_access_info"), rs.getString("area_access_closed"), rs.getBoolean("area_no_dogs_allowed"), rs.getInt("area_sun_from_hour"), rs.getInt("area_sun_to_hour"), sectorId, rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), rs.getString("sector_name"), rs.getString("sector_access_info"), rs.getString("sector_access_closed"), rs.getInt("sector_sun_from_hour"), rs.getInt("sector_sun_to_hour"), parking, outline, wallDirCalc, wallDirMan, trails, neighbours, id, rs.getString("broken"), false, rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getInt("nr"), rs.getString("name"), rock, rs.getString("description"), rs.getString("grade"), rs.getString("original_grade"), rs.getString("fa_date"), rs.getString("fa_date_hr"), fa, rs.getInt("length_meter"), coords, media, rs.getInt("num_ticks"), rs.getDouble("stars"), rs.getBoolean("ticked"), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new Type(rs.getInt("type_id"), rs.getString("type"), rs.getString("subtype")), sections, isTodo, linksFuture.join(), HitsFormatter.formatHits(rs.getLong("hits")), null, rs.getString("trivia"), triviaMedia, rs.getString("starting_altitude"), rs.getString("aspect"), rs.getString("descent"));
-					} catch (JsonProcessingException e) {
-						throw new RuntimeException(e);
-					}
-				})
-				.optional()
-				.orElse(null);
+		        WITH req AS (SELECT ? AS auth_user_id, ? AS region_id, ? AS problem_id),
+		        stars_count AS (
+		            SELECT p_sub.id AS pid, COUNT(DISTINCT t_sub.id) AS num_ticks,
+		                   ROUND(ROUND(AVG(NULLIF(t_sub.stars, -1)) * 2) / 2, 1) AS stars
+		            FROM req JOIN problem p_sub ON p_sub.id = req.problem_id
+		            LEFT JOIN tick t_sub ON p_sub.id = t_sub.problem_id
+		            GROUP BY p_sub.id
+		        ),
+		        fa_data AS (
+		            SELECT problem_id, JSON_ARRAYAGG(
+		                JSON_OBJECT(
+		                    'id', id,
+		                    'name', name,
+		                    'mediaIdentity', IF(media_id IS NOT NULL,
+		                        JSON_OBJECT(
+		                            'id', media_id,
+		                            'versionStamp', updated_stamp,
+		                            'focusX', focus_x,
+		                            'focusY', focus_y
+		                        ), NULL
+		                    )
+		                )
+		            ) AS fa_json
+		            FROM (
+		                SELECT f.problem_id, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) AS name,
+		                       m.id AS media_id, COALESCE(UNIX_TIMESTAMP(m.updated_at), 0) AS updated_stamp,
+		                       COALESCE(mma.focus_x, 0) AS focus_x, COALESCE(mma.focus_y, 0) AS focus_y
+		                FROM fa f
+		                JOIN user u ON f.user_id = u.id
+		                LEFT JOIN media m ON u.media_id = m.id
+		                LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
+		                WHERE f.problem_id = (SELECT problem_id FROM req)
+		                ORDER BY u.firstname, u.lastname
+		            ) sorted_fa
+		            GROUP BY problem_id
+		        ),
+		        section_data AS (
+		            SELECT problem_id, JSON_ARRAYAGG(
+		                JSON_OBJECT(
+		                    'id', id,
+		                    'nr', nr,
+		                    'description', description,
+		                    'grade', grade
+		                )
+		            ) AS sections_json
+		            FROM (
+		                SELECT ps.problem_id, ps.id, ps.nr, COALESCE(ps.description, '') AS description, g.grade
+		                FROM problem_section ps
+		                JOIN grade g ON ps.grade_id = g.id
+		                WHERE ps.problem_id = (SELECT problem_id FROM req)
+		                ORDER BY ps.nr
+		            ) sorted_sections
+		            GROUP BY problem_id
+		        )
+		        SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, 
+		               s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, s.access_info sector_access_info, s.access_closed sector_access_closed, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour, 
+		               sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, 
+		               s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, 
+		               p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m/%y') fa_date_hr,
+		               gf.grade grade, go.grade original_grade,
+		               c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source,
+		               fad.fa_json AS fa,
+		               p.length_meter,
+		               COALESCE(sc_data.num_ticks, 0) num_ticks, sc_data.stars,
+		               IF(EXISTS(SELECT 1 FROM tick WHERE problem_id = req.problem_id AND user_id = req.auth_user_id) OR
+		                  EXISTS(SELECT 1 FROM fa WHERE problem_id = req.problem_id AND user_id = req.auth_user_id), 1, 0) AS ticked, 
+		               ty.id type_id, ty.type, ty.subtype,
+		               p.trivia, p.starting_altitude, p.aspect, p.descent,
+		               sd.sections_json AS compiled_sections
+		        FROM req
+		        JOIN problem p ON p.id = req.problem_id
+		        LEFT JOIN stars_count sc_data ON p.id = sc_data.pid
+		        LEFT JOIN fa_data fad ON p.id = fad.problem_id
+		        LEFT JOIN section_data sd ON p.id = sd.problem_id
+		        JOIN type ty ON p.type_id = ty.id
+		        JOIN sector s ON p.sector_id = s.id
+		        JOIN area a ON s.area_id = a.id
+		        JOIN region r ON a.region_id = r.id
+		        JOIN region_type rt ON r.id = rt.region_id
+		        LEFT JOIN grade gf ON p.consensus_grade_id = gf.id
+		        LEFT JOIN grade go ON p.grade_id = go.id
+		        LEFT JOIN coordinates sc ON s.parking_coordinates_id = sc.id
+		        LEFT JOIN coordinates c ON p.coordinates_id = c.id
+		        LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.auth_user_id
+		        WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
+		          AND (r.id = req.region_id OR ur.user_id IS NOT NULL)
+		          AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
+		        GROUP BY p.id
+		        """)
+		        .params(authUserId.orElse(0), setup.idRegion(), reqId)
+		        .query((rs, _) -> {
+		                int sectorId = rs.getInt("sector_id");
+		                String rock = rs.getString("rock");
+		                var outline = outlineResolver.apply(sectorId);
+		                var trails = trailsResolver.apply(sectorId);
+		                var neighbours = getProblemNeighbours(authUserId, sectorId, reqId, rock);
+		                int areaId = rs.getInt("area_id");
+		                int parkingId = rs.getInt("sector_parking_coordinates_id");
+		                var parking = parkingId == 0 ? null : new Coordinates(parkingId, rs.getDouble("sector_parking_latitude"), rs.getDouble("sector_parking_longitude"), rs.getDouble("sector_parking_elevation"), rs.getString("sector_parking_elevation_source"), 0.0);
+		                var wallDirCalc = setup.getCompassDirection(rs.getInt("sector_compass_direction_id_calculated"));
+		                var wallDirMan = setup.getCompassDirection(rs.getInt("sector_compass_direction_id_manual"));
+		                int id = rs.getInt("id");
+		                List<User> fa = jsonHelper.parseArray(rs.getString("fa"), User[].class);
+		                int coordId = rs.getInt("coordinates_id");
+		                var coords = coordId == 0 ? null : new Coordinates(coordId, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0);
+		                var allMedia = mediaResolver.resolve(sectorId, id);
+		                var partitioned = allMedia.stream()
+		                        .collect(Collectors.partitioningBy(x -> x.problems().stream().anyMatch(mp -> mp.trivia() && mp.problemId() == reqId)));
+		                var triviaMedia = partitioned.get(true);
+		                var media = partitioned.get(false);
+		                List<ProblemSection> sections = new ArrayList<>(jsonHelper.parseArray(rs.getString("compiled_sections"), ProblemSection[].class));
+		                if (media != null && !sections.isEmpty()) {
+		                    for (var section : sections) {
+		                        var sectionMedia = media.stream()
+		                                .filter(x -> x.problems().stream().anyMatch(y -> y.problemId() == reqId && y.problemPitch() == section.nr()))
+		                                .toList();
+		                        media.removeAll(sectionMedia);
+		                        sections.set(sections.indexOf(section), section.withMedia(sectionMedia));
+		                    }
+		                }
+		                return new Problem(null, areaId, rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getString("area_name"), rs.getString("area_access_info"), rs.getString("area_access_closed"), rs.getBoolean("area_no_dogs_allowed"), rs.getInt("area_sun_from_hour"), rs.getInt("area_sun_to_hour"), sectorId, rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), rs.getString("sector_name"), rs.getString("sector_access_info"), rs.getString("sector_access_closed"), rs.getInt("sector_sun_from_hour"), rs.getInt("sector_sun_to_hour"), parking, outline, wallDirCalc, wallDirMan, trails, neighbours, id, rs.getString("broken"), false, rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getInt("nr"), rs.getString("name"), rock, rs.getString("description"), rs.getString("grade"), rs.getString("original_grade"), rs.getString("fa_date"), rs.getString("fa_date_hr"), fa, rs.getInt("length_meter"), coords, media, rs.getInt("num_ticks"), rs.getDouble("stars"), rs.getBoolean("ticked"), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new Type(rs.getInt("type_id"), rs.getString("type"), rs.getString("subtype")), sections, isTodo, linksFuture.join(), HitsFormatter.formatHits(rs.getLong("hits")), null, rs.getString("trivia"), triviaMedia, rs.getString("starting_altitude"), rs.getString("aspect"), rs.getString("descent"));
+		        })
+		        .optional()
+		        .orElse(null);
 
 		if (p == null) {
 			return null;

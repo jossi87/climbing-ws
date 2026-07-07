@@ -19,8 +19,8 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 
 import com.buldreinfo.config.AppConfig;
+import com.buldreinfo.util.JsonHelper;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 @Service
@@ -65,13 +65,13 @@ public class InstagramService {
 	}
 
 	private final AppConfig appConfig;
-
 	private final HttpClient httpClient;
-	private final ObjectMapper objectMapper;
-	public InstagramService(AppConfig appConfig, HttpClient httpClient, ObjectMapper objectMapper) {
+	private final JsonHelper jsonHelper;
+	
+	public InstagramService(AppConfig appConfig, HttpClient httpClient, JsonHelper jsonHelper) {
 		this.appConfig = appConfig;
 		this.httpClient = httpClient;
-		this.objectMapper = objectMapper;
+		this.jsonHelper = jsonHelper;
 	}
 
 	public byte[] fetchMediaBytes(URI validatedUri) {
@@ -128,7 +128,7 @@ public class InstagramService {
 			}
 
 			String apiToken = appConfig.apifyApiToken();
-			ObjectNode inputJson = objectMapper.createObjectNode();
+			ObjectNode inputJson = jsonHelper.createObjectNode();
 			inputJson.putArray("urls").add(instagramUrl);
 			inputJson.put("commentsPreviewLimit", 0);
 
@@ -137,7 +137,7 @@ public class InstagramService {
 					.header("Authorization", "Bearer " + apiToken)
 					.header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
 					.timeout(Duration.ofSeconds(30))
-					.POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(inputJson), StandardCharsets.UTF_8))
+					.POST(HttpRequest.BodyPublishers.ofString(jsonHelper.toJson(inputJson), StandardCharsets.UTF_8))
 					.build();
 
 			HttpResponse<String> startResponse = httpClient.send(startRequest, HttpResponse.BodyHandlers.ofString());
@@ -145,7 +145,7 @@ public class InstagramService {
 				throw new IOException("Failed to initiate Apify actor run. Status: " + startResponse.statusCode() + " URL: " + instagramUrl);
 			}
 
-			JsonNode runData = objectMapper.readTree(startResponse.body()).path("data");
+			JsonNode runData = jsonHelper.parseTree(startResponse.body()).path("data");
 			String runId = runData.path("id").asText();
 			String defaultDatasetId = runData.path("defaultDatasetId").asText();
 
@@ -161,7 +161,7 @@ public class InstagramService {
 				Thread.sleep(2500);
 				HttpResponse<String> statusResponse = httpClient.send(statusRequest, HttpResponse.BodyHandlers.ofString());
 				if (statusResponse.statusCode() == 200) {
-					JsonNode statusData = objectMapper.readTree(statusResponse.body()).path("data");
+					JsonNode statusData = jsonHelper.parseTree(statusResponse.body()).path("data");
 					String status = statusData.path("status").asText();
 
 					if ("SUCCEEDED".equals(status)) {
@@ -190,7 +190,7 @@ public class InstagramService {
 				throw new IOException("Failed to retrieve populated dataset items. Code: " + datasetResponse.statusCode());
 			}
 
-			JsonNode resultArray = objectMapper.readTree(datasetResponse.body());
+			JsonNode resultArray = jsonHelper.parseTree(datasetResponse.body());
 			if (resultArray.isMissingNode() || resultArray.isEmpty()) {
 				throw new IOException("Apify dataset populated empty on verified run completion for URL: " + instagramUrl);
 			}

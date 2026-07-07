@@ -38,7 +38,7 @@ import com.buldreinfo.io.ExifReader.ImageMetadataInfo;
 import com.buldreinfo.io.ExifReader.ImageRotation;
 import com.buldreinfo.io.JpegWriter;
 import com.buldreinfo.io.StorageManager;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.buldreinfo.util.JsonHelper;
 
 @Service
 public class ImageService {
@@ -55,18 +55,18 @@ public class ImageService {
 	private final ImageClassifierService imageClassifierService;
 	private final TaskExecutor imageProcessingExecutor;
 	private final MediaRepository mediaRepo;
-	private final ObjectMapper objectMapper;
+	private final JsonHelper jsonHelper;
 	private final StorageManager storage;
 
 	public ImageService(
-			ObjectMapper objectMapper,
+			JsonHelper jsonHelper,
 			HttpClient httpClient,
 			ImageClassifierService imageClassifierService, 
 			MediaRepository mediaRepo,
 			ExifReader exifService,
 			@Qualifier(AsyncConfig.IMAGE_EXECUTOR_BEAN_NAME) TaskExecutor imageProcessingExecutor,
 			StorageManager storage) {
-		this.objectMapper = objectMapper;
+		this.jsonHelper = jsonHelper;
 		this.httpClient = httpClient;
 		this.imageClassifierService = imageClassifierService;
 		this.mediaRepo = mediaRepo;
@@ -182,7 +182,7 @@ public class ImageService {
 					.GET().build();
 			HttpResponse<String> response = httpClient.send(request, BodyHandlers.ofString());
 			if (response.statusCode() == 200) {
-				imgUrl = objectMapper.readTree(response.body()).path("thumbnail_url").asText();
+				imgUrl = jsonHelper.parseTree(response.body()).path("thumbnail_url").asText();
 			}
 		}
 		if (imgUrl == null || imgUrl.isEmpty()) {
