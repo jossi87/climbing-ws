@@ -66,8 +66,7 @@ public class AreaService {
 				var outlinesFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorOutlines(sectorLookup.keySet()), executor);
 				var trailsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorTrails(sectorLookup.keySet(), trailIds -> mediaService.getMediaTrails(authUserId, trailIds)), executor);
 
-				var sectorProblems = problemsFuture.join();
-				sectorProblems.forEach((sid, problems) -> Optional.ofNullable(sectorLookup.get(sid)).ifPresent(s -> s.problems().addAll(problems)));
+				problemsFuture.join().forEach((sid, problems) -> Optional.ofNullable(sectorLookup.get(sid)).ifPresent(s -> s.problems().addAll(problems)));
 
 				if (authUserId.isPresent()) {
 					sectorLookup.forEach((sid, s) -> {
@@ -80,8 +79,8 @@ public class AreaService {
 				}
 
 				outlinesFuture.join().forEach((sid, outline) -> Optional.ofNullable(sectorLookup.get(sid)).ifPresent(s -> s.outline().addAll(outline)));
-				var trails = trailsFuture.join();
-				trails.forEach((sid, trailList) -> 
+
+				trailsFuture.join().forEach((sid, trailList) -> 
 				Optional.ofNullable(sectorLookup.get(sid))
 				.ifPresent(s -> sectorLookup.put(sid, s.withTrails(trailList))));
 

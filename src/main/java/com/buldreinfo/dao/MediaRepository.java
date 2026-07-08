@@ -808,9 +808,6 @@ public class MediaRepository {
 		}
 
 		jdbcClient.sql("""
-					WITH req AS (
-				    SELECT :authUserId auth_user_id
-				)
 				SELECT mt.trail_id, m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
 				       m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds,
 				       m.date_created, m.date_taken,
@@ -845,7 +842,7 @@ public class MediaRepository {
 				           JOIN sector s2 ON p2.sector_id = s2.id
 				           JOIN area a2 ON s2.area_id = a2.id
 				           JOIN grade g ON p2.consensus_grade_id = g.id
-				           LEFT JOIN user_region ur ON a2.region_id = ur.region_id AND ur.user_id = req.auth_user_id
+				           LEFT JOIN user_region ur ON a2.region_id = ur.region_id AND ur.user_id = :authUserId
 				           WHERE mp.media_id = m.id
 				             AND p2.trash IS NULL AND ((p2.locked_admin=0 AND p2.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p2.locked_superadmin=0))
 				       ) problems_json,
@@ -893,8 +890,8 @@ public class MediaRepository {
 				               'anchors', s3.anchors,
 				               'tradBelayStations', s3.trad_belay_stations,
 				               'primary', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
-				               'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL THEN true ELSE false END,
-				               'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = req.auth_user_id) IS NOT NULL THEN true ELSE false END,
+				               'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = :authUserId LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = :authUserId LIMIT 1) IS NOT NULL THEN true ELSE false END,
+				               'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = :authUserId) IS NOT NULL THEN true ELSE false END,
 				               'dangerous', COALESCE((
 				                   SELECT gb3.danger 
 				                   FROM guestbook gb3 
@@ -912,18 +909,17 @@ public class MediaRepository {
 				           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
 				           LEFT JOIN grade g_sect3 ON ps3.grade_id = g_sect3.id
 				           LEFT JOIN grade_color clr_sect3 ON g_sect3.grade_color_id = clr_sect3.id
-				           LEFT JOIN user_region ur3 ON ur3.user_id = req.auth_user_id AND ur3.region_id = a5.region_id
+				           LEFT JOIN user_region ur3 ON ur3.user_id = :authUserId AND ur3.region_id = a5.region_id
 				           WHERE s3.media_id = m.id
 				             AND p3.trash IS NULL AND ((p3.locked_admin=0 AND p3.locked_superadmin=0) OR (ur3.superadmin_read=1) OR (ur3.admin_read=1 AND p3.locked_superadmin=0))
 				       ) svgs_table_json,
 				       COALESCE((SELECT mg.guestbook_id FROM media_guestbook mg WHERE mg.media_id = m.id LIMIT 1), 0) guestbook_id
-				FROM req
-				CROSS JOIN media_trail mt
+				FROM media_trail mt
 				JOIN media m ON (mt.media_id = m.id AND m.deleted_user_id IS NULL)
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				LEFT JOIN user ph ON m.photographer_user_id = ph.id
 				WHERE mt.trail_id IN (:trailIds)
-				GROUP BY req.auth_user_id, mt.trail_id, m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.uploader_user_id, m.updated_at, m.description, m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname, mt.sorting
+				GROUP BY mt.trail_id, m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.uploader_user_id, m.updated_at, m.description, m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname, mt.sorting
 				ORDER BY m.is_movie, m.embed_url, -mt.sorting DESC, m.id
 				""")
 		.param("authUserId", authUserId.orElse(0))
