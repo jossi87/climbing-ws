@@ -675,8 +675,9 @@ public class MediaRepository {
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				LEFT JOIN user ph ON m.photographer_user_id = ph.id
 				LEFT JOIN media_problem mp ON mp.media_id = m.id AND mp.problem_id = req.problem_id
+				LEFT JOIN media_sector ms ON ms.media_id = m.id AND ms.sector_id = req.sector_id
 				GROUP BY req.auth_user_id, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, mp.milliseconds, ph.id, ph.firstname, ph.lastname
-				ORDER BY IFNULL(mp.problem_id,0), m.is_movie, m.embed_url, IFNULL(mp.pitch,0), -mp.sorting DESC, m.id
+				ORDER BY -ms.sorting DESC, m.is_movie, m.embed_url, IFNULL(mp.pitch,0), -mp.sorting DESC, m.id
 				""";
 		var res = jdbcClient.sql(sql)
 				.params(authUserId.orElse(0), sectorId, problemId)
