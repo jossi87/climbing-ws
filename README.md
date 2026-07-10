@@ -33,7 +33,7 @@ Import the [latest database dump](https://github.com/jossi87/climbing-ws/blob/ma
 > ```
 
 ### 2. Dependencies
-To enable map exports and PDF generation, ensure the **[climbing-leaflet-renderer](https://github.com/jossi87/climbing-leaflet-renderer)** service is running and accessible.
+To enable map exports in the PDF generation, ensure the **[climbing-leaflet-renderer](https://github.com/jossi87/climbing-leaflet-renderer)** service is running and accessible.
 
 ### 3. Application Setup
 
