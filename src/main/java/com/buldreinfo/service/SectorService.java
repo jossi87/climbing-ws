@@ -25,7 +25,6 @@ import com.buldreinfo.model.Coordinates;
 import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Sector;
 import com.buldreinfo.model.Trail;
-import com.buldreinfo.util.GeoUtils;
 
 @Service
 public class SectorService {
@@ -148,21 +147,6 @@ public class SectorService {
 		}
 
 		allSectorsToLock.forEach(id -> sectorRepo.ensureAdminWriteSector(authUserId, id));
-
-		for (Trail t : trails) {
-			if (t.path() != null && t.path().size() >= 2 && t.sectors() != null && !t.sectors().isEmpty()) {
-				Coordinates parkingCoord = sectorRepo.getFirstParkingCoordinateForSectors(t.sectors().stream().map(Trail.TrailSector::sectorId).toList());
-				if (parkingCoord != null) {
-					double distToStart = GeoUtils.getHaversineDistanceInMeters(parkingCoord.latitude(), parkingCoord.longitude(), t.path().getFirst().latitude(), t.path().getFirst().longitude());
-					double distToEnd = GeoUtils.getHaversineDistanceInMeters(parkingCoord.latitude(), parkingCoord.longitude(), t.path().getLast().latitude(), t.path().getLast().longitude());
-					boolean shouldReverse = t.isDescent() ? (distToStart < distToEnd) : (distToEnd < distToStart);
-					if (shouldReverse) {
-						Collections.reverse(t.path());
-						if (t.markers() != null) Collections.reverse(t.markers());
-					}
-				}
-			}
-		}
 
 		// Collect all coordinates, ensure they exist in DB with IDs, then replace with DB-persisted versions
 		List<Coordinates> allCoords = new ArrayList<>();

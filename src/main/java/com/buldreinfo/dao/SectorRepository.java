@@ -67,16 +67,6 @@ public class SectorRepository {
 	}
 
 	@Transactional(readOnly = true)
-	public Coordinates getFirstParkingCoordinateForSectors(List<Integer> sectorIds) {
-		if (sectorIds == null || sectorIds.isEmpty()) return null;
-		return jdbcClient.sql("SELECT c.latitude, c.longitude FROM sector s JOIN coordinates c ON s.parking_coordinates_id = c.id WHERE s.id IN (:sectorIds) LIMIT 1")
-				.param("sectorIds", sectorIds)
-				.query((rs, _) -> new Coordinates(0, rs.getDouble("latitude"), rs.getDouble("longitude"), 0.0, null, 0.0))
-				.optional()
-				.orElse(null);
-	}
-
-	@Transactional(readOnly = true)
 	public int getNextProblemNr(int sectorId) {
 		return jdbcClient.sql("SELECT COALESCE(MAX(nr), 0) + 1 FROM problem WHERE sector_id = ?")
 				.param(sectorId)
