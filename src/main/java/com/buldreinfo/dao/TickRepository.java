@@ -119,7 +119,7 @@ public class TickRepository {
 		if (idsToKeep.isEmpty()) {
 			jdbcClient.sql("DELETE FROM tick_repeat WHERE tick_id=?").param(idTick).update();
 		} else {
-			jdbcClient.sql("DELETE FROM tick_repeat WHERE tick_id=? AND id NOT IN (:ids)")
+			jdbcClient.sql("DELETE FROM tick_repeat WHERE tick_id=:tick_id AND id NOT IN (:ids)")
 			.param("tick_id", idTick).param("ids", idsToKeep).update();
 		}
 
