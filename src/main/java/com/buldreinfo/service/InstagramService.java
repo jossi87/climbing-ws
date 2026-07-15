@@ -81,9 +81,9 @@ public class InstagramService {
 
 		String safeHost;
 		if ("cdninstagram.com".equals(originalHost) || (originalHost != null && originalHost.endsWith(".cdninstagram.com"))) {
-			safeHost = "cdninstagram.com";
+			safeHost = originalHost;
 		} else if ("fbcdn.net".equals(originalHost) || (originalHost != null && originalHost.endsWith(".fbcdn.net"))) {
-			safeHost = "fbcdn.net";
+			safeHost = originalHost;
 		} else {
 			throw new IllegalArgumentException("Unauthorized host");
 		}
