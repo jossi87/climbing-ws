@@ -386,19 +386,24 @@ public class MediaController {
         try {
             return instagramService.fetchMediaBytes(validatedUri);
         } catch (Exception e) {
-        	logger.warn(e.getMessage(), e);
-            URI validatedEmbedUri = InstagramService.validateUrl(embedUrl, "instagram.com");
-            List<InstagramService.InstagramMedia> fresh = instagramService.resolveMedia(validatedEmbedUri.toString());
-            
-            InstagramService.InstagramMedia target = fresh.stream()
-                    .filter(md -> md.mediaIndex() == mediaIndex)
-                    .findFirst()
-                    .orElse(fresh.get(0));
-                    
-            mediaService.logInstagramScrape(authUserId, validatedEmbedUri.toString(), fresh.size());
-            
-            URI freshUri = InstagramService.validateUrl(target.cdnUrl(), "cdninstagram.com", "fbcdn.net");
-            return instagramService.fetchMediaBytes(freshUri);
+        	logger.warn("Initial CDN fetch failed for URL: {} - attempting Apify fallback", cdnUrl, e);
+            try {
+                URI validatedEmbedUri = InstagramService.validateUrl(embedUrl, "instagram.com");
+                List<InstagramService.InstagramMedia> fresh = instagramService.resolveMedia(validatedEmbedUri.toString());
+                
+                InstagramService.InstagramMedia target = fresh.stream()
+                        .filter(md -> md.mediaIndex() == mediaIndex)
+                        .findFirst()
+                        .orElse(fresh.get(0));
+                        
+                mediaService.logInstagramScrape(authUserId, validatedEmbedUri.toString(), fresh.size());
+                
+                URI freshUri = InstagramService.validateUrl(target.cdnUrl(), "cdninstagram.com", "fbcdn.net");
+                return instagramService.fetchMediaBytes(freshUri);
+            } catch (Exception fallbackException) {
+                logger.error("Apify fallback also failed for embed URL: {}", embedUrl, fallbackException);
+                throw new RuntimeException("Failed to fetch Instagram media from CDN. The CDN hostname ('cdninstagram.com' / 'fbcdn.net') could not be resolved. This is likely a DNS resolution issue in the server environment. Original error: " + e.getMessage(), e);
+            }
         }
     }
 }

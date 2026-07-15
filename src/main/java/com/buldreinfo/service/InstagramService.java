@@ -104,14 +104,16 @@ public class InstagramService {
 		try {
 			HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
 			if (response.statusCode() != 200) {
-				throw new IOException("Failed to fetch media");
+				throw new IOException("Failed to fetch media from " + safeHost + " (HTTP " + response.statusCode() + ")");
 			}
 			return response.body();
 		} catch (IOException | InterruptedException e) {
 			if (e instanceof InterruptedException) {
 				Thread.currentThread().interrupt();
 			}
-			throw new UncheckedIOException(new IOException("Fetch failed", e));
+			String host = safeUri.getHost();
+			String msg = "Fetch failed for host: " + host + " - " + e.getMessage();
+			throw new UncheckedIOException(new IOException(msg, e));
 		}
 	}
 
