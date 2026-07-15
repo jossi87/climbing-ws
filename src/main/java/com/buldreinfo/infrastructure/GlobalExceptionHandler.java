@@ -10,7 +10,9 @@ import java.util.concurrent.ExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpMediaTypeNotAcceptableException;
@@ -39,65 +41,71 @@ public class GlobalExceptionHandler {
 		return switch (cause) {
 		case ValidationFailedException vfe -> {
 			logger.warn("Validation failed: {}", vfe.getMessage());
-			yield ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", vfe.getMessage()));
+			yield jsonError(HttpStatus.BAD_REQUEST, vfe.getMessage());
 		}
 		case UnauthorizedException ue -> {
 			logger.warn("Unauthorized access attempt: {}", ue.getMessage());
-			yield ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", ue.getMessage()));
+			yield jsonError(HttpStatus.UNAUTHORIZED, ue.getMessage());
 		}
 		case ForbiddenException fe -> {
 			logger.warn("Forbidden access attempt: {}", fe.getMessage());
-			yield ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", fe.getMessage()));
+			yield jsonError(HttpStatus.FORBIDDEN, fe.getMessage());
 		}
 		case TooManyRequestsException tme -> {
 			logger.warn("Too many requests: {}", tme.getMessage());
-			yield ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of("error", tme.getMessage()));
+			yield jsonError(HttpStatus.TOO_MANY_REQUESTS, tme.getMessage());
 		}
 		case InternalServerErrorException ise -> {
 			logger.error("Internal server error: {}", ise.getMessage(), ise);
-			yield ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", ise.getMessage()));
+			yield jsonError(HttpStatus.INTERNAL_SERVER_ERROR, ise.getMessage());
 		}
 		case NoSuchElementException nse -> {
 			logger.warn("Resource element missing: {}", nse.getMessage());
-			yield ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", nse.getMessage()));
+			yield jsonError(HttpStatus.NOT_FOUND, nse.getMessage());
 		}
 		case NoResourceFoundException _ -> {
 			logger.warn("Resource path not found");
-			yield ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "The requested resource was not found."));
+			yield jsonError(HttpStatus.NOT_FOUND, "The requested resource was not found.");
 		}
 		case MissingServletRequestParameterException ex -> {
 			logger.warn("Missing parameter: {}", ex.getParameterName());
-			yield ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Required parameter '" + ex.getParameterName() + "' is missing"));
+			yield jsonError(HttpStatus.BAD_REQUEST, "Required parameter '" + ex.getParameterName() + "' is missing");
 		}
 		case MethodArgumentTypeMismatchException ex -> {
 			logger.warn("Parameter type mismatch for parameter '{}'", ex.getName());
-			yield ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Invalid value for parameter '" + ex.getName() + "'"));
+			yield jsonError(HttpStatus.BAD_REQUEST, "Invalid value for parameter '" + ex.getName() + "'");
 		}
 		case HttpMediaTypeNotAcceptableException _ -> {
 			logger.warn("Media type not acceptable");
-			yield ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).body(Map.of("error", "The requested media type is not acceptable"));
+			yield jsonError(HttpStatus.NOT_ACCEPTABLE, "The requested media type is not acceptable");
 		}
 		case HttpRequestMethodNotSupportedException ex -> {
 			logger.warn("Method not allowed: {}", ex.getMethod());
-			yield ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(Map.of("error", "HTTP method '" + ex.getMethod() + "' is not supported for this endpoint"));
+			yield jsonError(HttpStatus.METHOD_NOT_ALLOWED, "HTTP method '" + ex.getMethod() + "' is not supported for this endpoint");
 		}
 		case HttpMessageNotReadableException _ -> {
 			logger.warn("Malformed JSON payload received");
-			yield ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Malformed JSON request payload"));
+			yield jsonError(HttpStatus.BAD_REQUEST, "Malformed JSON request payload");
 		}
 		case DataAccessException dae -> {
 			logger.error("Database tracking or data execution exception", dae);
-			yield ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Database error occurred"));
+			yield jsonError(HttpStatus.INTERNAL_SERVER_ERROR, "Database error occurred");
 		}
 		case JsonProcessingException jpe -> {
 			logger.error("Jackson JSON mapping failed", jpe);
-			yield ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Internal JSON processing error"));
+			yield jsonError(HttpStatus.INTERNAL_SERVER_ERROR, "Internal JSON processing error");
 		}
 		default -> {
 			logger.error("Unhandled infrastructure or runtime exception: {}", cause.getMessage(), cause);
-			yield ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "An unexpected error occurred"));
+			yield jsonError(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
 		}
 		};
+	}
+
+	private static ResponseEntity<Object> jsonError(HttpStatus status, String message) {
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		return ResponseEntity.status(status).headers(headers).body(Map.of("error", message));
 	}
 
 	private Throwable unwrap(Throwable e) {
