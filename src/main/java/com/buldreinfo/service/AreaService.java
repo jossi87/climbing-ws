@@ -53,7 +53,7 @@ public class AreaService {
 			try {
 				var res = hierarchyRepo.getCanonicalUrl(setup, reqId, 0, 0);
 				if (res.redirectUrl() != null && !res.redirectUrl().isEmpty()) {
-					return new Area(res.redirectUrl(), null, -1, false, false, false, false, null, null, false, 0, 0, null, null, null, 0, 0, null, null, null, null, null, null);
+					return new Area(res.redirectUrl(), null, -1, false, false, false, false, null, null, false, 0, 0, null, null, null, null, null, null, null, null, null);
 				}
 			} catch (Exception _) {}
 			throw new NoSuchElementException("Could not find area with id=" + reqId);
