@@ -91,7 +91,7 @@ public class AreaRepository {
 				WITH req AS (
 					SELECT ? auth_user_id, ? region_id
 				)
-				SELECT r.name region_name, a.id, a.locked_admin, a.locked_superadmin, a.for_developers, a.name,
+				SELECT r.name region_name, a.id, a.locked_admin, a.locked_superadmin, a.for_developers, a.name, a.hits,
 				       c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source
 				FROM req
 				CROSS JOIN area a
@@ -102,7 +102,7 @@ public class AreaRepository {
 				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
 				  AND (a.region_id=req.region_id OR ur.user_id IS NOT NULL)
 				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
-				GROUP BY r.name, a.id, a.locked_admin, a.locked_superadmin, a.for_developers, a.name, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source
+				GROUP BY r.name, a.id, a.locked_admin, a.locked_superadmin, a.for_developers, a.name, a.hits, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source
 				ORDER BY r.name, a.name
 				""";
 		return jdbcClient.sql(sqlStr)
@@ -112,7 +112,7 @@ public class AreaRepository {
 					var coords = cid == 0 ? null : new Coordinates(cid, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0);
 					return new AreaBasic(rs.getString("region_name"), rs.getInt("id"),
 							rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getBoolean("for_developers"), 
-							rs.getString("name"), coords);
+							rs.getString("name"), coords, HitsFormatter.formatHits(rs.getLong("hits")));
 				}).list();
 	}
 
