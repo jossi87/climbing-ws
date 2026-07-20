@@ -13,7 +13,7 @@ public record Toc(int numRegions, int numAreas, int numSectors, int numProblems,
 			}
 		}
 	}
-	public record TocSector(int id, String url, String name, int sorting, Coordinates parking, List<Coordinates> outline, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, boolean lockedAdmin, boolean lockedSuperadmin, int sunFromHour, int sunToHour, List<TocProblem> problems) {}
+	public record TocSector(int id, String url, String name, int sorting, Coordinates parking, List<Coordinates> outline, CompassDirection orientationCalculated, CompassDirection orientationManual, boolean lockedAdmin, boolean lockedSuperadmin, int sunFromHour, int sunToHour, List<TocProblem> problems) {}
 	public record TocProblem(int id, String url, String broken, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, int lengthMeter, int startingAltitude, Coordinates coordinates, String grade, String faUser, int faYear, String ffaUser, int ffaYear, int numTicks, double stars, boolean ticked, boolean todo, Type t, int numPitches) {}
 	public record TocPitch(String regionName, String url, String areaName, String sectorName, String problemName, int pitch, String grade, String description) {}
 }

@@ -109,8 +109,8 @@ public class SectorService {
 				.map(CompassDirection::id)
 				.filter(id -> id > 0)
 				.orElse(null);
-		Integer manualCompass = (s.wallDirectionManual() != null && s.wallDirectionManual().id() > 0) 
-				? s.wallDirectionManual().id() 
+		Integer manualCompass = (s.orientationManual() != null && s.orientationManual().id() > 0) 
+				? s.orientationManual().id() 
 						: null;
 
 		if (s.id() > 0) {

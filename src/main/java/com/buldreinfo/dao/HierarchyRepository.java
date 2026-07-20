@@ -759,11 +759,11 @@ public class HierarchyRepository {
 				int sectorSunToHour = rs.getInt("sector_sun_to_hour");
 				int sectorParkingidCoordinates = rs.getInt("sector_parking_coordinates_id");
 				var sectorParking = sectorParkingidCoordinates == 0 ? null : new Coordinates(sectorParkingidCoordinates, rs.getDouble("sector_parking_latitude"), rs.getDouble("sector_parking_longitude"), rs.getDouble("sector_parking_elevation"), rs.getString("sector_parking_elevation_source"), 0.0);
-				var sectorWallDirectionCalculated = setup.getCompassDirection(rs.getInt("sector_compass_direction_id_calculated"));
-				var sectorWallDirectionManual = setup.getCompassDirection(rs.getInt("sector_compass_direction_id_manual"));
+				var sectorOrientationCalculated = setup.getCompassDirection(rs.getInt("sector_compass_direction_id_calculated"));
+				var sectorOrientationManual = setup.getCompassDirection(rs.getInt("sector_compass_direction_id_manual"));
 				var sectorLockedAdmin = rs.getBoolean("sector_locked_admin");
 				var sectorLockedSuperadmin = rs.getBoolean("sector_locked_superadmin");
-				s = new TocSector(sectorId, sectorUrl, sectorName, sectorSorting, sectorParking, new ArrayList<>(), sectorWallDirectionCalculated, sectorWallDirectionManual, sectorLockedAdmin, sectorLockedSuperadmin, sectorSunFromHour, sectorSunToHour, new ArrayList<>());
+				s = new TocSector(sectorId, sectorUrl, sectorName, sectorSorting, sectorParking, new ArrayList<>(), sectorOrientationCalculated, sectorOrientationManual, sectorLockedAdmin, sectorLockedSuperadmin, sectorSunFromHour, sectorSunToHour, new ArrayList<>());
 				a.sectors().add(s);
 				sectorLookup.put(sectorId, s);
 			}

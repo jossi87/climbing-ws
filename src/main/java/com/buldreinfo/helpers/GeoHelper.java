@@ -69,7 +69,7 @@ public class GeoHelper {
 	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	
 	public static CompassDirection calculateCompassDirection(Setup setup, List<Coordinates> outline) {
-		final String direction = calculateWallDirection(setup, outline);
+		final String direction = calculateOrientation(setup, outline);
 		if (direction == null) {
 			return null;
 		}
@@ -96,13 +96,13 @@ public class GeoHelper {
 		return durationMinutes;
 	}
 	
-	private static String calculateWallDirection(Setup setup, List<Coordinates> outline) {
+	private static String calculateOrientation(Setup setup, List<Coordinates> outline) {
 		if (!setup.isClimbing() || outline == null || outline.isEmpty() || outline.stream().filter(x -> x.elevation() == 0).findAny().isPresent()) {
 			return null;
 		}
 		try {
 			GeoHelper calc = new GeoHelper();
-			return calc.getWallDirection(outline);
+			return calc.getOrientation(outline);
 		} catch (Exception e) {
 			logger.warn(e.getMessage());
 		}
@@ -117,7 +117,7 @@ public class GeoHelper {
 	private double wallPerpendicularBearing;
 	private int sunOffset;
 
-	private long wallDirectionDegrees;
+	private long orientationDegrees;
 
 	private GeoHelper() {
 	}
@@ -221,7 +221,7 @@ public class GeoHelper {
 		return angle;
 	}
 
-	private String getWallDirection(List<Coordinates> outline) {
+	private String getOrientation(List<Coordinates> outline) {
 		for (Coordinates coord : outline) {
 			geoPoints.add(new GeoPoint(coord.latitude(), coord.longitude(), coord.elevation()));
 		}
@@ -230,7 +230,7 @@ public class GeoHelper {
 		this.wallBearing = getBearing(firstPointLow, secondPointLow);
 		// Add or subtract 90 degrees to get perpendicular vector in the walls facing direction
 		calculateSunOffset();
-		this.wallDirectionDegrees = ((Math.round(wallBearing) + sunOffset)+360) % 360;
-		return convertFromDegreesToOrdinalName(wallDirectionDegrees);
+		this.orientationDegrees = ((Math.round(wallBearing) + sunOffset)+360) % 360;
+		return convertFromDegreesToOrdinalName(orientationDegrees);
 	}
 }
