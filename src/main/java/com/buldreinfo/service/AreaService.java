@@ -18,6 +18,7 @@ import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.helpers.SectorSort;
 import com.buldreinfo.model.Area;
 import com.buldreinfo.model.Area.AreaSectorOrder;
+import com.buldreinfo.model.AreaBasic;
 import com.buldreinfo.model.Media.MediaArea;
 import com.buldreinfo.model.Redirect;
 
@@ -94,10 +95,10 @@ public class AreaService {
 		}
 		return a;
 	}
-
+	
 	@Transactional(readOnly = true)
-	public Collection<Area> getAreaList(Optional<Integer> authUserId, int reqIdRegion) {
-		return areaRepo.getAreaList(authUserId, reqIdRegion);
+	public Collection<AreaBasic> getAreaBasicList(Optional<Integer> authUserId, int reqIdRegion) {
+		return areaRepo.getAreaBasicList(authUserId, reqIdRegion);
 	}
 
 	@Transactional

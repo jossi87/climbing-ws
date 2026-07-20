@@ -1,7 +1,6 @@
 package com.buldreinfo.controller;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 import org.springframework.context.ApplicationEventPublisher;
@@ -9,6 +8,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,6 +25,7 @@ import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Area;
+import com.buldreinfo.model.AreaBasic;
 import com.buldreinfo.model.GradeDistribution;
 import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Sector;
@@ -44,14 +45,14 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestController
 @RequestMapping("/areas")
 public class AreasController {
-	private final ApplicationEventPublisher eventPublisher;
-	private final RequestContext requestContext;
-	private final StorageManager storage;
-	private final LeafletPrintService leafletPrintService;
 	private final AreaService areaService;
-	private final RegionRepository regionRepo;
-	private final SectorService sectorService;
+	private final ApplicationEventPublisher eventPublisher;
 	private final HierarchyRepository hierarchyRepo;
+	private final LeafletPrintService leafletPrintService;
+	private final RegionRepository regionRepo;
+	private final RequestContext requestContext;
+	private final SectorService sectorService;
+	private final StorageManager storage;
 
 	public AreasController(
 			ApplicationEventPublisher eventPublisher,
@@ -71,22 +72,31 @@ public class AreasController {
 		this.sectorService = sectorService;
 		this.hierarchyRepo = hierarchyRepo;
 	}
+	
+	@Operation(summary = "Get specific area")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
+	@GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<Area> getArea(HttpServletRequest request, @PathVariable("id") int id) {
+	    if (id <= 0) {
+	        throw new ValidationFailedException("Invalid id=" + id);
+	    }
+	    var setup = requestContext.getSetup(request);
+	    var authUserId = requestContext.getAuthenticatedUserId();
+	    if (requestContext.isHitTrackingEnabled(request)) {
+	        eventPublisher.publishEvent(new HitTrackingListener.AreaHitEvent(id));
+	    }
+	    var res = areaService.getArea(setup, authUserId, id);
+	    return ResponseEntity.ok(res);
+	}
 
-	@Operation(summary = "Get areas")
+	@Operation(summary = "Get basic area list")
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Collection<Area>> getAreas(HttpServletRequest request,
-			@RequestParam(name = "id", defaultValue = "0") int id) {
-		if (id < 0) {
-			throw new ValidationFailedException("Invalid id=" + id);
-		}
-		var setup = requestContext.getSetup(request);
-		var authUserId = requestContext.getAuthenticatedUserId();
-		if (id > 0 && requestContext.isHitTrackingEnabled(request)) {
-			eventPublisher.publishEvent(new HitTrackingListener.AreaHitEvent(id));
-		}
-		var res = id > 0 ? Collections.singleton(areaService.getArea(setup, authUserId, id)) : areaService.getAreaList(authUserId, setup.idRegion());
-		return ResponseEntity.ok(res);
+	public ResponseEntity<Collection<AreaBasic>> getAreas(HttpServletRequest request) {
+	    var setup = requestContext.getSetup(request);
+	    var authUserId = requestContext.getAuthenticatedUserId();
+	    var res = areaService.getAreaBasicList(authUserId, setup.idRegion());
+	    return ResponseEntity.ok(res);
 	}
 
 	@Operation(summary = "Get area as PDF")

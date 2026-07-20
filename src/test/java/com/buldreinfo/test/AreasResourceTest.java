@@ -26,22 +26,18 @@ public class AreasResourceTest extends BaseResourceTest {
 
 	@Test
 	public void testGetArea() {
-		var r = tester.getAreas(getRequest(Region.buldreinfo), BULDREINFO_AREA_ID_VISIBLE);
+		var r = tester.getArea(getRequest(Region.buldreinfo), BULDREINFO_AREA_ID_VISIBLE);
 		assertEquals(OK, r.getStatusCode());
-		Collection<?> area = assertInstanceOf(Collection.class, r.getBody());
-		assertEquals(1, area.size());
-		Area a = (Area) area.iterator().next();
+		Area a = assertInstanceOf(Area.class, r.getBody());
 		assertFalse(a.name() == null || a.name().isBlank());
 		assertNull(a.redirectUrl());
 	}
 
 	@Test
 	public void testGetAreaDifferentRegion() {
-		var r = tester.getAreas(getRequest(Region.brattelinjer), BRATTELINJER_DIFFERENT_REGION_AREA_ID);
+		var r = tester.getArea(getRequest(Region.brattelinjer), BRATTELINJER_DIFFERENT_REGION_AREA_ID);
 		assertEquals(OK, r.getStatusCode());
-		Collection<?> area = assertInstanceOf(Collection.class, r.getBody());
-		assertEquals(1, area.size());
-		Area a = (Area) area.iterator().next();
+		Area a = assertInstanceOf(Area.class, r.getBody());
 		assertTrue(a.name() == null || a.name().isBlank());
 		assertNotNull(a.redirectUrl());
 	}
@@ -49,7 +45,7 @@ public class AreasResourceTest extends BaseResourceTest {
 	@Test
 	public void testGetAreaHidden() {
 		assertThrows(NoSuchElementException.class, () -> {
-			tester.getAreas(getRequest(Region.buldreinfo), BULDREINFO_HIDDEN_AREA_ID);
+			tester.getArea(getRequest(Region.buldreinfo), BULDREINFO_HIDDEN_AREA_ID);
 		});
 
 		var setup = getSetup(Region.buldreinfo);
@@ -63,7 +59,7 @@ public class AreasResourceTest extends BaseResourceTest {
 
 	@Test
 	public void testGetAreas() {
-		var r = tester.getAreas(getRequest(Region.buldreinfo), 0);
+		var r = tester.getAreas(getRequest(Region.buldreinfo));
 		assertEquals(OK, r.getStatusCode());
 		Collection<?> areas = assertInstanceOf(Collection.class, r.getBody());
 		assertFalse(areas.isEmpty());

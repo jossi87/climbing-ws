@@ -19,6 +19,7 @@ import com.buldreinfo.helpers.HitsFormatter;
 import com.buldreinfo.model.Area;
 import com.buldreinfo.model.Area.AreaSector;
 import com.buldreinfo.model.Area.GradeCount;
+import com.buldreinfo.model.AreaBasic;
 import com.buldreinfo.model.Coordinates;
 import com.buldreinfo.model.Media;
 import com.buldreinfo.model.MediaIdentity;
@@ -85,48 +86,33 @@ public class AreaRepository {
 	}
 
 	@Transactional(readOnly = true)
-	public Collection<Area> getAreaList(Optional<Integer> authUserId, int reqIdRegion) {
+	public Collection<AreaBasic> getAreaBasicList(Optional<Integer> authUserId, int reqIdRegion) {
 		var sqlStr = """
-				SELECT r.name region_name, a.id, a.locked_admin, a.locked_superadmin, a.for_developers, 
-				       a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, 
-				       a.name, a.description, c.id coordinates_id, c.latitude, c.longitude, c.elevation, 
-				       c.elevation_source, COUNT(DISTINCT s.id) num_sectors, COUNT(DISTINCT p.id) num_problems, a.hits
-				FROM area a
+				WITH req AS (
+					SELECT ? auth_user_id, ? region_id
+				)
+				SELECT r.name region_name, a.id, a.locked_admin, a.locked_superadmin, a.for_developers, a.name,
+				       c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source
+				FROM req
+				CROSS JOIN area a
 				JOIN region r ON a.region_id=r.id
 				JOIN region_type rt ON r.id=rt.region_id
 				LEFT JOIN coordinates c ON a.coordinates_id=c.id
-				LEFT JOIN sector s ON a.id=s.area_id
-				LEFT JOIN problem p ON s.id=p.sector_id
-				LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
-				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
-				  AND (a.region_id=? OR ur.user_id IS NOT NULL)
+				LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=req.auth_user_id)
+				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
+				  AND (a.region_id=req.region_id OR ur.user_id IS NOT NULL)
 				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
-				GROUP BY r.name, a.id, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits
+				GROUP BY r.name, a.id, a.locked_admin, a.locked_superadmin, a.for_developers, a.name, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source
 				ORDER BY r.name, a.name
 				""";
-
 		return jdbcClient.sql(sqlStr)
-				.params(authUserId.orElse(0), reqIdRegion, reqIdRegion)
+				.params(authUserId.orElse(0), reqIdRegion)
 				.query((rs, _) -> {
-					String comment = rs.getString("description");
-					if (comment != null) {
-						int ix = comment.indexOf("<strong>Forhold:</strong>");
-						if (ix != -1) {
-							comment = comment.substring(ix + 25);
-							int endIx = comment.indexOf("<strong>");
-							comment = (endIx != -1) ? comment.substring(0, endIx) : comment;
-						}
-					}
-
 					int cid = rs.getInt("coordinates_id");
 					var coords = cid == 0 ? null : new Coordinates(cid, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0);
-
-					return new Area(null, rs.getString("region_name"), rs.getInt("id"), false, 
+					return new AreaBasic(rs.getString("region_name"), rs.getInt("id"),
 							rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getBoolean("for_developers"), 
-							rs.getString("access_info"), rs.getString("access_closed"), rs.getBoolean("no_dogs_allowed"), 
-							rs.getInt("sun_from_hour"), rs.getInt("sun_to_hour"), rs.getString("name"), comment, coords, 
-							rs.getInt("num_sectors"), rs.getInt("num_problems"), null, null, null, null, null, 
-							HitsFormatter.formatHits(rs.getLong("hits")));
+							rs.getString("name"), coords);
 				}).list();
 	}
 
