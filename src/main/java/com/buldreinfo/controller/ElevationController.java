@@ -32,7 +32,7 @@ public class ElevationController {
 	@Operation(summary = "Get elevation by latitude and longitude")
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@GetMapping(produces = MediaType.TEXT_PLAIN_VALUE)
-	public ResponseEntity<Integer> getElevation(
+	public ResponseEntity<String> getElevation(
 			@RequestParam(name = "latitude") double latitude,
 			@RequestParam(name = "longitude") double longitude) {
 
@@ -50,6 +50,6 @@ public class ElevationController {
 			throw new UnauthorizedException("Authentication required");
 		}
 		int elevation = geoService.getElevationAt(latitude, longitude);
-        return ResponseEntity.ok(elevation);
+		return ResponseEntity.ok(String.valueOf(elevation));
 	}
 }
