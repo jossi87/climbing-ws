@@ -138,7 +138,8 @@ public class TrashRepository {
 				""";
 
 		return jdbcClient.sql(sqlStr)
-				.param(authUserId.orElseThrow(), setup.idRegion())
+				.param(authUserId.orElseThrow())
+				.param(setup.idRegion())
 				.query((rs, _) -> new Trash(
 						rs.getInt("area_id"),
 						rs.getInt("sector_id"),
