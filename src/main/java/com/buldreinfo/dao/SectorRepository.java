@@ -120,7 +120,7 @@ public class SectorRepository {
 						  AND s.trash IS NULL
 						  AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
 						GROUP BY s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name
-						ORDER BY s.sorting, s.name
+						ORDER BY COALESCE(s.sorting,0), s.name
 						""")
 				.params(authUserId.orElse(0), s.areaId())
 				.query((rs, _) -> new Sector.SectorJump(

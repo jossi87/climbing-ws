@@ -157,7 +157,7 @@ public class AreaRepository {
 				LEFT JOIN ranked_sector_media rsm ON s.id=rsm.sector_id AND rsm.rn=1
 				WHERE a.id = :areaId
 				AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
-				ORDER BY s.sorting, s.name
+				ORDER BY COALESCE(s.sorting,0), s.name
 				""";
 
 		Map<Integer, AreaSector> sectorLookup = new LinkedHashMap<>();

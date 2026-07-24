@@ -51,7 +51,7 @@ public class TodoRepository {
 				AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
 				AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
 				AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-				ORDER BY a.name, s.sorting, s.name, p.nr, u.firstname, u.lastname
+				ORDER BY a.name, COALESCE(s.sorting,0), s.name, p.nr, u.firstname, u.lastname
 				""".formatted(condition);
 
 		var result = new Todo(new ArrayList<>());

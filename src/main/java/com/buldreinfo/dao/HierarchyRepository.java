@@ -826,7 +826,7 @@ public class HierarchyRepository {
 				  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0)) 
 				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				GROUP BY r.name, r.url, p.id, a.name, s.name, p.name, ps.nr, g.grade, ps.description
-				ORDER BY r.name, a.name, s.sorting, s.name, p.nr, ps.nr
+				ORDER BY r.name, a.name, COALESCE(s.sorting,0), s.name, p.nr, ps.nr
 				""";
 
 		return jdbcClient.sql(sqlStr)
