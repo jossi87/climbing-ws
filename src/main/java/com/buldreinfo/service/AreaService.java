@@ -66,6 +66,7 @@ public class AreaService {
 				var problemsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorProblems(setup, authUserId, reqId, 0), executor);
 				var outlinesFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorOutlines(sectorLookup.keySet()), executor);
 				var trailsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorTrails(sectorLookup.keySet(), trailIds -> mediaService.getMediaTrails(authUserId, trailIds)), executor);
+				var simplifiedGradeCountsFuture = CompletableFuture.supplyAsync(() -> areaRepo.getAreaSimplifiedGradeCounts(reqId), executor);
 
 				problemsFuture.join().forEach((sid, problems) -> Optional.ofNullable(sectorLookup.get(sid)).ifPresent(s -> s.problems().addAll(problems)));
 
@@ -85,7 +86,9 @@ public class AreaService {
 				Optional.ofNullable(sectorLookup.get(sid))
 				.ifPresent(s -> sectorLookup.put(sid, s.withTrails(trailList))));
 
-				areaRepo.loadSimplifiedGradeCounts(reqId, sectorLookup);
+				simplifiedGradeCountsFuture.join().forEach((sid, grades) -> 
+				Optional.ofNullable(sectorLookup.get(sid)).ifPresent(s -> s.gradeCounts().addAll(grades)));
+
 				sectorLookup.values().stream().sorted((o1, o2) -> SectorSort.sortSector(o1.sorting(), o1.name(), o2.sorting(), o2.name()))
 				.forEach(s -> {
 					a.sectors().add(s);
@@ -95,7 +98,7 @@ public class AreaService {
 		}
 		return a;
 	}
-	
+
 	@Transactional(readOnly = true)
 	public Collection<AreaBasic> getAreaBasicList(Optional<Integer> authUserId, int reqIdRegion) {
 		return areaRepo.getAreaBasicList(authUserId, reqIdRegion);

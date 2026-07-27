@@ -2,6 +2,7 @@ package com.buldreinfo.dao;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -187,7 +188,7 @@ public class AreaRepository {
 		return sectorLookup;
 	}
 
-	public void loadSimplifiedGradeCounts(int areaId, Map<Integer, AreaSector> sectorLookup) {
+	public Map<Integer, List<GradeCount>> getAreaSimplifiedGradeCounts(int areaId) {
 		var sqlStr = """
 				WITH target_systems AS (
 				  SELECT DISTINCT tgs.grade_system_id 
@@ -227,18 +228,20 @@ public class AreaRepository {
 				ORDER BY s.id, al.sort_weight
 				""";
 
-		jdbcClient.sql(sqlStr)
-		.param("areaId", areaId)
-		.query(rs -> {
-			AreaSector sector = sectorLookup.get(rs.getInt("sector_id"));
-			if (sector != null) {
-				sector.gradeCounts().add(new GradeCount(
-						rs.getString("label_compact"), 
-						rs.getString("color"), 
-						rs.getInt("num")
-						));
-			}
-		});
+		return jdbcClient.sql(sqlStr)
+				.param("areaId", areaId)
+				.query(rs -> {
+					Map<Integer, List<GradeCount>> map = new HashMap<>();
+					while (rs.next()) {
+						map.computeIfAbsent(rs.getInt("sector_id"), _ -> new ArrayList<>())
+						.add(new GradeCount(
+								rs.getString("label_compact"), 
+								rs.getString("color"), 
+								rs.getInt("num")
+								));
+					}
+					return map;
+				});
 	}
 
 	@Transactional
