@@ -366,6 +366,16 @@ public class MediaController {
 		return ResponseEntity.ok().build();
 	}
 
+	@Operation(summary = "Refresh thumbnail for embedded video (YouTube/Vimeo)")
+	@PutMapping("/video/embed/refresh-thumbnail")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
+	public ResponseEntity<Void> putMediaVideoEmbedRefreshThumbnail(@RequestParam(name = "id") int id) {
+		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		mediaService.refreshEmbedThumbnail(authUserId, id);
+		return ResponseEntity.ok().build();
+	}
+
 	private ResponseEntity<Void> createRedirect(String key, long version) {
 		return ResponseEntity.status(HttpStatus.FOUND)
 				.header(HttpHeaders.LOCATION, StorageManager.getPublicUrl(key, version))

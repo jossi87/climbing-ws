@@ -123,6 +123,26 @@ public class MediaService {
 		activityRepo.fillActivity(idProblems);
 	}
 
+	@Transactional
+	public void refreshEmbedThumbnail(Optional<Integer> authUserId, int idMedia) {
+		ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(authUserId, idMedia);
+		var m = mediaRepo.getMedia(authUserId, idMedia);
+		if (!m.isMovie() || m.embedUrl() == null || m.embedUrl().isBlank()) {
+			throw new IllegalArgumentException("Media is not an embedded video");
+		}
+		try {
+			var thumb = imageService.readFromEmbedUrl(m.embedUrl());
+			try {
+				imageService.saveImage(idMedia, thumb);
+				S3KeyGenerator.getGeneratedMediaPrefixes(idMedia).forEach(storage::invalidateCache);
+			} finally {
+				thumb.flush();
+			}
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to refresh embed thumbnail for id=" + idMedia, e);
+		}
+	}
+
 	public void deleteMediaAnalysis(int idMedia) {
 		mediaRepo.deleteMediaAnalysis(idMedia);
 	}
