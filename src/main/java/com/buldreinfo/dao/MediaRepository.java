@@ -671,7 +671,7 @@ public class MediaRepository {
 				       ) svgs_table_json,
 				       COALESCE((SELECT mg.guestbook_id FROM media_guestbook mg WHERE mg.media_id = m.id LIMIT 1), 0) guestbook_id
 				FROM req
-				JOIN media m ON (m.id IN (SELECT ms.media_id FROM media_sector ms WHERE ms.sector_id = req.sector_id UNION ALL SELECT mp.media_id FROM media_problem mp WHERE mp.problem_id = req.problem_id) AND m.deleted_user_id IS NULL)
+				JOIN media m ON (m.id IN (SELECT ms.media_id FROM media_sector ms WHERE ms.sector_id = req.sector_id AND ms.trivia = 0 UNION ALL SELECT mp.media_id FROM media_problem mp WHERE mp.problem_id = req.problem_id) AND m.deleted_user_id IS NULL)
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				LEFT JOIN user ph ON m.photographer_user_id = ph.id
 				LEFT JOIN media_problem mp ON mp.media_id = m.id AND mp.problem_id = req.problem_id
