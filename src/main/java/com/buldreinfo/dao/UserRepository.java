@@ -53,8 +53,8 @@ import com.buldreinfo.model.UserRegion;
 
 @Repository
 public class UserRepository {
-	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	public static final int USER_ID_UNKNOWN = 1049;
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	private final JdbcClient jdbcClient;
 
 	public UserRepository(JdbcClient jdbcClient) {
@@ -167,6 +167,29 @@ public class UserRepository {
 				.query(Integer.class)
 				.optional()
 				.or(() -> Optional.of(addUser(profile.email(), profile.firstname(), profile.lastname())));
+	}
+
+	@Transactional
+	public int getExistingOrInsertUser(String name) {
+		if (name == null || name.isBlank()) {
+			return USER_ID_UNKNOWN;
+		}
+
+		Integer existingId = jdbcClient.sql("SELECT id FROM user WHERE TRIM(CONCAT(firstname, ' ', COALESCE(lastname,'')))=?")
+				.param(name)
+				.query(Integer.class)
+				.optional()
+				.orElse(null);
+
+		if (existingId != null) {
+			return existingId;
+		}
+
+		int usId = addUser(null, name, null);
+		if (usId <= 0) {
+			throw new IllegalStateException("Failed to create user: " + name);
+		}
+		return usId;
 	}
 
 	@Transactional(readOnly = true)
@@ -860,6 +883,32 @@ public class UserRepository {
 		.update();
 	}
 
+	private int addUser(String email, String firstname, String lastname) {
+		var keyHolder = new GeneratedKeyHolder();
+
+		jdbcClient.sql("INSERT INTO user (firstname, lastname) VALUES (?, ?)")
+		.params(firstname, lastname)
+		.update(keyHolder);
+
+		int id = keyHolder.getKey().intValue();
+
+		if (id <= 0) {
+			throw new IllegalStateException("Failed to generate ID for firstname=" + firstname + ", lastname=" + lastname);
+		}
+
+		if (email != null && !email.isBlank()) {
+			jdbcClient.sql("""
+					INSERT INTO user_email (user_id, email) 
+					VALUES (?, ?) 
+					ON DUPLICATE KEY UPDATE user_id=user_id
+					""")
+			.params(id, email.toLowerCase())
+			.update();
+		}
+
+		return id;
+	}
+
 	private Map<Integer, Coordinates> getProblemCoordinates(List<Integer> idProblems) {
 		if (idProblems.isEmpty()) {
 			throw new IllegalArgumentException("idProblems is empty");
@@ -942,54 +991,5 @@ public class UserRepository {
 				.list();
 
 		return res;
-	}
-
-	private int addUser(String email, String firstname, String lastname) {
-		var keyHolder = new GeneratedKeyHolder();
-
-		jdbcClient.sql("INSERT INTO user (firstname, lastname) VALUES (?, ?)")
-		.params(firstname, lastname)
-		.update(keyHolder);
-
-		int id = keyHolder.getKey().intValue();
-
-		if (id <= 0) {
-			throw new IllegalStateException("Failed to generate ID for firstname=" + firstname + ", lastname=" + lastname);
-		}
-
-		if (email != null && !email.isBlank()) {
-			jdbcClient.sql("""
-					INSERT INTO user_email (user_id, email) 
-					VALUES (?, ?) 
-					ON DUPLICATE KEY UPDATE user_id=user_id
-					""")
-			.params(id, email.toLowerCase())
-			.update();
-		}
-
-		return id;
-	}
-
-	@Transactional
-	public int getExistingOrInsertUser(String name) {
-		if (name == null || name.isBlank()) {
-			return USER_ID_UNKNOWN;
-		}
-
-		Integer existingId = jdbcClient.sql("SELECT id FROM user WHERE CONCAT(firstname, ' ', COALESCE(lastname,''))=?")
-				.param(name)
-				.query(Integer.class)
-				.optional()
-				.orElse(null);
-
-		if (existingId != null) {
-			return existingId;
-		}
-
-		int usId = addUser(null, name, null);
-		if (usId <= 0) {
-			throw new IllegalStateException("Failed to create user: " + name);
-		}
-		return usId;
 	}
 }
