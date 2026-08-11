@@ -540,7 +540,7 @@ public class ProblemRepository {
 				SELECT r.id, r.tick_id, r.date, r.comment 
 				FROM tick t, tick_repeat r 
 				WHERE t.problem_id=? AND t.id=r.tick_id 
-				ORDER BY r.tick_id, r.date, r.id
+				ORDER BY r.tick_id, r.date DESC, r.id
 				""")
 		.param(problemId)
 		.query(rs -> {
