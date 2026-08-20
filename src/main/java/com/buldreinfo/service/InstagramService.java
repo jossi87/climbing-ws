@@ -119,9 +119,13 @@ public class InstagramService {
 
 	public List<InstagramMedia> resolveMedia(String instagramUrl) {
 		try {
-			if (instagramUrl == null || !instagramUrl.matches("^(https?://)?(www\\.)?instagram\\.com/(p|reel|tv)/.+")) {
+			// Accept any valid Instagram post/reel/tv URL. The (p|reel|tv) segment may appear
+			// anywhere in the path (e.g. "https://www.instagram.com/username/p/ABC123/"), not just
+			// immediately after the host. This mirrors the logic in extractInstagramShortcode.
+			if (instagramUrl == null || !instagramUrl.matches("^(https?://)?(www\\.)?instagram\\.com/.*/(p|reel|tv)/[^/]+")) {
 				throw new IllegalArgumentException("Invalid Instagram media URL format");
 			}
+
 			if (instagramUrl.contains("?")) {
 				instagramUrl = instagramUrl.substring(0, instagramUrl.indexOf('?'));
 			}
