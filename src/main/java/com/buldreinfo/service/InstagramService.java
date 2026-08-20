@@ -122,9 +122,12 @@ public class InstagramService {
 			// Accept any valid Instagram post/reel/tv URL. The (p|reel|tv) segment may appear
 			// anywhere in the path (e.g. "https://www.instagram.com/username/p/ABC123/"), not just
 			// immediately after the host. This mirrors the logic in extractInstagramShortcode.
-			if (instagramUrl == null || !instagramUrl.matches("^(https?://)?(www\\.)?instagram\\.com/.*/(p|reel|tv)/[^/]+")) {
+			// Note: matches() requires the whole string to match, so allow an optional trailing
+			// slash (Instagram URLs commonly end with "/").
+			if (instagramUrl == null || !instagramUrl.matches("^(https?://)?(www\\.)?instagram\\.com/.*/(p|reel|tv)/[^/]+/?$")) {
 				throw new IllegalArgumentException("Invalid Instagram media URL format");
 			}
+
 
 			if (instagramUrl.contains("?")) {
 				instagramUrl = instagramUrl.substring(0, instagramUrl.indexOf('?'));
