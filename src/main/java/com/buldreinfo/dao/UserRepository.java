@@ -588,7 +588,7 @@ public class UserRepository {
 				}
 			}
 
-			ProfileTodoProblem p = new ProfileTodoProblem(rs.getInt("todo_id"), rs.getInt("problem_id"), rs.getBoolean("problem_locked_admin"), rs.getBoolean("problem_locked_superadmin"), rs.getInt("problem_nr"), rs.getString("problem_name"), rs.getString("problem_grade"), coords, partners);
+			ProfileTodoProblem p = new ProfileTodoProblem(rs.getInt("todo_id"), rs.getInt("problem_id"), rs.getBoolean("problem_locked_admin"), rs.getBoolean("problem_locked_superadmin"), rs.getInt("problem_nr"), rs.getString("problem_name"), rs.getString("problem_grade"), rs.getString("problem_subtype"), coords, partners);
 			s.problems().add(p);
 			return p;
 		};
@@ -598,7 +598,7 @@ public class UserRepository {
 				SELECT a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
 				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
 				       t.id todo_id, p.id problem_id, p.nr problem_nr, p.name problem_name, g.grade problem_grade, 
-				       p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
+				       p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, ty.subtype problem_subtype,
 				       COALESCE(pc.id, oc.id, sc.id, ac.id) coord_id,
 				       COALESCE(pc.latitude, oc.latitude, sc.latitude, ac.latitude) lat,
 				       COALESCE(pc.longitude, oc.longitude, sc.longitude, ac.longitude) lon,
@@ -608,6 +608,7 @@ public class UserRepository {
 				        FROM todo t_other JOIN user u_other ON t_other.user_id = u_other.id CROSS JOIN req
 				        WHERE t_other.problem_id = p.id AND t_other.user_id != req.user_id) AS partners_raw
 				FROM req JOIN todo t ON t.user_id = req.user_id JOIN problem p ON t.problem_id = p.id
+				JOIN type ty ON p.type_id = ty.id
 				JOIN sector s ON p.sector_id = s.id JOIN area a ON s.area_id = a.id
 				JOIN region_type rt ON a.region_id = rt.region_id JOIN grade g ON p.grade_id = g.id
 				LEFT JOIN coordinates ac ON a.coordinates_id = ac.id LEFT JOIN coordinates sc ON s.parking_coordinates_id = sc.id
