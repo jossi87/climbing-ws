@@ -119,22 +119,36 @@ public class InstagramService {
 
 	public List<InstagramMedia> resolveMedia(String instagramUrl) {
 		try {
+			// Strip any query string / fragment first (Instagram share URLs commonly carry
+			// tracking params like ?igsh=... or ?utm_source=...), then validate the path.
+			if (instagramUrl != null) {
+				int q = instagramUrl.indexOf('?');
+				int h = instagramUrl.indexOf('#');
+				int cut = -1;
+				if (q >= 0 && h >= 0) cut = Math.min(q, h);
+				else if (q >= 0) cut = q;
+				else if (h >= 0) cut = h;
+				if (cut >= 0) {
+					instagramUrl = instagramUrl.substring(0, cut);
+				}
+			}
+
 			// Accept any valid Instagram post/reel/tv URL. The (p|reel|tv) segment may appear
 			// anywhere in the path (e.g. "https://www.instagram.com/username/p/ABC123/"), not just
 			// immediately after the host. This mirrors the logic in extractInstagramShortcode.
 			// Note: matches() requires the whole string to match, so allow an optional trailing
 			// slash (Instagram URLs commonly end with "/").
-			if (instagramUrl == null || !instagramUrl.matches("^(https?://)?(www\\.)?instagram\\.com/.*/(p|reel|tv)/[^/]+/?$")) {
+			// The (p|reel|tv) segment must be the segment immediately before the shortcode, so
+			// use ([^/]+/)* to allow any number of preceding path segments without greedily
+			// consuming the (p|reel|tv) segment itself (a plain .*/ would swallow it).
+			if (instagramUrl == null || !instagramUrl.matches("^(https?://)?(www\\.)?instagram\\.com/([^/]+/)*(p|reel|tv)/[^/]+/?$")) {
 				throw new IllegalArgumentException("Invalid Instagram media URL format");
 			}
 
-
-			if (instagramUrl.contains("?")) {
-				instagramUrl = instagramUrl.substring(0, instagramUrl.indexOf('?'));
-			}
 			if (instagramUrl.endsWith("/")) {
 				instagramUrl = instagramUrl.substring(0, instagramUrl.length() - 1);
 			}
+
 
 			String apiToken = appConfig.apifyApiToken();
 			ObjectNode inputJson = jsonHelper.createObjectNode();
