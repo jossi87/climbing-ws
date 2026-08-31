@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -383,12 +384,12 @@ public class MediaController {
 				.build();
 	}
 
-	private ResponseEntity<Void> executeGenerationPipeline(String key, long version, Runnable task) {
-		task.run();
-		if (!storage.exists(key)) {
+	private ResponseEntity<Void> executeGenerationPipeline(String key, long version, Supplier<String> task) {
+		String redirectKey = task.get();
+		if (redirectKey == null || redirectKey.isBlank()) {
 			throw new NoSuchElementException("Generated resource not found at key: " + key);
 		}
-		return createRedirect(key, version);
+		return createRedirect(redirectKey, version);
 	}
 
 	private byte[] fetchWithFallback(String cdnUrl, String embedUrl, int mediaIndex, Optional<Integer> authUserId) {

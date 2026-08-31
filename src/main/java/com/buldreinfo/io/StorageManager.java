@@ -243,6 +243,7 @@ public final class StorageManager {
 				.acl(ObjectCannedACL.PUBLIC_READ).build();
 		cacheManager.getCache(CacheConstants.EXISTS_CACHE_NAME).evict(objectKey);
 		s3Client.putObject(putRequest, body);
+		cacheManager.getCache(CacheConstants.EXISTS_CACHE_NAME).put(objectKey, true);
 	}
 
 	private byte[] writeImageToBytes(String objectKey, BufferedImage image, StorageType type) throws IOException {

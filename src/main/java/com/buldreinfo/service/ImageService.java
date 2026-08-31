@@ -15,6 +15,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.time.Duration;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
@@ -86,34 +87,45 @@ public class ImageService {
 		});
 	}
 
-	public void processCrop(int id, int x, int y, int width, int height, String key, StorageType type) {
+	public String processCrop(int id, int x, int y, int width, int height, String key, StorageType type) {
 		String sourceKey = S3KeyGenerator.getOriginalJpg(id);
-		if (!storage.exists(sourceKey)) return;
+		if (!storage.exists(sourceKey)) {
+			throw new NoSuchElementException("Missing original for crop. Source: " + sourceKey);
+		}
 
 		BufferedImage b = storage.downloadImage(sourceKey);
-		if (b == null) return;
+		if (b == null) {
+			throw new NoSuchElementException("Unable to decode original for crop: " + sourceKey);
+		}
 
 		try {
-			if (x >= 0 && y >= 0 && width > 0 && height > 0 && x + width <= b.getWidth() && y + height <= b.getHeight()) {
-				BufferedImage cropped = crop(b, x, y, width, height);
-				storage.uploadImage(key, cropped, type);
-				cropped.flush();
+			if (x < 0 || y < 0 || width <= 0 || height <= 0 || x + width > b.getWidth() || y + height > b.getHeight()) {
+				throw new NoSuchElementException("Invalid crop region x=" + x + ", y=" + y + ", width=" + width + ", height=" + height
+						+ " for media id=" + id + " (source " + b.getWidth() + "x" + b.getHeight() + ")");
 			}
+			BufferedImage cropped = crop(b, x, y, width, height);
+			storage.uploadImage(key, cropped, type);
+			cropped.flush();
+			return key;
 		} finally {
 			b.flush();
 		}
 	}
 
-	public void processResize(int id, int targetWidth, int minDimension, String key, StorageType type) {
+	public String processResize(int id, int targetWidth, int minDimension, String key, StorageType type) {
 		boolean useWebSource = (targetWidth <= 0 || targetWidth <= IMAGE_WEB_WIDTH) && (minDimension <= 0 || minDimension <= IMAGE_WEB_WIDTH);
 		String sourceKey = useWebSource ? S3KeyGenerator.getWebJpg(id) : S3KeyGenerator.getOriginalJpg(id);
 		if (useWebSource && !storage.exists(sourceKey)) {
 			sourceKey = S3KeyGenerator.getOriginalJpg(id);
 		}
-		if (!storage.exists(sourceKey)) return;
+		if (!storage.exists(sourceKey)) {
+			throw new NoSuchElementException("Missing source for resize. Source: " + sourceKey);
+		}
 
 		BufferedImage b = storage.downloadImage(sourceKey);
-		if (b == null) return;
+		if (b == null) {
+			throw new NoSuchElementException("Unable to decode source for resize: " + sourceKey);
+		}
 
 		try {
 			int newWidth = b.getWidth();
@@ -124,34 +136,51 @@ public class ImageService {
 				newWidth = targetWidth;
 				newHeight = (int) Math.round(b.getHeight() * ratio);
 			} else if (minDimension > 0) {
-				double ratio = b.getWidth() < b.getHeight() 
-						? (double) minDimension / b.getWidth() 
+				double ratio = b.getWidth() < b.getHeight()
+						? (double) minDimension / b.getWidth()
 								: (double) minDimension / b.getHeight();
 				newWidth = (int) Math.round(b.getWidth() * ratio);
 				newHeight = (int) Math.round(b.getHeight() * ratio);
 			}
 
-			if (newWidth != b.getWidth() || newHeight != b.getHeight()) {
+			if (newWidth < b.getWidth() || newHeight < b.getHeight()) {
 				BufferedImage resized = resize(b, newWidth, newHeight);
 				storage.uploadImage(key, resized, type);
 				resized.flush();
-			} else {
-				storage.uploadImage(key, b, type);
+				return key;
 			}
+
+			if (useWebSource) {
+				// The requested size is not smaller than the standard web image, so a generated
+				// copy would be pixel-identical. Avoid the redundant re-encode + upload and
+				// redirect to the pre-existing web asset instead (e.g. the `originalWidth`
+				// srcset entry, or an over-sized minDimension for a narrow source).
+				return bestExistingWebKey(id, type);
+			}
+
+			// Source is the original and the request is >= original size (large zoom viewer
+			// requests). Keep generating a full-resolution variant as before so the zoom
+			// view stays sharp; the frontend modal warm-up hides this latency.
+			storage.uploadImage(key, b, type);
+			return key;
 		} finally {
 			b.flush();
 		}
 	}
 
-	public void processStandard(int id, String key, StorageType type) {
+	public String processStandard(int id, String key, StorageType type) {
 		String sourceKey = S3KeyGenerator.getWebJpg(id);
 		if (!storage.exists(sourceKey)) {
 			sourceKey = S3KeyGenerator.getOriginalJpg(id);
 		}
-		if (!storage.exists(sourceKey)) return;
+		if (!storage.exists(sourceKey)) {
+			throw new NoSuchElementException("Missing source for standard image. Source: " + sourceKey);
+		}
 
 		BufferedImage b = storage.downloadImage(sourceKey);
-		if (b == null) return;
+		if (b == null) {
+			throw new NoSuchElementException("Unable to decode source for standard image: " + sourceKey);
+		}
 
 		try {
 			BufferedImage webImage = scaleToWebDimensionsIfNeeded(b);
@@ -163,6 +192,7 @@ public class ImageService {
 		} finally {
 			b.flush();
 		}
+		return key;
 	}
 
 	public BufferedImage readFromEmbedUrl(String embedVideoUrl) throws IOException, InterruptedException {
@@ -339,17 +369,61 @@ public class ImageService {
 	}
 
 	private BufferedImage resize(BufferedImage src, int width, int height) {
+		if (width == src.getWidth() && height == src.getHeight()) {
+			return src;
+		}
+
+		BufferedImage current = src;
+		int currentWidth = src.getWidth();
+		int currentHeight = src.getHeight();
+
+		// Progressive downscale: repeatedly halve with fast bilinear interpolation until
+		// within 2x of the target, then finish with a single high-quality pass. One big
+		// bicubic pass over a large source is both slow and aliased; each halving step
+		// touches a quarter of the pixels of the previous step.
+		while (currentWidth > width * 2 && currentHeight > height * 2) {
+			int nextWidth = Math.max(width, currentWidth / 2);
+			int nextHeight = Math.max(height, currentHeight / 2);
+			BufferedImage next = new BufferedImage(nextWidth, nextHeight, BufferedImage.TYPE_INT_RGB);
+			Graphics2D g = next.createGraphics();
+			try {
+				g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+				g.drawImage(current, 0, 0, nextWidth, nextHeight, null);
+			} finally {
+				g.dispose();
+			}
+			if (current != src) current.flush();
+			current = next;
+			currentWidth = nextWidth;
+			currentHeight = nextHeight;
+		}
+
 		BufferedImage resized = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 		Graphics2D g = resized.createGraphics();
 		try {
 			g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
 			g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 			g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-			g.drawImage(src, 0, 0, width, height, null);
+			g.drawImage(current, 0, 0, width, height, null);
 		} finally {
 			g.dispose();
 		}
+		if (current != src) current.flush();
 		return resized;
+	}
+
+	/**
+	 * Best pre-existing standard asset to redirect to when no resized variant is needed:
+	 * the web WebP for WebP-capable clients when available, else the web JPEG, else the original.
+	 */
+	private String bestExistingWebKey(int id, StorageType type) {
+		if (storage.exists(S3KeyGenerator.getWebJpg(id))) {
+			if (type == StorageType.WEBP && storage.exists(S3KeyGenerator.getWebWebp(id))) {
+				return S3KeyGenerator.getWebWebp(id);
+			}
+			return S3KeyGenerator.getWebJpg(id);
+		}
+		return S3KeyGenerator.getOriginalJpg(id);
 	}
 
 	private BufferedImage scaleToWebDimensionsIfNeeded(BufferedImage b) {
