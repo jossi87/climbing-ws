@@ -197,46 +197,46 @@ public class MediaController {
 	}
 
 	@Operation(summary = "Commit verified Instagram media to application storage")
-    @PostMapping("/instagram-save")
-    @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
-    public ResponseEntity<Media> postMediaInstagramSave(
-            @RequestHeader("X-Selected-Cdn-Url") String selectedCdnUrl,
-            @RequestHeader("X-Selected-Is-Video") boolean isVideo,
-            @RequestHeader("X-Selected-Media-Index") int mediaIndex,
-            @RequestBody Media mediaPayload) {
+	@PostMapping("/instagram-save")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
+	public ResponseEntity<Media> postMediaInstagramSave(
+			@RequestHeader("X-Selected-Cdn-Url") String selectedCdnUrl,
+			@RequestHeader("X-Selected-Is-Video") boolean isVideo,
+			@RequestHeader("X-Selected-Media-Index") int mediaIndex,
+			@RequestBody Media mediaPayload) {
 
-        if (mediaPayload == null) throw new ValidationFailedException("Media payload missing");
-        
-        var authUserId = requestContext.getAuthenticatedUserId();
-        if (mediaService.getDailyInstagramScrapeCount(authUserId) > 50) {
-            throw new TooManyRequestsException("Daily limit reached");
-        }
+		if (mediaPayload == null) throw new ValidationFailedException("Media payload missing");
 
-        mediaPayload.ensureCorrectMediaAssociations(authUserId);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		if (mediaService.getDailyInstagramScrapeCount(authUserId) > 50) {
+			throw new TooManyRequestsException("Daily limit reached");
+		}
 
-        if (isVideo) {
-            var storageType = StorageType.MP4;
-            int id = mediaService.addMediaVideoPlaceholder(authUserId, mediaPayload, storageType);
-            
-            CompletableFuture.runAsync(() -> {
-                try {
-                    byte[] videoData = fetchWithFallback(selectedCdnUrl, mediaPayload.embedUrl(), mediaIndex, authUserId);
-                    storage.uploadBytes(S3KeyGenerator.getOriginalMp4(id, storageType), videoData, storageType);
-                    videoService.processVideo(id, storageType, mediaPayload.thumbnailSeconds());
-                } catch (Exception e) {
-                    throw new CompletionException(e);
-                }
-            }, videoProcessingExecutor);
-            
-            return ResponseEntity.ok(mediaService.getMedia(authUserId, id));
-        }
+		mediaPayload.ensureCorrectMediaAssociations(authUserId);
 
-        byte[] imageData = fetchWithFallback(selectedCdnUrl, mediaPayload.embedUrl(), mediaIndex, authUserId);
-        int newId = mediaService.addMediaImage(authUserId, mediaPayload, StorageType.JPG, () -> new ByteArrayInputStream(imageData));
-        return ResponseEntity.ok(mediaService.getMedia(authUserId, newId));
-    }
+		if (isVideo) {
+			var storageType = StorageType.MP4;
+			int id = mediaService.addMediaVideoPlaceholder(authUserId, mediaPayload, storageType);
 
-    @Operation(summary = "Scrape Instagram URL metadata for frontend preview box")
+			CompletableFuture.runAsync(() -> {
+				try {
+					byte[] videoData = fetchWithFallback(selectedCdnUrl, mediaPayload.embedUrl(), mediaIndex, authUserId);
+					storage.uploadBytes(S3KeyGenerator.getOriginalMp4(id, storageType), videoData, storageType);
+					videoService.processVideo(id, storageType, mediaPayload.thumbnailSeconds());
+				} catch (Exception e) {
+					throw new CompletionException(e);
+				}
+			}, videoProcessingExecutor);
+
+			return ResponseEntity.ok(mediaService.getMedia(authUserId, id));
+		}
+
+		byte[] imageData = fetchWithFallback(selectedCdnUrl, mediaPayload.embedUrl(), mediaIndex, authUserId);
+		int newId = mediaService.addMediaImage(authUserId, mediaPayload, StorageType.JPG, () -> new ByteArrayInputStream(imageData));
+		return ResponseEntity.ok(mediaService.getMedia(authUserId, newId));
+	}
+
+	@Operation(summary = "Scrape Instagram URL metadata for frontend preview box")
 	@PostMapping("/instagram-scrape")
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	public ResponseEntity<List<InstagramService.InstagramMedia>> postMediaInstagramScrape(@RequestParam(name = "url") String url) {
@@ -393,28 +393,28 @@ public class MediaController {
 	}
 
 	private byte[] fetchWithFallback(String cdnUrl, String embedUrl, int mediaIndex, Optional<Integer> authUserId) {
-        URI validatedUri = InstagramService.validateUrl(cdnUrl, "cdninstagram.com", "fbcdn.net");
-        try {
-            return instagramService.fetchMediaBytes(validatedUri);
-        } catch (Exception e) {
-        	logger.warn("Initial CDN fetch failed for URL: {} - attempting Apify fallback", cdnUrl, e);
-            try {
-                URI validatedEmbedUri = InstagramService.validateUrl(embedUrl, "instagram.com");
-                List<InstagramService.InstagramMedia> fresh = instagramService.resolveMedia(validatedEmbedUri.toString());
-                
-                InstagramService.InstagramMedia target = fresh.stream()
-                        .filter(md -> md.mediaIndex() == mediaIndex)
-                        .findFirst()
-                        .orElse(fresh.get(0));
-                        
-                mediaService.logInstagramScrape(authUserId, validatedEmbedUri.toString(), fresh.size());
-                
-                URI freshUri = InstagramService.validateUrl(target.cdnUrl(), "cdninstagram.com", "fbcdn.net");
-                return instagramService.fetchMediaBytes(freshUri);
-            } catch (Exception fallbackException) {
-                logger.error("Apify fallback also failed for embed URL: {}", embedUrl, fallbackException);
-                throw new RuntimeException("Failed to fetch Instagram media from CDN. The CDN hostname ('cdninstagram.com' / 'fbcdn.net') could not be resolved. This is likely a DNS resolution issue in the server environment. Original error: " + e.getMessage(), e);
-            }
-        }
-    }
+		URI validatedUri = InstagramService.validateUrl(cdnUrl, "cdninstagram.com", "fbcdn.net");
+		try {
+			return instagramService.fetchMediaBytes(validatedUri);
+		} catch (Exception e) {
+			logger.warn("Initial CDN fetch failed for URL: {} - attempting Apify fallback", cdnUrl, e);
+			try {
+				URI validatedEmbedUri = InstagramService.validateUrl(embedUrl, "instagram.com");
+				List<InstagramService.InstagramMedia> fresh = instagramService.resolveMedia(validatedEmbedUri.toString());
+
+				InstagramService.InstagramMedia target = fresh.stream()
+						.filter(md -> md.mediaIndex() == mediaIndex)
+						.findFirst()
+						.orElse(fresh.get(0));
+
+				mediaService.logInstagramScrape(authUserId, validatedEmbedUri.toString(), fresh.size());
+
+				URI freshUri = InstagramService.validateUrl(target.cdnUrl(), "cdninstagram.com", "fbcdn.net");
+				return instagramService.fetchMediaBytes(freshUri);
+			} catch (Exception fallbackException) {
+				logger.error("Apify fallback also failed for embed URL: {}", embedUrl, fallbackException);
+				throw new RuntimeException("Failed to fetch Instagram media from CDN. The CDN hostname ('cdninstagram.com' / 'fbcdn.net') could not be resolved. This is likely a DNS resolution issue in the server environment. Original error: " + e.getMessage(), e);
+			}
+		}
+	}
 }

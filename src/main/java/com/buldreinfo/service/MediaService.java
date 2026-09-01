@@ -89,6 +89,18 @@ public class MediaService {
 	public int addMediaVideoEmbed(Optional<Integer> authUserId, Media m, StorageType storageType) {
 		if (authUserId.isEmpty()) throw new IllegalArgumentException("Not logged in");
 		var associations = m.ensureCorrectMediaAssociations(authUserId);
+		// Reuse an existing media when the same video is already in the database.
+		if (associations == Association.PROBLEMS) {
+			Optional<Integer> existingId = mediaRepo.findEmbeddedProblemMediaId(m.embedUrl());
+			if (existingId.isPresent()) {
+				int idMedia = existingId.get();
+				mediaRepo.appendProblems(idMedia, m.problems());
+				activityRepo.fillActivity(m.problems().stream()
+						.map(MediaProblem::problemId)
+						.toList());
+				return idMedia;
+			}
+		}
 		int idMedia = insertMediaMetadata(authUserId.get(), m, storageType);
 		saveMediaContext(idMedia, associations, m, false);
 		if (associations == Association.PROBLEMS) {

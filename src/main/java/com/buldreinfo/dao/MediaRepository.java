@@ -23,6 +23,7 @@ import com.buldreinfo.dao.MediaRepository.MediaAssociation.TargetType;
 import com.buldreinfo.exception.ForbiddenException;
 import com.buldreinfo.model.Media;
 import com.buldreinfo.model.Media.Association;
+import com.buldreinfo.model.Media.MediaProblem;
 import com.buldreinfo.model.MediaSvgElementType;
 import com.buldreinfo.model.Svg;
 import com.buldreinfo.service.ImageClassifierService;
@@ -36,7 +37,7 @@ public class MediaRepository {
 	public record MediaPendingAnalysis(int id, int width, int height) {}
 	public record EmbeddedVideo(int id, String suffix, String embedUrl) {}
 	public record MediaAssociation(TargetType type, int columnId) {
-		public enum TargetType { AREA, SECTOR, TRAIL, PROBLEM }
+		public enum TargetType { AREA, PROBLEM, SECTOR, TRAIL }
 	}
 
 	private final JdbcClient jdbcClient;
@@ -50,6 +51,18 @@ public class MediaRepository {
 		this.jdbcClient = jdbcClient;
 		this.jdbcTemplate = jdbcTemplate;
 		this.jsonHelper = jsonHelper;
+	}
+
+	@Transactional
+	public void appendProblems(int mediaId, List<MediaProblem> problems) {
+		jdbcTemplate.batchUpdate("INSERT INTO media_problem (media_id, problem_id, pitch, trivia, milliseconds) VALUES (?, ?, ?, ?, ?)",
+				problems, 50, (ps, p) -> {
+					ps.setInt(1, mediaId);
+					ps.setInt(2, p.problemId());
+					ps.setInt(3, p.problemPitch());
+					ps.setBoolean(4, p.trivia());
+					ps.setLong(5, p.milliseconds());
+				});
 	}
 
 	@Transactional
@@ -71,6 +84,21 @@ public class MediaRepository {
 		jdbcClient.sql("DELETE FROM media_ml_label WHERE media_id=?").param(idMedia).update();
 		jdbcClient.sql("DELETE FROM media_ml_object WHERE media_id=?").param(idMedia).update();
 		jdbcClient.sql("DELETE FROM media_ml_analysis WHERE media_id=?").param(idMedia).update();
+	}
+
+	@Transactional(readOnly = true)
+	public Optional<Integer> findEmbeddedProblemMediaId(String embedUrl) {
+		return jdbcClient.sql("""
+				SELECT m.id
+				FROM media m
+				WHERE m.is_movie=1 AND m.deleted_user_id IS NULL AND m.embed_url=?
+				  AND EXISTS (SELECT 1 FROM media_problem mp WHERE mp.media_id=m.id)
+				ORDER BY m.id
+				LIMIT 1
+				""")
+				.param(embedUrl)
+				.query(Integer.class)
+				.optional();
 	}
 
 	@Transactional(readOnly = true)
@@ -390,11 +418,12 @@ public class MediaRepository {
 					if (sectorId > 0) return new MediaAssociation(TargetType.SECTOR, sectorId);
 					if (trailId > 0) return new MediaAssociation(TargetType.TRAIL, trailId);
 					if (problemId > 0) return new MediaAssociation(TargetType.PROBLEM, problemId);
-					
+
 					throw new UnsupportedOperationException("Could not find media association");
 				})
 				.single();
 	}
+
 
 	@Transactional(readOnly = true)
 	public List<Media> getMediaGuestbook(Optional<Integer> authUserId, int guestbookId) {
@@ -526,14 +555,13 @@ public class MediaRepository {
 				.list();
 	}
 
-
 	@Transactional(readOnly = true)
 	public List<Integer> getMediaIdsForSorting(MediaAssociation result) {
 		String sql = switch (result.type()) {
-			case AREA -> "SELECT m.id FROM media_area x JOIN media m ON x.media_id = m.id WHERE x.area_id = ? AND m.deleted_user_id IS NULL AND m.is_movie = 0 ORDER BY -x.sorting DESC, m.id";
-			case SECTOR -> "SELECT m.id FROM media_sector x JOIN media m ON x.media_id = m.id WHERE x.sector_id = ? AND m.deleted_user_id IS NULL AND m.is_movie = 0 ORDER BY -x.sorting DESC, m.id";
-			case TRAIL -> "SELECT m.id FROM media_trail x JOIN media m ON x.media_id = m.id WHERE x.trail_id = ? AND m.deleted_user_id IS NULL AND m.is_movie = 0 ORDER BY -x.sorting DESC, m.id";
-			case PROBLEM -> "SELECT m.id FROM media_problem x JOIN media m ON x.media_id = m.id WHERE x.problem_id = ? AND m.deleted_user_id IS NULL AND m.is_movie = 0 ORDER BY IFNULL(x.pitch,0), -x.sorting DESC, m.id";
+		case AREA -> "SELECT m.id FROM media_area x JOIN media m ON x.media_id = m.id WHERE x.area_id = ? AND m.deleted_user_id IS NULL AND m.is_movie = 0 ORDER BY -x.sorting DESC, m.id";
+		case SECTOR -> "SELECT m.id FROM media_sector x JOIN media m ON x.media_id = m.id WHERE x.sector_id = ? AND m.deleted_user_id IS NULL AND m.is_movie = 0 ORDER BY -x.sorting DESC, m.id";
+		case TRAIL -> "SELECT m.id FROM media_trail x JOIN media m ON x.media_id = m.id WHERE x.trail_id = ? AND m.deleted_user_id IS NULL AND m.is_movie = 0 ORDER BY -x.sorting DESC, m.id";
+		case PROBLEM -> "SELECT m.id FROM media_problem x JOIN media m ON x.media_id = m.id WHERE x.problem_id = ? AND m.deleted_user_id IS NULL AND m.is_movie = 0 ORDER BY IFNULL(x.pitch,0), -x.sorting DESC, m.id";
 		};
 
 		return jdbcClient.sql(sql)
@@ -1083,7 +1111,7 @@ public class MediaRepository {
 				LEFT JOIN user_region urt ON a_tr.region_id = urt.region_id AND urt.user_id = req.auth_user_id
 
 				WHERE (mp.media_id IS NOT NULL OR ms.media_id IS NOT NULL OR ma.media_id IS NOT NULL OR mt.media_id IS NOT NULL)
-                  AND (mp.media_id IS NULL OR (p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (urp.superadmin_read=1) OR (urp.admin_read=1 AND p.locked_superadmin=0))))
+				              AND (mp.media_id IS NULL OR (p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (urp.superadmin_read=1) OR (urp.admin_read=1 AND p.locked_superadmin=0))))
 				  AND (ms.media_id IS NULL OR (ss.trash IS NULL AND ((ss.locked_admin=0 AND ss.locked_superadmin=0) OR (urs.superadmin_read=1) OR (urs.admin_read=1 AND ss.locked_superadmin=0))))
 				  AND (ma.media_id IS NULL OR (am.trash IS NULL AND ((am.locked_admin=0 AND am.locked_superadmin=0) OR (ura.superadmin_read=1) OR (ura.admin_read=1 AND am.locked_superadmin=0))))
 				  AND (mt.media_id IS NULL OR (s_tr.trash IS NULL AND ((s_tr.locked_admin=0 AND a_tr.locked_superadmin=0) OR (urt.superadmin_read=1) OR (urt.admin_read=1 AND a_tr.locked_superadmin=0))))
@@ -1212,8 +1240,8 @@ public class MediaRepository {
 		}
 
 		jdbcClient.sql("INSERT INTO media_ml_analysis (media_id, primary_color_hex, focus_x, focus_y, is_action_shot, failed) VALUES (?, ?, ?, ?, ?, ?)")
-				.params(mediaId, hexColor, focusX, focusY, hasPersonObject, failed)
-				.update();
+		.params(mediaId, hexColor, focusX, focusY, hasPersonObject, failed)
+		.update();
 
 		if (!failed) {
 			if (labels != null && !labels.isEmpty()) {
@@ -1224,7 +1252,7 @@ public class MediaRepository {
 							ps.setFloat(3, label.score());
 						});
 			}
-			
+
 			if (objects != null && !objects.isEmpty()) {
 				jdbcTemplate.batchUpdate("INSERT INTO media_ml_object (media_id, name, score, x_min, y_min, x_max, y_max) VALUES (?, ?, ?, ?, ?, ?, ?)",
 						objects, objects.size(), (ps, obj) -> {
@@ -1257,8 +1285,7 @@ public class MediaRepository {
 				m.areas(), 50, (ps, a) -> { ps.setInt(1, mediaId); ps.setInt(2, a.areaId()); ps.setBoolean(3, a.trivia()); });
 		case SECTORS -> jdbcTemplate.batchUpdate("INSERT INTO media_sector (media_id, sector_id, trivia) VALUES (?, ?, ?)",
 				m.sectors(), 50, (ps, s) -> { ps.setInt(1, mediaId); ps.setInt(2, s.sectorId()); ps.setBoolean(3, s.trivia()); });
-		case PROBLEMS -> jdbcTemplate.batchUpdate("INSERT INTO media_problem (media_id, problem_id, pitch, trivia, milliseconds) VALUES (?, ?, ?, ?, ?)",
-				m.problems(), 50, (ps, p) -> { ps.setInt(1, mediaId); ps.setInt(2, p.problemId()); ps.setInt(3, p.problemPitch()); ps.setBoolean(4, p.trivia()); ps.setLong(5, p.milliseconds()); });
+		case PROBLEMS -> appendProblems(mediaId, m.problems());
 		case TRAILS -> jdbcTemplate.batchUpdate("INSERT INTO media_trail (media_id, trail_id) VALUES (?, ?)",
 				m.trails(), 50, (ps, t) -> { ps.setInt(1, mediaId); ps.setInt(2, t.trailId()); });
 		case GUESTBOOK -> jdbcTemplate.update("INSERT INTO media_guestbook (media_id, guestbook_id) VALUES (?, ?)", mediaId, m.guestbookId());
