@@ -47,6 +47,10 @@ public class RegionRepository {
 
 	@Transactional(readOnly = true)
 	public void ensureSuperadminForMergedUsers(int authUserId, int keepUserId, int deleteUserId) {
+		// Accounts without region associations can always be merged by the current superadmin.
+		if (!hasAnyRegion(keepUserId) || !hasAnyRegion(deleteUserId)) {
+			return;
+		}
 		var sharedRegionId = jdbcClient.sql("""
 				SELECT EXISTS(
 				       SELECT 1
@@ -60,9 +64,8 @@ public class RegionRepository {
 				.params(keepUserId, keepUserId, deleteUserId, deleteUserId, authUserId)
 				.query(Integer.class)
 				.single();
-
 		if (sharedRegionId == 0) {
-			throw new ForbiddenException("Merge not allowed - you must be superadmin in a region both accounts are associated with");
+			throw new ForbiddenException("Merge not allowed - both accounts have regions, but you are not superadmin in a region they share");
 		}
 	}
 
@@ -195,5 +198,19 @@ public class RegionRepository {
 			.add(new Coordinates(rs.getInt("id"), rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0));
 		});
 		return res;
+	}
+
+	@Transactional(readOnly = true)
+	private boolean hasAnyRegion(int userId) {
+		return jdbcClient.sql("""
+				SELECT EXISTS(
+				       SELECT 1 FROM user_login WHERE user_id=?
+				       UNION
+				       SELECT 1 FROM user_region WHERE user_id=?
+				)
+				""")
+				.params(userId, userId)
+				.query(Integer.class)
+				.single() == 1;
 	}
 }
