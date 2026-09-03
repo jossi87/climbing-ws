@@ -203,12 +203,14 @@ public class UserRepository {
 				       mma.focus_x AS media_focus_x,
 				       mma.focus_y AS media_focus_y,
 				       mma.primary_color_hex AS media_primary_color_hex,
-				       e.emails
+				       e.emails,
+				       l.when AS last_login
 				FROM user u
 				LEFT JOIN media m ON u.media_id = m.id
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				LEFT JOIN (SELECT user_id, GROUP_CONCAT(DISTINCT email ORDER BY email SEPARATOR ';') AS emails
 				           FROM user_email WHERE email NOT LIKE '%@missing-email.com' GROUP BY user_id) e ON e.user_id = u.id
+				LEFT JOIN (SELECT user_id, MAX(`when`) AS last_login FROM user_login GROUP BY user_id) l ON l.user_id = u.id
 				ORDER BY u.id DESC
 				""")
 				.query((rs, _) -> {
@@ -220,7 +222,7 @@ public class UserRepository {
 					List<String> emails = (emailsStr == null || emailsStr.isBlank())
 								? List.of()
 								: List.of(emailsStr.split(";"));
-					return new MergeUser(rs.getInt("id"), rs.getString("name"), mediaIdentity, emails, List.of());
+					return new MergeUser(rs.getInt("id"), rs.getString("name"), mediaIdentity, TimeAgo.getTimeAgo(rs.getObject("last_login", LocalDate.class)), emails, List.of());
 				})
 				.list();
 
@@ -248,7 +250,7 @@ public class UserRepository {
 				});
 
 		return users.stream()
-				.map(u -> new MergeUser(u.userId(), u.name(), u.mediaIdentity(), u.emails(), regionsByUser.getOrDefault(u.userId(), List.of())))
+				.map(u -> new MergeUser(u.userId(), u.name(), u.mediaIdentity(), u.lastLogin(), u.emails(), regionsByUser.getOrDefault(u.userId(), List.of())))
 				.toList();
 	}
 
@@ -1083,5 +1085,6 @@ public class UserRepository {
 		return res;
 	}
 }
+
 
 
