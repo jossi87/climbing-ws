@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -38,6 +39,7 @@ import com.buldreinfo.model.Administrator;
 import com.buldreinfo.model.AuthenticatedUser;
 import com.buldreinfo.model.Coordinates;
 import com.buldreinfo.model.MediaIdentity;
+import com.buldreinfo.model.MergeUser;
 import com.buldreinfo.model.PermissionUser;
 import com.buldreinfo.model.Profile.ProfileDiscipline;
 import com.buldreinfo.model.Profile.ProfileDisciplineGradeDistribution;
@@ -55,6 +57,16 @@ import com.buldreinfo.model.UserRegion;
 public class UserRepository {
 	public static final int USER_ID_UNKNOWN = 1049;
 	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static List<String> mergeRegionNames(String loginRegions, String regionRegions) {
+		LinkedHashSet<String> res = new LinkedHashSet<>();
+		for (String s : new String[] { loginRegions, regionRegions }) {
+			if (s != null && !s.isBlank()) {
+				res.addAll(List.of(s.split(";")));
+			}
+		}
+		return new ArrayList<>(res);
+	}
+
 	private final JdbcClient jdbcClient;
 
 	public UserRepository(JdbcClient jdbcClient) {
@@ -190,6 +202,44 @@ public class UserRepository {
 			throw new IllegalStateException("Failed to create user: " + name);
 		}
 		return usId;
+	}
+
+	/**
+	 * All users for the merge-users page (superadmin only). Newest accounts first; search/filtering happens
+	 * on the client so older accounts with the same/similar names are easy to find next to the new duplicates.
+	 */
+	@Transactional(readOnly = true)
+	public List<MergeUser> getMergeUsers() {
+		return jdbcClient.sql("""
+				SELECT u.id,
+				       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))) AS name,
+				       m.id AS media_id,
+				       UNIX_TIMESTAMP(m.updated_at) AS media_version_stamp,
+				       mma.focus_x AS media_focus_x,
+				       mma.focus_y AS media_focus_y,
+				       mma.primary_color_hex AS media_primary_color_hex,
+				       e.emails,
+				       (SELECT GROUP_CONCAT(DISTINCT r.name ORDER BY r.name SEPARATOR ';') FROM user_login l JOIN region r ON r.id = l.region_id WHERE l.user_id = u.id) AS login_regions,
+				       (SELECT GROUP_CONCAT(DISTINCT r.name ORDER BY r.name SEPARATOR ';') FROM user_region ur JOIN region r ON r.id = ur.region_id WHERE ur.user_id = u.id) AS region_regions
+				FROM user u
+				LEFT JOIN media m ON u.media_id = m.id
+				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
+				LEFT JOIN (SELECT user_id, GROUP_CONCAT(DISTINCT email ORDER BY email SEPARATOR ';') AS emails
+				           FROM user_email WHERE email NOT LIKE '%@missing-email.com' GROUP BY user_id) e ON e.user_id = u.id
+				ORDER BY u.id DESC
+				""")
+				.query((rs, _) -> {
+					int mediaId = rs.getInt("media_id");
+					MediaIdentity mediaIdentity = (mediaId > 0)
+							? new MediaIdentity(mediaId, rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex"))
+									: null;
+					String emailsStr = rs.getString("emails");
+					List<String> emails = (emailsStr == null || emailsStr.isBlank())
+								? List.of()
+								: List.of(emailsStr.split(";"));
+					return new MergeUser(rs.getInt("id"), rs.getString("name"), mediaIdentity, emails, mergeRegionNames(rs.getString("login_regions"), rs.getString("region_regions")));
+				})
+				.list();
 	}
 
 	@Transactional(readOnly = true)
@@ -787,6 +837,40 @@ public class UserRepository {
 				.isPresent();
 	}
 
+	/**
+	 * Move all references from {@code deleteUserId} to {@code keepUserId} and delete the account, mirroring the
+	 * former {@code MergeUsers} batch script but parameterized. {@code UPDATE IGNORE} is used so a row that already
+	 * exists on the kept account (unique keys on {@code user_email}/{@code user_login}) does not abort the merge -
+	 * the conflicting leftover row is then removed when the account is deleted.
+	 */
+	@Transactional
+	public void mergeUsers(int keepUserId, int deleteUserId) {
+		ensureUserExists(keepUserId);
+		ensureUserExists(deleteUserId);
+
+		// guestbook
+		jdbcClient.sql("UPDATE IGNORE guestbook SET user_id=? WHERE user_id=?").params(keepUserId, deleteUserId).update();
+		// media
+		jdbcClient.sql("UPDATE IGNORE media SET photographer_user_id=? WHERE photographer_user_id=?").params(keepUserId, deleteUserId).update();
+		jdbcClient.sql("UPDATE IGNORE media SET uploader_user_id=? WHERE uploader_user_id=?").params(keepUserId, deleteUserId).update();
+		jdbcClient.sql("UPDATE IGNORE media SET deleted_user_id=? WHERE deleted_user_id=?").params(keepUserId, deleteUserId).update();
+		// media_user
+		jdbcClient.sql("UPDATE IGNORE media_user SET user_id=? WHERE user_id=?").params(keepUserId, deleteUserId).update();
+		// fa
+		jdbcClient.sql("UPDATE IGNORE fa SET user_id=? WHERE user_id=?").params(keepUserId, deleteUserId).update();
+		// fa_aid_user
+		jdbcClient.sql("UPDATE IGNORE fa_aid_user SET user_id=? WHERE user_id=?").params(keepUserId, deleteUserId).update();
+		// tick
+		jdbcClient.sql("UPDATE IGNORE tick SET user_id=? WHERE user_id=?").params(keepUserId, deleteUserId).update();
+		// instagram_scrape_log (FK to user without ON DELETE CASCADE)
+		jdbcClient.sql("UPDATE IGNORE instagram_scrape_log SET user_id=? WHERE user_id=?").params(keepUserId, deleteUserId).update();
+		// user_email
+		jdbcClient.sql("UPDATE IGNORE user_email SET user_id=? WHERE user_id=?").params(keepUserId, deleteUserId).update();
+		// user_login
+		jdbcClient.sql("UPDATE IGNORE user_login SET user_id=? WHERE user_id=?").params(keepUserId, deleteUserId).update();
+		// user
+		jdbcClient.sql("DELETE FROM user WHERE id=?").param(deleteUserId).update();
+	}
 	@Transactional
 	public void setProfile(Optional<Integer> authUserId, ProfileIdentity profile) {
 		if (authUserId.orElse(0) != profile.id()) {
@@ -995,3 +1079,4 @@ public class UserRepository {
 		return res;
 	}
 }
+

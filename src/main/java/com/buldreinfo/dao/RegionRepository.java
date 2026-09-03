@@ -46,6 +46,27 @@ public class RegionRepository {
 	}
 
 	@Transactional(readOnly = true)
+	public void ensureSuperadminForMergedUsers(int authUserId, int keepUserId, int deleteUserId) {
+		var sharedRegionId = jdbcClient.sql("""
+				SELECT EXISTS(
+				       SELECT 1
+				       FROM (SELECT region_id FROM user_login WHERE user_id=?
+				             UNION SELECT region_id FROM user_region WHERE user_id=?) keep
+				       JOIN (SELECT region_id FROM user_login WHERE user_id=?
+				             UNION SELECT region_id FROM user_region WHERE user_id=?) del ON del.region_id=keep.region_id
+				       JOIN user_region auth ON auth.region_id=keep.region_id AND auth.user_id=? AND auth.superadmin_write=1
+				)
+				""")
+				.params(keepUserId, keepUserId, deleteUserId, deleteUserId, authUserId)
+				.query(Integer.class)
+				.single();
+
+		if (sharedRegionId == 0) {
+			throw new ForbiddenException("Merge not allowed - you must be superadmin in a region both accounts are associated with");
+		}
+	}
+
+	@Transactional(readOnly = true)
 	public void ensureSuperadminWriteRegion(Setup setup, Optional<Integer> authUserId) {
 		if (authUserId.isEmpty()) throw new UnauthorizedException("Not logged in");
 

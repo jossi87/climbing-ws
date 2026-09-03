@@ -13,25 +13,30 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.config.OpenApiConfig;
+import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.infrastructure.RequestContext;
+import com.buldreinfo.model.MergeUser;
 import com.buldreinfo.model.User;
 import com.buldreinfo.util.FilenameUtil;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 
 @Tag(name = "Users")
 @RestController
 @RequestMapping("/users")
 public class UsersController {
 	private final RequestContext requestContext;
+	private final RegionRepository regionRepo;
 	private final UserRepository userRepo;
 
-	public UsersController(RequestContext requestContext, UserRepository userRepo) {
+	public UsersController(RequestContext requestContext, RegionRepository regionRepo, UserRepository userRepo) {
 		this.requestContext = requestContext;
+		this.regionRepo = regionRepo;
 		this.userRepo = userRepo;
 	}
 
@@ -44,6 +49,36 @@ public class UsersController {
 		}
 		var authUserId = requestContext.getAuthenticatedUserId();
 		return ResponseEntity.ok(userRepo.getUserSearch(authUserId, value));
+	}
+
+	@Operation(summary = "Get all users (newest first) so a superadmin can merge duplicate accounts")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
+	@GetMapping(value = "/merge", produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<List<MergeUser>> getMergeUsers(HttpServletRequest request) {
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		regionRepo.ensureSuperadminWriteRegion(setup, authUserId);
+		return ResponseEntity.ok(userRepo.getMergeUsers());
+	}
+
+	@Operation(summary = "Merge two users (superadmin)")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
+	@PostMapping("/merge")
+	public ResponseEntity<Void> postMergeUsers(HttpServletRequest request,
+			@RequestParam(name = "keepUserId") int keepUserId,
+			@RequestParam(name = "deleteUserId") int deleteUserId) {
+		if (keepUserId <= 0 || deleteUserId <= 0 || keepUserId == deleteUserId) {
+			throw new ValidationFailedException("Invalid keepUserId=" + keepUserId + "/deleteUserId=" + deleteUserId);
+		}
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		regionRepo.ensureSuperadminWriteRegion(setup, authUserId);
+		if (authUserId.isPresent() && authUserId.get() == deleteUserId) {
+			throw new ValidationFailedException("You cannot merge away your own account");
+		}
+		regionRepo.ensureSuperadminForMergedUsers(authUserId.orElseThrow(), keepUserId, deleteUserId);
+		userRepo.mergeUsers(keepUserId, deleteUserId);
+		return ResponseEntity.ok().build();
 	}
 
 	@Operation(summary = "Get ticks (public ascents) on logged in user as Excel file (xlsx)")
