@@ -204,7 +204,7 @@ public class UserRepository {
 				       mma.focus_y AS media_focus_y,
 				       mma.primary_color_hex AS media_primary_color_hex,
 				       e.emails,
-				       l.when AS last_login
+				       l.last_login AS last_login
 				FROM user u
 				LEFT JOIN media m ON u.media_id = m.id
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
