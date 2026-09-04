@@ -340,15 +340,15 @@ public class MediaController {
 		return ResponseEntity.ok(new VideoInitResponse(newMediaId, presignedUrl));
 	}
 
-	@Operation(summary = "Update media")
+	@Operation(summary = "Update media (optionally refresh the thumbnail of an embedded YouTube/Vimeo video)")
 	@PutMapping
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
-	public ResponseEntity<Void> putMedia(@RequestBody Media m) {
+	public ResponseEntity<Void> putMedia(@RequestBody Media m, @RequestParam(name = "refreshEmbedThumbnail", defaultValue = "false") boolean refreshEmbedThumbnail) {
 		if (m == null || m.identity() == null || m.identity().id() <= 0) {
 			throw new ValidationFailedException("Invalid mediaId");
 		}
 		var authUserId = requestContext.getAuthenticatedUserId();
-		mediaService.updateMedia(authUserId, m);
+		mediaService.updateMedia(authUserId, m, refreshEmbedThumbnail);
 		return ResponseEntity.ok().build();
 	}
 
@@ -364,16 +364,6 @@ public class MediaController {
 		}
 		var authUserId = requestContext.getAuthenticatedUserId();
 		mediaService.rotateMedia(authUserId, idMedia, degrees);
-		return ResponseEntity.ok().build();
-	}
-
-	@Operation(summary = "Refresh thumbnail for embedded video (YouTube/Vimeo)")
-	@PutMapping("/video/embed/refresh-thumbnail")
-	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
-	public ResponseEntity<Void> putMediaVideoEmbedRefreshThumbnail(@RequestParam(name = "id") int id) {
-		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
-		var authUserId = requestContext.getAuthenticatedUserId();
-		mediaService.refreshEmbedThumbnail(authUserId, id);
 		return ResponseEntity.ok().build();
 	}
 

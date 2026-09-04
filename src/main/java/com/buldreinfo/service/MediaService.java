@@ -264,7 +264,7 @@ public class MediaService {
 	}
 
 	@Transactional
-	public void updateMedia(Optional<Integer> authUserId, Media m) {
+	public void updateMedia(Optional<Integer> authUserId, Media m, boolean refreshEmbedThumb) {
 		if (m.identity() == null || m.identity().id() == 0) throw new IllegalArgumentException("Media id required.");
 		if (m.photographer() == null || m.photographer().name() == null || m.photographer().name().isBlank()) throw new IllegalArgumentException("A valid photographer must be specified to update media context.");
 
@@ -295,6 +295,13 @@ public class MediaService {
 			} catch (IOException | InterruptedException e) {
 				throw new RuntimeException(e);
 			}
+		}
+
+		if (refreshEmbedThumb) {
+			// Embedded YouTube/Vimeo videos: re-fetch the current provider thumbnail so a broken
+			// or outdated cover image is replaced. Runs in this transaction — a failed fetch
+			// rolls the whole update back (same contract as the uploaded-video thumbnail path).
+			refreshEmbedThumbnail(authUserId, mediaId);
 		}
 
 		saveMediaContext(mediaId, associations, m, true);
