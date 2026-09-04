@@ -153,6 +153,7 @@ public class MediaService {
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to refresh embed thumbnail for id=" + idMedia, e);
 		}
+		mediaRepo.touchMedia(idMedia);
 	}
 
 	public void deleteMediaAnalysis(int idMedia) {

@@ -1315,6 +1315,13 @@ public class MediaRepository {
 	}
 
 	@Transactional
+	public void touchMedia(int idMedia) {
+		jdbcClient.sql("UPDATE media SET updated_at=NOW() WHERE id=?")
+		.param(idMedia)
+		.update();
+	}
+
+	@Transactional
 	public void updateMediaFocusAndActionStatus() {
 		jdbcClient.sql("""
 				UPDATE media_ml_analysis mla
