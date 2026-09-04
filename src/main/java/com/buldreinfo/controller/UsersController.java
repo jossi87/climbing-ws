@@ -17,7 +17,7 @@ import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.infrastructure.RequestContext;
-import com.buldreinfo.model.MergeUser;
+import com.buldreinfo.model.AdminUser;
 import com.buldreinfo.model.User;
 import com.buldreinfo.util.FilenameUtil;
 
@@ -51,14 +51,14 @@ public class UsersController {
 		return ResponseEntity.ok(userRepo.getUserSearch(authUserId, value));
 	}
 
-	@Operation(summary = "Get all users (newest first) so a superadmin can merge duplicate accounts")
+	@Operation(summary = "Get all users (newest first) so a superadmin can manage accounts")
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
-	@GetMapping(value = "/merge", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<List<MergeUser>> getMergeUsers(HttpServletRequest request) {
+	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<List<AdminUser>> getUsers(HttpServletRequest request) {
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
 		regionRepo.ensureSuperadminWriteRegion(setup, authUserId);
-		return ResponseEntity.ok(userRepo.getMergeUsers());
+		return ResponseEntity.ok(userRepo.getUsers(authUserId.orElseThrow()));
 	}
 
 	@Operation(summary = "Merge two users (superadmin)")
@@ -78,6 +78,23 @@ public class UsersController {
 		}
 		regionRepo.ensureSuperadminForMergedUsers(authUserId.orElseThrow(), keepUserId, deleteUserId);
 		userRepo.mergeUsers(keepUserId, deleteUserId);
+		return ResponseEntity.ok().build();
+	}
+
+	@Operation(summary = "Rename a user (superadmin)")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
+	@PostMapping(value = "/name")
+	public ResponseEntity<Void> postUserRename(HttpServletRequest request,
+			@RequestParam(name = "userId") int userId,
+			@RequestParam(name = "firstname") String firstname,
+			@RequestParam(name = "lastname") String lastname) {
+		if (userId <= 0) throw new ValidationFailedException("Invalid userId=" + userId);
+		if (firstname == null || firstname.isBlank()) throw new ValidationFailedException("First name is required");
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		regionRepo.ensureSuperadminWriteRegion(setup, authUserId);
+		regionRepo.ensureSuperadminForUser(authUserId.orElseThrow(), userId);
+		userRepo.updateUserName(userId, firstname, lastname);
 		return ResponseEntity.ok().build();
 	}
 

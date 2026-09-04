@@ -70,6 +70,28 @@ public class RegionRepository {
 	}
 
 	@Transactional(readOnly = true)
+	public void ensureSuperadminForUser(int authUserId, int userId) {
+		// Accounts without any region association can always be renamed by a superadmin.
+		if (!hasAnyRegion(userId)) {
+			return;
+		}
+		var authorized = jdbcClient.sql("""
+				SELECT EXISTS(
+				       SELECT 1
+				       FROM (SELECT region_id FROM user_login WHERE user_id=?
+				             UNION SELECT region_id FROM user_region WHERE user_id=?) u
+				       JOIN user_region auth ON auth.region_id=u.region_id AND auth.user_id=? AND auth.superadmin_write=1
+				)
+				""")
+				.params(userId, userId, authUserId)
+				.query(Integer.class)
+				.single();
+		if (authorized == 0) {
+			throw new ForbiddenException("Rename not allowed - this user is associated with regions where you are not a superadmin");
+		}
+	}
+
+	@Transactional(readOnly = true)
 	public void ensureSuperadminWriteRegion(Setup setup, Optional<Integer> authUserId) {
 		if (authUserId.isEmpty()) throw new UnauthorizedException("Not logged in");
 

@@ -10,11 +10,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -33,12 +35,13 @@ import com.buldreinfo.excel.ExcelSheet;
 import com.buldreinfo.excel.ExcelWorkbook;
 import com.buldreinfo.exception.ForbiddenException;
 import com.buldreinfo.exception.UnauthorizedException;
+import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.helpers.TimeAgo;
 import com.buldreinfo.model.Administrator;
 import com.buldreinfo.model.AuthenticatedUser;
 import com.buldreinfo.model.Coordinates;
 import com.buldreinfo.model.MediaIdentity;
-import com.buldreinfo.model.MergeUser;
+import com.buldreinfo.model.AdminUser;
 import com.buldreinfo.model.PermissionUser;
 import com.buldreinfo.model.Profile.ProfileDiscipline;
 import com.buldreinfo.model.Profile.ProfileDisciplineGradeDistribution;
@@ -194,10 +197,12 @@ public class UserRepository {
 	}
 
 	@Transactional(readOnly = true)
-	public List<MergeUser> getMergeUsers() {
-		List<MergeUser> users = jdbcClient.sql("""
+	public List<AdminUser> getUsers(int authUserId) {
+		List<AdminUser> users = jdbcClient.sql("""
 				SELECT u.id,
 				       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))) AS name,
+				       u.firstname AS firstname,
+				       u.lastname AS lastname,
 				       m.id AS media_id,
 				       UNIX_TIMESTAMP(m.updated_at) AS media_version_stamp,
 				       mma.focus_x AS media_focus_x,
@@ -222,7 +227,7 @@ public class UserRepository {
 					List<String> emails = (emailsStr == null || emailsStr.isBlank())
 								? List.of()
 								: List.of(emailsStr.split(";"));
-					return new MergeUser(rs.getInt("id"), rs.getString("name"), mediaIdentity, TimeAgo.getTimeAgo(rs.getObject("last_login", LocalDate.class)), emails, List.of());
+					return new AdminUser(rs.getInt("id"), rs.getString("name"), rs.getString("firstname"), rs.getString("lastname"), false, mediaIdentity, TimeAgo.getTimeAgo(rs.getObject("last_login", LocalDate.class)), emails, List.of());
 				})
 				.list();
 
@@ -230,7 +235,7 @@ public class UserRepository {
 			return users;
 		}
 
-		Map<Integer, List<MergeUser.MergeRegion>> regionsByUser = new HashMap<>();
+		Map<Integer, List<AdminUser.AdminRegion>> regionsByUser = new HashMap<>();
 		jdbcClient.sql("""
 				SELECT u.user_id,
 				       r.id AS region_id,
@@ -243,14 +248,29 @@ public class UserRepository {
 				WHERE u.user_id IN (:userIds)
 				ORDER BY r.name, r.id
 				""")
-				.param("userIds", users.stream().map(MergeUser::userId).toList())
+				.param("userIds", users.stream().map(AdminUser::userId).toList())
 				.query(rs -> {
 					regionsByUser.computeIfAbsent(rs.getInt("user_id"), _ -> new ArrayList<>())
-							.add(new MergeUser.MergeRegion(rs.getInt("region_id"), rs.getString("region_name"), rs.getString("region_url")));
+							.add(new AdminUser.AdminRegion(rs.getInt("region_id"), rs.getString("region_name"), rs.getString("region_url")));
 				});
 
+		// A superadmin may rename an account only when the account has no region association, or when the superadmin is
+		// superadmin in at least one of the account's regions.
+		Set<Integer> superadminRegionIds = new HashSet<>(jdbcClient.sql("""
+				SELECT region_id
+				FROM user_region
+				WHERE user_id=? AND superadmin_write=1
+				""")
+				.param(authUserId)
+				.query(Integer.class)
+				.list());
+
 		return users.stream()
-				.map(u -> new MergeUser(u.userId(), u.name(), u.mediaIdentity(), u.lastLogin(), u.emails(), regionsByUser.getOrDefault(u.userId(), List.of())))
+				.map(u -> {
+					List<AdminUser.AdminRegion> regions = regionsByUser.getOrDefault(u.userId(), List.of());
+					boolean canEditName = regions.isEmpty() || regions.stream().anyMatch(r -> superadminRegionIds.contains(r.id()));
+					return new AdminUser(u.userId(), u.name(), u.firstname(), u.lastname(), canEditName, u.mediaIdentity(), u.lastLogin(), u.emails(), regions);
+				})
 				.toList();
 	}
 
@@ -877,6 +897,22 @@ public class UserRepository {
 		// user
 		jdbcClient.sql("DELETE FROM user WHERE id=?").param(deleteUserId).update();
 	}
+
+	@Transactional
+	public void updateUserName(int userId, String firstname, String lastname) {
+		ensureUserExists(userId);
+		if (firstname == null || firstname.isBlank()) {
+			throw new ValidationFailedException("First name is required");
+		}
+		jdbcClient.sql("""
+				UPDATE user
+				SET firstname=?, lastname=?
+				WHERE id=?
+				""")
+				.params(firstname.trim(), (lastname == null || lastname.isBlank()) ? null : lastname.trim(), userId)
+				.update();
+	}
+
 	@Transactional
 	public void setProfile(Optional<Integer> authUserId, ProfileIdentity profile) {
 		if (authUserId.orElse(0) != profile.id()) {
