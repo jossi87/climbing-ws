@@ -95,10 +95,20 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>s3</artifactId>
             <version>2.54.16</version>
+            <exclusions>
+                <!--
+                  Apache HttpClient 4.x is in maintenance mode and the SDK pulls it in as its default sync
+                  client. StorageManager configures the Apache 5 client explicitly, so drop the old one.
+                -->
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>apache-client</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
-            <artifactId>apache-client</artifactId>
+            <artifactId>apache5-client</artifactId>
             <version>2.54.16</version>
         </dependency>
         <dependency>

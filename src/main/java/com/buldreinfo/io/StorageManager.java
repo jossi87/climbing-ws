@@ -34,7 +34,7 @@ import jakarta.annotation.PreDestroy;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.http.apache.ApacheHttpClient;
+import software.amazon.awssdk.http.apache5.Apache5HttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.Delete;
@@ -155,18 +155,24 @@ public final class StorageManager {
 		StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(credentials);
 		URI endpointUri = URI.create("https://se-sto-1.linodeobjects.com");
 		Region region = Region.of("se-sto-1");
+		// Apache HttpClient 4.x — the SDK's old default — is deprecated, so use the Apache 5 client instead
+		// (apache-client is excluded in the pom, which makes Apache 5 the only one on the classpath).
+		var httpClientBuilder = Apache5HttpClient.builder()
+				.maxConnections(100)
+				.connectionMaxIdleTime(Duration.ofSeconds(30))
+				.connectionTimeout(Duration.ofSeconds(10))
+				.socketTimeout(Duration.ofSeconds(30));
+
 		this.s3Client = S3Client.builder()
 				.credentialsProvider(credentialsProvider)
 				.endpointOverride(endpointUri)
 				.region(region)
-				.httpClientBuilder(ApacheHttpClient.builder()
-						.maxConnections(100)
-						.connectionMaxIdleTime(Duration.ofSeconds(30))
-						.connectionTimeout(Duration.ofSeconds(10))
-						.socketTimeout(Duration.ofSeconds(30))
-						)
+				.httpClientBuilder(httpClientBuilder)
 				.build();
 
+		// The presigner has no httpClientBuilder(); it signs locally, so it takes the SDK's default HTTP
+		// client (Apache 5, the only Apache client left on the classpath). Credentials, region and endpoint
+		// still have to be set here.
 		this.s3Presigner = S3Presigner.builder()
 				.credentialsProvider(credentialsProvider)
 				.endpointOverride(endpointUri)
