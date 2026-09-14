@@ -113,7 +113,17 @@ public class ImageService {
 	}
 
 	public String processResize(int id, int targetWidth, int minDimension, String key, StorageType type) {
-		boolean useWebSource = (targetWidth <= 0 || targetWidth <= IMAGE_WEB_WIDTH) && (minDimension <= 0 || minDimension <= IMAGE_WEB_WIDTH);
+		// A request that is not smaller than the source it would be resized from needs no new file.
+		// Decide that from the stored dimensions instead of downloading the source first: a request at
+		// or above the size we already have (e.g. the 1920px modal image of a portrait photo, whose
+		// standard web version is only 1080px wide) would otherwise pull the whole image from storage
+		// on every request, only to throw the decoded result away.
+		String existingKey = resolveExistingKeyForNonShrinkingRequest(id, targetWidth, minDimension, type);
+		if (existingKey != null) {
+			return existingKey;
+		}
+
+		boolean useWebSource = resizesFromWebImage(targetWidth, minDimension);
 		String sourceKey = useWebSource ? S3KeyGenerator.getWebJpg(id) : S3KeyGenerator.getOriginalJpg(id);
 		if (useWebSource && !storage.exists(sourceKey)) {
 			sourceKey = S3KeyGenerator.getOriginalJpg(id);
@@ -128,20 +138,9 @@ public class ImageService {
 		}
 
 		try {
-			int newWidth = b.getWidth();
-			int newHeight = b.getHeight();
-
-			if (targetWidth > 0 && targetWidth < b.getWidth()) {
-				double ratio = (double) targetWidth / b.getWidth();
-				newWidth = targetWidth;
-				newHeight = (int) Math.round(b.getHeight() * ratio);
-			} else if (minDimension > 0) {
-				double ratio = b.getWidth() < b.getHeight()
-						? (double) minDimension / b.getWidth()
-								: (double) minDimension / b.getHeight();
-				newWidth = (int) Math.round(b.getWidth() * ratio);
-				newHeight = (int) Math.round(b.getHeight() * ratio);
-			}
+			int[] target = targetDimensions(b.getWidth(), b.getHeight(), targetWidth, minDimension);
+			int newWidth = target[0];
+			int newHeight = target[1];
 
 			if (newWidth < b.getWidth() || newHeight < b.getHeight()) {
 				BufferedImage resized = resize(b, newWidth, newHeight);
@@ -158,9 +157,9 @@ public class ImageService {
 				return bestExistingWebKey(id, type);
 			}
 
-			// Source is the original and the request is >= original size (large zoom viewer
-			// requests). Keep generating a full-resolution variant as before so the zoom
-			// view stays sharp; the frontend modal warm-up hides this latency.
+			// Source is the original and the request is >= original size (large zoom requests). Only
+			// reached when the stored dimensions are not known: with known dimensions the check above
+			// already redirects to the original instead of writing another full-size copy.
 			storage.uploadImage(key, b, type);
 			return key;
 		} finally {
@@ -253,6 +252,10 @@ public class ImageService {
 				mediaRepo.deleteMediaAnalysis(idMedia);
 				saveImagesConcurrently(image, originalKey, S3KeyGenerator.getWebJpg(idMedia), S3KeyGenerator.getWebWebp(idMedia), metadata.nativeMetadata());
 				mediaRepo.setMediaMetadata(idMedia, image.getWidth(), image.getHeight(), metadata.dateTaken(), metadata.is360());
+				// The standard files are overwritten in place, so the version stamp in the URL is the only
+				// thing that makes clients fetch the new picture. Bump it explicitly: a 180 degree rotation
+				// leaves width/height untouched, and MySQL only refreshes updated_at when a column changes.
+				mediaRepo.touchMedia(idMedia);
 				analyzeAndSaveAsync(idMedia, getJpgBytes(image), image.getWidth(), image.getHeight());
 			} finally {
 				image.flush();
@@ -410,6 +413,76 @@ public class ImageService {
 		}
 		if (current != src) current.flush();
 		return resized;
+	}
+
+	/**
+	 * Key of an already stored asset to redirect to when generating a variant for the requested size would
+	 * not make the image smaller (the file would be pixel-identical, or an upscale). Returns {@code null}
+	 * when a downscaled variant really has to be generated, and also when the stored dimensions are unknown
+	 * or the asset to redirect to is missing — then {@link #processResize} falls back to downloading the
+	 * source and deciding from the pixels, exactly as it did before.
+	 */
+	private String resolveExistingKeyForNonShrinkingRequest(int id, int targetWidth, int minDimension, StorageType type) {
+		var original = mediaRepo.getMediaDimensions(id);
+		if (original == null) {
+			return null;
+		}
+
+		boolean useWebSource = resizesFromWebImage(targetWidth, minDimension);
+		int sourceWidth = original.width();
+		int sourceHeight = original.height();
+		if (useWebSource) {
+			int[] web = webDimensions(sourceWidth, sourceHeight);
+			sourceWidth = web[0];
+			sourceHeight = web[1];
+		}
+
+		int[] target = targetDimensions(sourceWidth, sourceHeight, targetWidth, minDimension);
+		if (target[0] < sourceWidth || target[1] < sourceHeight) {
+			return null;
+		}
+
+		// Nothing to resize. Sizes above the standard web image (deep zoom) resolve to the original:
+		// it is the sharpest copy that exists and needs no extra file, at the cost of a larger download
+		// than a dedicated WebP would be.
+		String existingKey = useWebSource ? bestExistingWebKey(id, type) : S3KeyGenerator.getOriginalJpg(id);
+		return storage.exists(existingKey) ? existingKey : null;
+	}
+
+	/**
+	 * Pixel dimensions of the variant to generate: {@code targetWidth} when that shrinks the image,
+	 * otherwise scaled so that the short side becomes {@code minDimension}. Returns the source dimensions
+	 * unchanged when neither applies, which the callers read as "no resize needed".
+	 */
+	static int[] targetDimensions(int sourceWidth, int sourceHeight, int targetWidth, int minDimension) {
+		int newWidth = sourceWidth;
+		int newHeight = sourceHeight;
+		if (targetWidth > 0 && targetWidth < sourceWidth) {
+			newWidth = targetWidth;
+			newHeight = (int) Math.round(sourceHeight * ((double) targetWidth / sourceWidth));
+		} else if (minDimension > 0) {
+			double ratio = (double) minDimension / Math.min(sourceWidth, sourceHeight);
+			newWidth = (int) Math.round(sourceWidth * ratio);
+			newHeight = (int) Math.round(sourceHeight * ratio);
+		}
+		return new int[] { newWidth, newHeight };
+	}
+
+	/**
+	 * Dimensions of the standard web image: capped to {@link #IMAGE_WEB_WIDTH} x {@link #IMAGE_WEB_HEIGHT},
+	 * never upscaled. Same rule as {@link #scaleToWebDimensionsIfNeeded}, without decoding the image.
+	 */
+	static int[] webDimensions(int width, int height) {
+		if (width <= IMAGE_WEB_WIDTH && height <= IMAGE_WEB_HEIGHT) {
+			return new int[] { width, height };
+		}
+		double ratio = Math.min((double) IMAGE_WEB_WIDTH / width, (double) IMAGE_WEB_HEIGHT / height);
+		return new int[] { (int) Math.round(width * ratio), (int) Math.round(height * ratio) };
+	}
+
+	/** True when a requested size is served by resizing the standard web image instead of the original. */
+	static boolean resizesFromWebImage(int targetWidth, int minDimension) {
+		return (targetWidth <= 0 || targetWidth <= IMAGE_WEB_WIDTH) && (minDimension <= 0 || minDimension <= IMAGE_WEB_WIDTH);
 	}
 
 	/**

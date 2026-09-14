@@ -289,6 +289,10 @@ public class MediaService {
 					storage.downloadFile(originalMp4Key, tempOriginal);
 					videoService.extractThumbnail(mediaId, tempOriginal, m.thumbnailSeconds());
 					S3KeyGenerator.getGeneratedMediaPrefixes(mediaId).forEach(storage::invalidateCache);
+					// extractThumbnail() overwrites the standard image files in place. updateMediaMetadata()
+					// above already stamped a new version, but that happened before the bytes were written,
+					// so stamp again now that the new thumbnail is really there.
+					mediaRepo.touchMedia(mediaId);
 				} finally {
 					Files.deleteIfExists(tempOriginal);
 				}

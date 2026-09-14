@@ -35,6 +35,8 @@ import com.buldreinfo.util.StringUtils;
 @Repository
 public class MediaRepository {
 	public record MediaPendingAnalysis(int id, int width, int height) {}
+	/** Stored pixel dimensions of a media item: the original image, or the video thumbnail for movies. */
+	public record MediaDimensions(int width, int height) {}
 	public record EmbeddedVideo(int id, String suffix, String embedUrl) {}
 	public record MediaAssociation(TargetType type, int columnId) {
 		public enum TargetType { AREA, PROBLEM, SECTOR, TRAIL }
@@ -1299,6 +1301,27 @@ public class MediaRepository {
 						ps.setInt(2, userId);
 					});
 		}
+	}
+
+	/**
+	 * Stored pixel dimensions of a media item, or {@code null} when the row or its dimensions are missing.
+	 * Lets a caller decide whether a requested image size needs to be generated at all, without first
+	 * downloading the image from storage to measure it.
+	 */
+	public MediaDimensions getMediaDimensions(int idMedia) {
+		List<MediaDimensions> rows = jdbcClient.sql("""
+				SELECT COALESCE(width, 0) AS width, COALESCE(height, 0) AS height
+				FROM media
+				WHERE id=?
+				""")
+				.param(idMedia)
+				.query((rs, _) -> new MediaDimensions(rs.getInt("width"), rs.getInt("height")))
+				.list();
+		if (rows.isEmpty()) {
+			return null;
+		}
+		MediaDimensions dimensions = rows.getFirst();
+		return (dimensions.width() > 0 && dimensions.height() > 0) ? dimensions : null;
 	}
 
 	@Transactional

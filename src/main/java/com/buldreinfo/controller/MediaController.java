@@ -132,7 +132,7 @@ public class MediaController {
 			if (!storage.exists(key)) {
 				throw new NoSuchElementException("Movie resource not found: " + key);
 			}
-			return createRedirect(key, versionStamp);
+			return createMovieRedirect(key, versionStamp);
 		}
 
 		boolean webP = requestContext.acceptsWebp(request);
@@ -367,11 +367,43 @@ public class MediaController {
 		return ResponseEntity.ok().build();
 	}
 
+	/**
+	 * Redirect to an object on storage. The Location carries the media version stamp ({@code ?v=}), which makes
+	 * the redirect — and the image behind it — safe to cache for a long time: any edit that changes the image
+	 * produces a new stamp in the API payload, and therefore a new URL.
+	 * <p>
+	 * {@code Vary: Accept} is required because the target differs for WebP-capable clients; without it a cache
+	 * could serve one format's redirect to a client that asked for the other.
+	 */
 	private ResponseEntity<Void> createRedirect(String key, long version) {
 		return ResponseEntity.status(HttpStatus.FOUND)
 				.header(HttpHeaders.LOCATION, StorageManager.getPublicUrl(key, version))
-				.cacheControl(CacheControl.maxAge(1, TimeUnit.DAYS).mustRevalidate())
+				.header(HttpHeaders.VARY, HttpHeaders.ACCEPT)
+				.cacheControl(redirectCacheControl(version))
 				.build();
+	}
+
+	/**
+	 * Video redirect. These additionally depend on the User-Agent: {@link RequestContext#acceptsWebm} sniffs the
+	 * browser instead of reading the Accept header, so shared caches have to vary on that as well.
+	 */
+	private ResponseEntity<Void> createMovieRedirect(String key, long version) {
+		return ResponseEntity.status(HttpStatus.FOUND)
+				.header(HttpHeaders.LOCATION, StorageManager.getPublicUrl(key, version))
+				.header(HttpHeaders.VARY, HttpHeaders.ACCEPT + ", " + HttpHeaders.USER_AGENT)
+				.cacheControl(redirectCacheControl(version))
+				.build();
+	}
+
+	/**
+	 * A redirect whose Location is version-stamped never changes, so clients can keep it (and skip one request
+	 * per image). Without a stamp the target may be replaced in place — rotation overwrites the same keys —
+	 * so only cache it briefly and revalidate.
+	 */
+	private CacheControl redirectCacheControl(long version) {
+		return version != 0L
+				? CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic().immutable()
+				: CacheControl.maxAge(1, TimeUnit.DAYS).mustRevalidate();
 	}
 
 	private ResponseEntity<Void> executeGenerationPipeline(String key, long version, Supplier<String> task) {
