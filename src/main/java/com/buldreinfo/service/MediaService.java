@@ -26,7 +26,6 @@ import com.buldreinfo.dao.MediaRepository.MediaAssociation.TargetType;
 import com.buldreinfo.dao.ProblemRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.exception.ForbiddenException;
-import com.buldreinfo.io.ExifReader.ImageRotation;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Media;
 import com.buldreinfo.model.Media.Association;
@@ -221,13 +220,7 @@ public class MediaService {
 	@Transactional
 	public void rotateMedia(Optional<Integer> authUserId, int idMedia, int degrees) {
 		ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(authUserId, idMedia);
-		var r = switch (degrees) {
-		case 90 -> ImageRotation.CW_90;
-		case 180 -> ImageRotation.CW_180;
-		case 270 -> ImageRotation.CW_270;
-		default -> throw new IllegalArgumentException("Cannot rotate image " + degrees + " degrees (legal degrees = 90, 180, 270)");
-		};
-		imageService.rotateImage(idMedia, r);
+		imageService.rotateImage(idMedia, degrees);
 	}
 
 	public void saveMediaAnalysis(int mediaId, int imageWidth, int imageHeight, String hexColor, List<ImageClassifierService.MediaLabel> labels, List<ImageClassifierService.MediaObject> objects, boolean failed) {

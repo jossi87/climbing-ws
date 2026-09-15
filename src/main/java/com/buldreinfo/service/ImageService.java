@@ -37,6 +37,7 @@ import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.io.ExifReader;
 import com.buldreinfo.io.ExifReader.ImageMetadataInfo;
 import com.buldreinfo.io.ExifReader.ImageRotation;
+import com.buldreinfo.io.JpegExifOrientation;
 import com.buldreinfo.io.JpegWriter;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.util.JsonHelper;
@@ -242,12 +243,28 @@ public class ImageService {
 		}
 	}
 
-	public void rotateImage(int idMedia, ImageRotation rotation) {
+	/**
+	 * Rotates the stored original by {@code degrees} (90, 180 or 270, clockwise) together with everything
+	 * derived from it: the standard web JPG and WebP are rewritten in place, the generated variants
+	 * (resized copies and region crops) are dropped and regenerate on demand from the new pixels. The media
+	 * row is stamped afterwards, which is what makes clients pick up the new files.
+	 * <p>
+	 * {@code degrees} is relative to what the user is looking at, and what a viewer shows is the pixels plus
+	 * any stored EXIF orientation. The stored orientation is therefore baked into the pixels as part of the
+	 * rotation: the result is written upright, so an original that has drifted out of sync with its own
+	 * thumbnails heals with the next rotation instead of drifting further.
+	 */
+	public void rotateImage(int idMedia, int degrees) {
+		if (degrees != 90 && degrees != 180 && degrees != 270) {
+			throw new IllegalArgumentException("Cannot rotate image " + degrees + " degrees (legal degrees = 90, 180, 270)");
+		}
 		try {
 			String originalKey = S3KeyGenerator.getOriginalJpg(idMedia);
 			byte[] bytes = storage.downloadBytes(originalKey);
 			ImageMetadataInfo metadata = exifService.extractMetadata(bytes);
-			BufferedImage image = readImage(bytes, rotation);
+			// 0 only happens when a stored orientation cancels the request out. The pixels are right
+			// already, but the file is still rewritten below so that its orientation tag is normalised.
+			BufferedImage image = readImage(bytes, rotationOf(composedRotationDegrees(degrees, metadata.rotation())));
 			try {
 				mediaRepo.deleteMediaAnalysis(idMedia);
 				saveImagesConcurrently(image, originalKey, S3KeyGenerator.getWebJpg(idMedia), S3KeyGenerator.getWebWebp(idMedia), metadata.nativeMetadata());
@@ -259,11 +276,41 @@ public class ImageService {
 				analyzeAndSaveAsync(idMedia, getJpgBytes(image), image.getWidth(), image.getHeight());
 			} finally {
 				image.flush();
-				S3KeyGenerator.getGeneratedMediaPrefixes(idMedia).forEach(storage::invalidateCache);
+				dropGeneratedVariants(idMedia);
 			}
 		} catch (Exception e) {
 			throw new RuntimeException(e.getMessage(), e);
 		}
+	}
+
+	/**
+	 * Clockwise rotation to apply to the stored pixels so the user gets what he sees — the pixels plus the
+	 * EXIF orientation a viewer applies on top of them — rotated by {@code requestedDegrees}.
+	 */
+	static int composedRotationDegrees(int requestedDegrees, ImageRotation storedRotation) {
+		int storedDegrees = (storedRotation == null) ? 0 : storedRotation.degrees();
+		return Math.floorMod(requestedDegrees + storedDegrees, 360);
+	}
+
+	/** {@link ImageRotation} for 90/180/270 degrees, or {@code null} for 0 (nothing to rotate). */
+	private static ImageRotation rotationOf(int degrees) {
+		return switch (degrees) {
+		case 90 -> ImageRotation.CW_90;
+		case 180 -> ImageRotation.CW_180;
+		case 270 -> ImageRotation.CW_270;
+		default -> null;
+		};
+	}
+
+	/**
+	 * Removes the variants generated from an image (resized copies and region crops). Every pixel of them
+	 * comes from the original, so an edit that changes the image has to drop them; they are regenerated on
+	 * demand by {@link #processResize} and {@link #processCrop}. The original and the standard web images
+	 * are rewritten in place instead of being deleted, so they keep their keys and only the version stamp
+	 * in the URL changes.
+	 */
+	private void dropGeneratedVariants(int idMedia) {
+		S3KeyGenerator.getGeneratedMediaPrefixes(idMedia).forEach(storage::invalidateCache);
 	}
 
 	public void saveImage(int idMedia, BufferedImage bufferedImage) throws IOException {
@@ -284,13 +331,21 @@ public class ImageService {
 		}
 	}
 
+	/**
+	 * Writes the original and the standard web JPG/WebP of an image, in parallel. The pixels handed in are
+	 * already in display orientation, so the orientation tag of {@code nativeMetadata} is reset to upright:
+	 * keeping the source's orientation would make EXIF-aware viewers rotate the stored original a second
+	 * time, while the metadata-less web images keep showing the pixels — original and thumbnails drift apart.
+	 * The rest of the EXIF block (date taken, camera, GPS) is preserved.
+	 */
 	public void saveImagesConcurrently(BufferedImage bufferedImage, String keyOriginalJpg, String keyWebJpg, String keyWebWebP, IIOMetadata nativeMetadata) {
 		var originalFuture = CompletableFuture.runAsync(() -> {
 			try {
 				if (nativeMetadata == null) {
 					storage.uploadImage(keyOriginalJpg, bufferedImage, StorageType.JPG);
 				} else {
-					storage.uploadBytes(keyOriginalJpg, JpegWriter.writeJpeg(bufferedImage, nativeMetadata), StorageType.JPG);
+					byte[] original = JpegWriter.writeJpeg(bufferedImage, nativeMetadata);
+					storage.uploadBytes(keyOriginalJpg, JpegExifOrientation.normalizeOrientation(original), StorageType.JPG);
 				}
 			} catch (Exception e) {
 				throw new RuntimeException("Original upload failed", e);
@@ -343,11 +398,7 @@ public class ImageService {
 		if (src != standardized) src.flush();
 		if (rotation == null) return standardized;
 
-		double angle = switch (rotation) {
-		case CW_90 -> 90;
-		case CW_180 -> 180;
-		case CW_270 -> 270;
-		};
+		double angle = rotation.degrees();
 
 		int width = standardized.getWidth(), height = standardized.getHeight();
 		int newWidth = (rotation == ImageRotation.CW_90 || rotation == ImageRotation.CW_270) ? height : width;

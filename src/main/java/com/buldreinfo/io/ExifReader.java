@@ -24,7 +24,19 @@ import com.drew.metadata.jpeg.JpegDirectory;
 
 @Service
 public class ExifReader {
-	public enum ImageRotation {CW_180, CW_270, CW_90}
+	/** Clockwise rotation a viewer has to apply to the stored pixels to show the image upright. */
+	public enum ImageRotation {
+		CW_90(90), CW_180(180), CW_270(270);
+		private final int degrees;
+
+		ImageRotation(int degrees) {
+			this.degrees = degrees;
+		}
+
+		public int degrees() {
+			return degrees;
+		}
+	}
 	public record ImageMetadataInfo(ImageRotation rotation, LocalDateTime dateTaken, boolean is360, IIOMetadata nativeMetadata) {}
 
 	private static final byte[] EQUIRECTANGULAR_BYTES = "equirectangular".getBytes(StandardCharsets.ISO_8859_1);
