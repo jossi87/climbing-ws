@@ -94,7 +94,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>s3</artifactId>
-            <version>2.54.16</version>
+            <version>2.54.17</version>
             <exclusions>
                 <!--
                   Apache HttpClient 4.x is in maintenance mode and the SDK pulls it in as its default sync
@@ -109,7 +109,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>apache5-client</artifactId>
-            <version>2.54.16</version>
+            <version>2.54.17</version>
         </dependency>
         <dependency>
             <groupId>com.auth0</groupId>
