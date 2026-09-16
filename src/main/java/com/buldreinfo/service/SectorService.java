@@ -71,7 +71,7 @@ public class SectorService {
 				try {
 					var res = hierarchyRepo.getCanonicalUrl(setup, 0, reqId, 0);
 					if (res.redirectUrl() != null && !res.redirectUrl().isBlank()) {
-						return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, 0, false, false, false, null, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, null, null, null);
+						return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, null, 0, false, false, false, null, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, null, null, null);
 					}
 				} catch (Exception _) {}
 				throw new NoSuchElementException("Could not find sector with id=" + reqId);

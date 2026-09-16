@@ -152,7 +152,7 @@ public class ProblemRepository {
 		            ) sorted_sections
 		            GROUP BY problem_id
 		        )
-		        SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, 
+		        SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, ac.id area_coordinates_id, ac.latitude area_coordinates_latitude, ac.longitude area_coordinates_longitude, ac.elevation area_coordinates_elevation, ac.elevation_source area_coordinates_elevation_source, 
 		               s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, s.access_info sector_access_info, s.access_closed sector_access_closed, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour, 
 		               sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, 
 		               s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, 
@@ -181,6 +181,7 @@ public class ProblemRepository {
 		        LEFT JOIN grade go ON p.grade_id = go.id
 		        LEFT JOIN coordinates sc ON s.parking_coordinates_id = sc.id
 		        LEFT JOIN coordinates c ON p.coordinates_id = c.id
+		        LEFT JOIN coordinates ac ON a.coordinates_id = ac.id
 		        LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.auth_user_id
 		        WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
 		          AND (r.id = req.region_id OR ur.user_id IS NOT NULL)
@@ -195,6 +196,8 @@ public class ProblemRepository {
 		                var trails = trailsResolver.apply(sectorId);
 		                var neighbours = getProblemNeighbours(authUserId, sectorId, reqId, rock);
 		                int areaId = rs.getInt("area_id");
+		                int areaCoordinatesId = rs.getInt("area_coordinates_id");
+		                var areaCoordinates = areaCoordinatesId == 0 ? null : new Coordinates(areaCoordinatesId, rs.getDouble("area_coordinates_latitude"), rs.getDouble("area_coordinates_longitude"), rs.getDouble("area_coordinates_elevation"), rs.getString("area_coordinates_elevation_source"), 0.0);
 		                int parkingId = rs.getInt("sector_parking_coordinates_id");
 		                var parking = parkingId == 0 ? null : new Coordinates(parkingId, rs.getDouble("sector_parking_latitude"), rs.getDouble("sector_parking_longitude"), rs.getDouble("sector_parking_elevation"), rs.getString("sector_parking_elevation_source"), 0.0);
 		                var wallDirCalc = setup.getCompassDirection(rs.getInt("sector_compass_direction_id_calculated"));
@@ -218,7 +221,7 @@ public class ProblemRepository {
 		                        sections.set(sections.indexOf(section), section.withMedia(sectionMedia));
 		                    }
 		                }
-		                return new Problem(null, areaId, rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getString("area_name"), rs.getString("area_access_info"), rs.getString("area_access_closed"), rs.getBoolean("area_no_dogs_allowed"), rs.getInt("area_sun_from_hour"), rs.getInt("area_sun_to_hour"), sectorId, rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), rs.getString("sector_name"), rs.getString("sector_access_info"), rs.getString("sector_access_closed"), rs.getInt("sector_sun_from_hour"), rs.getInt("sector_sun_to_hour"), parking, outline, wallDirCalc, wallDirMan, trails, neighbours, id, rs.getString("broken"), false, rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getInt("nr"), rs.getString("name"), rock, rs.getString("description"), rs.getString("grade"), rs.getString("original_grade"), rs.getString("fa_date"), rs.getString("fa_date_hr"), fa, rs.getInt("length_meter"), coords, media, rs.getInt("num_ticks"), rs.getDouble("stars"), rs.getBoolean("ticked"), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new Type(rs.getInt("type_id"), rs.getString("type"), rs.getString("subtype")), sections, isTodo, linksFuture.join(), HitsFormatter.formatHits(rs.getLong("hits")), null, rs.getString("trivia"), triviaMedia, rs.getString("starting_altitude"), rs.getString("aspect"), rs.getString("descent"));
+		                return new Problem(null, areaId, rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getString("area_name"), areaCoordinates, rs.getString("area_access_info"), rs.getString("area_access_closed"), rs.getBoolean("area_no_dogs_allowed"), rs.getInt("area_sun_from_hour"), rs.getInt("area_sun_to_hour"), sectorId, rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), rs.getString("sector_name"), rs.getString("sector_access_info"), rs.getString("sector_access_closed"), rs.getInt("sector_sun_from_hour"), rs.getInt("sector_sun_to_hour"), parking, outline, wallDirCalc, wallDirMan, trails, neighbours, id, rs.getString("broken"), false, rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getInt("nr"), rs.getString("name"), rock, rs.getString("description"), rs.getString("grade"), rs.getString("original_grade"), rs.getString("fa_date"), rs.getString("fa_date_hr"), fa, rs.getInt("length_meter"), coords, media, rs.getInt("num_ticks"), rs.getDouble("stars"), rs.getBoolean("ticked"), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new Type(rs.getInt("type_id"), rs.getString("type"), rs.getString("subtype")), sections, isTodo, linksFuture.join(), HitsFormatter.formatHits(rs.getLong("hits")), null, rs.getString("trivia"), triviaMedia, rs.getString("starting_altitude"), rs.getString("aspect"), rs.getString("descent"));
 		        })
 		        .optional()
 		        .orElse(null);

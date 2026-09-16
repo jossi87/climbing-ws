@@ -4,7 +4,7 @@ import java.util.Collection;
 import java.util.List;
 
 public record Sector(String redirectUrl, boolean orderByGrade,
-		int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName,
+		int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, Coordinates areaCoordinates,
 		int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment,
 		String accessInfo, String accessClosed, int sunFromHour, int sunToHour, Coordinates parking, List<Coordinates> outline,
 		CompassDirection orientationCalculated, CompassDirection orientationManual, Collection<Trail> trails,
@@ -19,6 +19,6 @@ public record Sector(String redirectUrl, boolean orderByGrade,
 			boolean danger) {}
 
 	public Sector withParking(Coordinates newParking) {
-		return new Sector(redirectUrl, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, id, trash, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, newParking, outline, orientationCalculated, orientationManual, trails, media, triviaMedia, sectors, problems, problemOrder, externalLinks, pageViews);
+		return new Sector(redirectUrl, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, areaCoordinates, id, trash, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, newParking, outline, orientationCalculated, orientationManual, trails, media, triviaMedia, sectors, problems, problemOrder, externalLinks, pageViews);
 	}
 }
