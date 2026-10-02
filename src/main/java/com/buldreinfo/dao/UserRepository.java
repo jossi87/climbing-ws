@@ -766,18 +766,19 @@ public class UserRepository {
 			return List.of();
 		}
 
-		// Regions a user is connected to = regions they have logged in from or climbed in (login + activity).
+		// Regions a user has climbed in (activity: fa + tick + aid FA).
 		Map<Integer, Set<String>> regionsByUser = new HashMap<>();
 		Set<Integer> inCurrentRegion = new HashSet<>();
 		jdbcClient.sql("""
 				SELECT ur.user_id, r.id region_id, r.name region_name
-				FROM (SELECT user_id, region_id FROM user_login
-				      UNION
-				      SELECT f.user_id, a.region_id FROM fa f
+				FROM (SELECT f.user_id, a.region_id FROM fa f
 				         JOIN problem p ON f.problem_id=p.id JOIN sector s ON p.sector_id=s.id JOIN area a ON s.area_id=a.id
 				      UNION
 				      SELECT t.user_id, a.region_id FROM tick t
-				         JOIN problem p ON t.problem_id=p.id JOIN sector s ON p.sector_id=s.id JOIN area a ON s.area_id=a.id) ur
+				         JOIN problem p ON t.problem_id=p.id JOIN sector s ON p.sector_id=s.id JOIN area a ON s.area_id=a.id
+				      UNION
+				      SELECT au.user_id, a.region_id FROM fa_aid_user au
+				         JOIN problem p ON au.problem_id=p.id JOIN sector s ON p.sector_id=s.id JOIN area a ON s.area_id=a.id) ur
 				JOIN region r ON r.id=ur.region_id
 				WHERE ur.user_id IN (:userIds)
 				""")

@@ -474,11 +474,11 @@ public class HierarchyRepository {
 				        0 locked_admin, 0 locked_superadmin,
 				        (SELECT GROUP_CONCAT(r.name SEPARATOR ';')
 				         FROM region r
-				         WHERE r.id IN (SELECT region_id FROM user_login WHERE user_id = u.id
+				         WHERE r.id IN (SELECT a2.region_id FROM fa f2 JOIN problem p2 ON f2.problem_id=p2.id JOIN sector s2 ON p2.sector_id=s2.id JOIN area a2 ON s2.area_id=a2.id WHERE f2.user_id = u.id
 				                        UNION
-				                        SELECT a2.region_id FROM fa f2 JOIN problem p2 ON f2.problem_id=p2.id JOIN sector s2 ON p2.sector_id=s2.id JOIN area a2 ON s2.area_id=a2.id WHERE f2.user_id = u.id
+				                        SELECT a3.region_id FROM tick t3 JOIN problem p3 ON t3.problem_id=p3.id JOIN sector s3 ON p3.sector_id=s3.id JOIN area a3 ON s3.area_id=a3.id WHERE t3.user_id = u.id
 				                        UNION
-				                        SELECT a3.region_id FROM tick t3 JOIN problem p3 ON t3.problem_id=p3.id JOIN sector s3 ON p3.sector_id=s3.id JOIN area a3 ON s3.area_id=a3.id WHERE t3.user_id = u.id)) region_names
+				                        SELECT a6.region_id FROM fa_aid_user au6 JOIN problem p6 ON au6.problem_id=p6.id JOIN sector s6 ON p6.sector_id=s6.id JOIN area a6 ON s6.area_id=a6.id WHERE au6.user_id = u.id)) region_names
 				 FROM req
 				 JOIN user u ON REGEXP_REPLACE(CONCAT(u.firstname, COALESCE(u.lastname,'')), '[^[:alnum:]]', '') LIKE req.search_term
 				 LEFT JOIN media m ON u.media_id=m.id
