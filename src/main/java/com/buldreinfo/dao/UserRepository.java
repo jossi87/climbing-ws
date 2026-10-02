@@ -430,6 +430,8 @@ public class UserRepository {
 				        FROM (
 				            SELECT problem_id FROM fa WHERE user_id = (SELECT user_id FROM req)
 				            UNION ALL
+				            SELECT problem_id FROM fa_aid_user WHERE user_id = (SELECT user_id FROM req)
+				            UNION ALL
 				            SELECT problem_id FROM tick WHERE user_id = (SELECT user_id FROM req)
 				        ) active_problems
 				        JOIN problem p ON active_problems.problem_id = p.id
@@ -460,6 +462,18 @@ public class UserRepository {
 				    LEFT JOIN pitch_counts pc ON p.id = pc.problem_id
 				    UNION ALL
 				    SELECT 
+				        ty.group AS discipline, g.grade, clr.hex_code color, g.weight, 1 is_fa, 0 is_tick,
+				        CASE WHEN ty.id=2 THEN 1 ELSE 0 END is_bolted,
+				        COALESCE(pc.total_pitches, 0) AS pitches
+				    FROM req
+				    JOIN fa_aid_user fau ON fau.user_id = req.user_id
+				    JOIN problem p ON fau.problem_id = p.id
+				    JOIN type ty ON p.type_id = ty.id
+				    JOIN grade g ON p.grade_id = g.id
+				    JOIN grade_color clr ON g.grade_color_id = clr.id
+				    LEFT JOIN pitch_counts pc ON p.id = pc.problem_id
+				    UNION ALL
+				    SELECT 
 				        ty.group AS discipline, COALESCE(g.grade,'No personal grade') grade, 
 				        COALESCE(clr.hex_code,'#CCCCCC') color, g.weight, 0 is_fa, 1 is_tick,
 				        CASE WHEN ty.id=2 THEN 1 ELSE 0 END is_bolted,
@@ -472,6 +486,7 @@ public class UserRepository {
 				    LEFT JOIN grade_color clr ON g.grade_color_id = clr.id
 				    LEFT JOIN pitch_counts pc ON p.id = pc.problem_id
 				    WHERE NOT EXISTS (SELECT 1 FROM fa f2 WHERE f2.user_id = req.user_id AND f2.problem_id = t.problem_id)
+				      AND NOT EXISTS (SELECT 1 FROM fa_aid_user fau2 WHERE fau2.user_id = req.user_id AND fau2.problem_id = t.problem_id)
 				),
 				categorized_activity AS (
 				    SELECT 
