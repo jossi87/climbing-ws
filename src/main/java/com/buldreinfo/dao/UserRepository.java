@@ -17,6 +17,7 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -766,7 +767,7 @@ public class UserRepository {
 		}
 
 		// Regions a user is connected to = regions they have logged in from or climbed in (login + activity).
-		Map<Integer, List<String>> regionsByUser = new HashMap<>();
+		Map<Integer, Set<String>> regionsByUser = new HashMap<>();
 		Set<Integer> inCurrentRegion = new HashSet<>();
 		jdbcClient.sql("""
 				SELECT ur.user_id, r.id region_id, r.name region_name
@@ -779,12 +780,11 @@ public class UserRepository {
 				         JOIN problem p ON t.problem_id=p.id JOIN sector s ON p.sector_id=s.id JOIN area a ON s.area_id=a.id) ur
 				JOIN region r ON r.id=ur.region_id
 				WHERE ur.user_id IN (:userIds)
-				ORDER BY r.name
 				""")
 				.param("userIds", rows.stream().map(Row::id).toList())
 				.query(rs -> {
 					int userId = rs.getInt("user_id");
-					regionsByUser.computeIfAbsent(userId, _ -> new ArrayList<>()).add(rs.getString("region_name"));
+					regionsByUser.computeIfAbsent(userId, _ -> new TreeSet<>()).add(rs.getString("region_name"));
 					if (rs.getInt("region_id") == setup.idRegion()) {
 						inCurrentRegion.add(userId);
 					}
@@ -792,7 +792,7 @@ public class UserRepository {
 
 		// Same-named users are ordered so the ones connected to the current region come first.
 		return rows.stream()
-				.map(r -> new UserSearchResult(r.id(), r.name(), r.mediaIdentity(), regionsByUser.getOrDefault(r.id(), List.of())))
+				.map(r -> new UserSearchResult(r.id(), r.name(), r.mediaIdentity(), regionsByUser.getOrDefault(r.id(), Set.of())))
 				.sorted(Comparator.comparing(UserSearchResult::name, String.CASE_INSENSITIVE_ORDER)
 						.thenComparing(u -> !inCurrentRegion.contains(u.id()))
 						.thenComparingInt(UserSearchResult::id))

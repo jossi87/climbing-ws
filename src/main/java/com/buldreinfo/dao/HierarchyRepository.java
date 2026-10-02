@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -471,7 +472,7 @@ public class HierarchyRepository {
 				        m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 				        0 hits, NULL external_url,
 				        0 locked_admin, 0 locked_superadmin,
-				        (SELECT GROUP_CONCAT(r.name ORDER BY r.name SEPARATOR ';')
+				        (SELECT GROUP_CONCAT(r.name SEPARATOR ';')
 				         FROM region r
 				         WHERE r.id IN (SELECT region_id FROM user_login WHERE user_id = u.id
 				                        UNION
@@ -513,7 +514,7 @@ public class HierarchyRepository {
 			}
 
 			var regionNames = rs.getString("region_names");
-			List<String> regions = (regionNames == null || regionNames.isBlank()) ? List.of() : List.of(regionNames.split(";"));
+			Set<String> regions = new TreeSet<>(regionNames == null || regionNames.isBlank() ? List.of() : List.of(regionNames.split(";")));
 
 			switch (type) {
 			case "AREA" -> {
