@@ -20,7 +20,7 @@ import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.model.AdminUser;
 import com.buldreinfo.model.MergeDismissal;
-import com.buldreinfo.model.User;
+import com.buldreinfo.model.UserSearchResult;
 import com.buldreinfo.util.FilenameUtil;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -45,12 +45,13 @@ public class UsersController {
 	@Operation(summary = "Search for user")
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@GetMapping(value = "/search", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<List<User>> getUsersSearch(@RequestParam(name = "value") String value) {
+	public ResponseEntity<List<UserSearchResult>> getUsersSearch(HttpServletRequest request, @RequestParam(name = "value") String value) {
 		if (value == null || value.isBlank()) {
 			throw new ValidationFailedException("Search keyword is required");
 		}
+		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		return ResponseEntity.ok(userRepo.getUserSearch(authUserId, value));
+		return ResponseEntity.ok(userRepo.getUserSearch(setup, authUserId, value));
 	}
 
 	@Operation(summary = "Get all users (newest first) so a superadmin can manage accounts")

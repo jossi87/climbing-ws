@@ -55,6 +55,7 @@ import com.buldreinfo.model.ProfileTodo.ProfileTodoProblem;
 import com.buldreinfo.model.ProfileTodo.ProfileTodoSector;
 import com.buldreinfo.model.User;
 import com.buldreinfo.model.UserRegion;
+import com.buldreinfo.model.UserSearchResult;
 
 @Repository
 public class UserRepository {
@@ -728,7 +729,7 @@ public class UserRepository {
 	}
 
 	@Transactional(readOnly = true)
-	public List<User> getUserSearch(Optional<Integer> authUserId, String value) {
+	public List<UserSearchResult> getUserSearch(Setup setup, Optional<Integer> authUserId, String value) {
 		if (authUserId.isEmpty()) {
 			throw new UnauthorizedException("User not logged in...");
 		}
@@ -739,27 +740,63 @@ public class UserRepository {
 
 		var searchRegexPattern = "(^|\\W)" + Pattern.quote(value);
 
-		List<User> res = jdbcClient.sql("""
-				SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name
+		record Row(int id, String name, MediaIdentity mediaIdentity) {}
+		List<Row> rows = jdbcClient.sql("""
+				SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
+				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp,
+				       mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex
 				FROM user u
+				LEFT JOIN media m ON u.media_id=m.id
+				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				WHERE regexp_like(TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))),?,'i')
 				   OR EXISTS (SELECT 1 FROM user_email e WHERE e.user_id=u.id AND regexp_like(e.email,?,'i'))
-				ORDER BY u.firstname, u.lastname
 				""")
 				.params(searchRegexPattern, searchRegexPattern)
-				.query((rs, _) -> User.from(rs.getInt("id"), rs.getString("name")))
+				.query((rs, _) -> {
+					int mediaId = rs.getInt("media_id");
+					MediaIdentity mediaIdentity = (mediaId > 0)
+							? new MediaIdentity(mediaId, rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex"))
+							: null;
+					return new Row(rs.getInt("id"), rs.getString("name"), mediaIdentity);
+				})
 				.list();
 
-		var grouped = res.stream().collect(Collectors.groupingBy(User::name));
-
-		for (int i = 0; i < res.size(); i++) {
-			User u = res.get(i);
-			if (grouped.get(u.name()).size() > 1) {
-				res.set(i, u.withIdAsNameSuffix());
-			}
+		if (rows.isEmpty()) {
+			return List.of();
 		}
 
-		return res;
+		// Regions a user is connected to = regions they have logged in from or climbed in (login + activity).
+		Map<Integer, List<String>> regionsByUser = new HashMap<>();
+		Set<Integer> inCurrentRegion = new HashSet<>();
+		jdbcClient.sql("""
+				SELECT ur.user_id, r.id region_id, r.name region_name
+				FROM (SELECT user_id, region_id FROM user_login
+				      UNION
+				      SELECT f.user_id, a.region_id FROM fa f
+				         JOIN problem p ON f.problem_id=p.id JOIN sector s ON p.sector_id=s.id JOIN area a ON s.area_id=a.id
+				      UNION
+				      SELECT t.user_id, a.region_id FROM tick t
+				         JOIN problem p ON t.problem_id=p.id JOIN sector s ON p.sector_id=s.id JOIN area a ON s.area_id=a.id) ur
+				JOIN region r ON r.id=ur.region_id
+				WHERE ur.user_id IN (:userIds)
+				ORDER BY r.name
+				""")
+				.param("userIds", rows.stream().map(Row::id).toList())
+				.query(rs -> {
+					int userId = rs.getInt("user_id");
+					regionsByUser.computeIfAbsent(userId, _ -> new ArrayList<>()).add(rs.getString("region_name"));
+					if (rs.getInt("region_id") == setup.idRegion()) {
+						inCurrentRegion.add(userId);
+					}
+				});
+
+		// Same-named users are ordered so the ones connected to the current region come first.
+		return rows.stream()
+				.map(r -> new UserSearchResult(r.id(), r.name(), r.mediaIdentity(), regionsByUser.getOrDefault(r.id(), List.of())))
+				.sorted(Comparator.comparing(UserSearchResult::name, String.CASE_INSENSITIVE_ORDER)
+						.thenComparing(u -> !inCurrentRegion.contains(u.id()))
+						.thenComparingInt(UserSearchResult::id))
+				.toList();
 	}
 
 	@Transactional(readOnly = true)

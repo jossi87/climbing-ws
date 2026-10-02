@@ -400,7 +400,7 @@ public class HierarchyRepository {
 				(SELECT 'AREA' result_type, a.id, a.name title, NULL sub_title, r.name breadcrumb, 
 				        ma.media_id, ma.media_version_stamp, ma.media_focus_x, ma.media_focus_y, ma.media_primary_color_hex,
 				        a.hits, NULL external_url,
-				        a.locked_admin, a.locked_superadmin
+				        a.locked_admin, a.locked_superadmin, NULL region_names
 				 FROM req
 				 JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
 				 JOIN area a ON r.id=a.region_id
@@ -414,7 +414,7 @@ public class HierarchyRepository {
 				(SELECT 'EXTERNAL' result_type, a_ext.id, a_ext.name title, NULL sub_title, r_ext.name breadcrumb, 
 				        ma_ext.media_id, ma_ext.media_version_stamp, ma_ext.media_focus_x, ma_ext.media_focus_y, ma_ext.media_primary_color_hex,
 				        a_ext.hits, CONCAT(r_ext.url, '/area/', a_ext.id) external_url,
-				        a_ext.locked_admin, a_ext.locked_superadmin
+				        a_ext.locked_admin, a_ext.locked_superadmin, NULL region_names
 				 FROM req
 				 JOIN region_type rt ON rt.region_id=req.region_id
 				 JOIN region_type rt_ext ON rt_ext.type_id=rt_ext.type_id
@@ -430,7 +430,7 @@ public class HierarchyRepository {
 				(SELECT 'SECTOR' result_type, s.id, s.name title, NULL sub_title, a.name breadcrumb,
 				        COALESCE(ms.media_id,ma.media_id) media_id, COALESCE(ms.media_version_stamp,ma.media_version_stamp) media_version_stamp, COALESCE(ms.media_focus_x,ma.media_focus_x) media_focus_x, COALESCE(ms.media_focus_y,ma.media_focus_y) media_focus_y, COALESCE(ms.media_primary_color_hex,ma.media_primary_color_hex) media_primary_color_hex,
 				        s.hits, NULL external_url,
-				        s.locked_admin, s.locked_superadmin
+				        s.locked_admin, s.locked_superadmin, NULL region_names
 				 FROM req
 				 JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
 				 JOIN area a ON r.id=a.region_id
@@ -448,7 +448,7 @@ public class HierarchyRepository {
 				(SELECT 'PROBLEM' result_type, p.id, p.name title, g.grade sub_title, CONCAT(a.name, ' / ', s.name, CASE WHEN p.rock IS NOT NULL THEN CONCAT(' (', p.rock,')') ELSE '' END) breadcrumb,
 				        COALESCE(mp.media_id,ms.media_id,ma.media_id) media_id, COALESCE(mp.media_version_stamp,ms.media_version_stamp,ma.media_version_stamp) media_version_stamp, COALESCE(mp.media_focus_x,ms.media_focus_x,ma.media_focus_x) media_focus_x, COALESCE(mp.media_focus_y,ms.media_focus_y,ma.media_focus_y) media_focus_y, COALESCE(mp.media_primary_color_hex,ms.media_primary_color_hex,ma.media_primary_color_hex) media_primary_color_hex,
 				        p.hits, NULL external_url,
-				        p.locked_admin, p.locked_superadmin
+				        p.locked_admin, p.locked_superadmin, NULL region_names
 				 FROM req
 				 JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
 				 JOIN area a ON r.id=a.region_id
@@ -468,14 +468,25 @@ public class HierarchyRepository {
 				 ORDER BY p.hits DESC, p.name LIMIT 8)
 				UNION ALL
 				(SELECT 'USER' result_type, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) title, NULL sub_title, NULL breadcrumb,
-				        m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_y, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
+				        m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 				        0 hits, NULL external_url,
-				        0 locked_admin, 0 locked_superadmin
+				        0 locked_admin, 0 locked_superadmin,
+				        (SELECT GROUP_CONCAT(r.name ORDER BY r.name SEPARATOR ';')
+				         FROM region r
+				         WHERE r.id IN (SELECT region_id FROM user_login WHERE user_id = u.id
+				                        UNION
+				                        SELECT a2.region_id FROM fa f2 JOIN problem p2 ON f2.problem_id=p2.id JOIN sector s2 ON p2.sector_id=s2.id JOIN area a2 ON s2.area_id=a2.id WHERE f2.user_id = u.id
+				                        UNION
+				                        SELECT a3.region_id FROM tick t3 JOIN problem p3 ON t3.problem_id=p3.id JOIN sector s3 ON p3.sector_id=s3.id JOIN area a3 ON s3.area_id=a3.id WHERE t3.user_id = u.id)) region_names
 				 FROM req
 				 JOIN user u ON REGEXP_REPLACE(CONCAT(u.firstname, COALESCE(u.lastname,'')), '[^[:alnum:]]', '') LIKE req.search_term
 				 LEFT JOIN media m ON u.media_id=m.id
 				 LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-				 ORDER BY TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) LIMIT 8)
+				 ORDER BY TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))),
+				          (EXISTS (SELECT 1 FROM user_login ul WHERE ul.user_id=u.id AND ul.region_id=req.region_id)
+				           OR EXISTS (SELECT 1 FROM fa f4 JOIN problem p4 ON f4.problem_id=p4.id JOIN sector s4 ON p4.sector_id=s4.id JOIN area a4 ON s4.area_id=a4.id WHERE f4.user_id=u.id AND a4.region_id=req.region_id)
+				           OR EXISTS (SELECT 1 FROM tick t5 JOIN problem p5 ON t5.problem_id=p5.id JOIN sector s5 ON p5.sector_id=s5.id JOIN area a5 ON s5.area_id=a5.id WHERE t5.user_id=u.id AND a5.region_id=req.region_id)) DESC
+				 LIMIT 8)
 				""";
 
 		jdbcClient.sql(sqlStr)
@@ -501,15 +512,18 @@ public class HierarchyRepository {
 				mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
 			}
 
+			var regionNames = rs.getString("region_names");
+			List<String> regions = (regionNames == null || regionNames.isBlank()) ? List.of() : List.of(regionNames.split(";"));
+
 			switch (type) {
 			case "AREA" -> {
 				areaIdsVisible.add(id);
-				areas.add(new Search(title, subTitle, breadcrumb, "/area/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
+				areas.add(new Search(title, subTitle, breadcrumb, "/area/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin, regions));
 			}
-			case "EXTERNAL" -> externalAreas.add(new Search(title, subTitle, breadcrumb, null, rs.getString("external_url"), null, hits, pageViews, lockedAdmin, lockedSuperadmin));
-			case "SECTOR" -> sectors.add(new Search(title, subTitle, breadcrumb, "/sector/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
-			case "PROBLEM" -> problems.add(new Search(title, subTitle, breadcrumb, "/problem/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
-			case "USER" -> users.add(new Search(title, null, null, "/user/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
+			case "EXTERNAL" -> externalAreas.add(new Search(title, subTitle, breadcrumb, null, rs.getString("external_url"), null, hits, pageViews, lockedAdmin, lockedSuperadmin, regions));
+			case "SECTOR" -> sectors.add(new Search(title, subTitle, breadcrumb, "/sector/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin, regions));
+			case "PROBLEM" -> problems.add(new Search(title, subTitle, breadcrumb, "/problem/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin, regions));
+			case "USER" -> users.add(new Search(title, null, null, "/user/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin, regions));
 			default -> throw new IllegalArgumentException("Invalid type: " + type);
 			}
 		});
