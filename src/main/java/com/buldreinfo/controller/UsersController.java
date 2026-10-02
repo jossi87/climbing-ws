@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,6 +19,7 @@ import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.model.AdminUser;
+import com.buldreinfo.model.MergeDismissal;
 import com.buldreinfo.model.User;
 import com.buldreinfo.util.FilenameUtil;
 
@@ -59,6 +61,48 @@ public class UsersController {
 		var authUserId = requestContext.getAuthenticatedUserId();
 		regionRepo.ensureSuperadminWriteRegion(setup, authUserId);
 		return ResponseEntity.ok(userRepo.getUsers(authUserId.orElseThrow()));
+	}
+
+	@Operation(summary = "Get user pairs marked as \"not merge candidates\" (superadmin)")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
+	@GetMapping(value = "/merge-dismissals", produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<List<MergeDismissal>> getMergeDismissals(HttpServletRequest request) {
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		regionRepo.ensureSuperadminWriteRegion(setup, authUserId);
+		return ResponseEntity.ok(userRepo.getMergeDismissals());
+	}
+
+	@Operation(summary = "Mark two users as \"not merge candidates\" so they are no longer suggested for merging (superadmin)")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
+	@PostMapping("/merge-dismissals")
+	public ResponseEntity<Void> postMergeDismissal(HttpServletRequest request,
+			@RequestParam(name = "userId1") int userId1,
+			@RequestParam(name = "userId2") int userId2) {
+		if (userId1 <= 0 || userId2 <= 0 || userId1 == userId2) {
+			throw new ValidationFailedException("Invalid userId1=" + userId1 + "/userId2=" + userId2);
+		}
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		regionRepo.ensureSuperadminWriteRegion(setup, authUserId);
+		userRepo.addMergeDismissal(userId1, userId2);
+		return ResponseEntity.ok().build();
+	}
+
+	@Operation(summary = "Undo marking two users as \"not merge candidates\" (superadmin)")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
+	@DeleteMapping("/merge-dismissals")
+	public ResponseEntity<Void> deleteMergeDismissal(HttpServletRequest request,
+			@RequestParam(name = "userId1") int userId1,
+			@RequestParam(name = "userId2") int userId2) {
+		if (userId1 <= 0 || userId2 <= 0 || userId1 == userId2) {
+			throw new ValidationFailedException("Invalid userId1=" + userId1 + "/userId2=" + userId2);
+		}
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		regionRepo.ensureSuperadminWriteRegion(setup, authUserId);
+		userRepo.removeMergeDismissal(userId1, userId2);
+		return ResponseEntity.ok().build();
 	}
 
 	@Operation(summary = "Merge two users (superadmin)")

@@ -38,10 +38,11 @@ import com.buldreinfo.exception.UnauthorizedException;
 import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.helpers.TimeAgo;
 import com.buldreinfo.model.Administrator;
+import com.buldreinfo.model.AdminUser;
 import com.buldreinfo.model.AuthenticatedUser;
 import com.buldreinfo.model.Coordinates;
 import com.buldreinfo.model.MediaIdentity;
-import com.buldreinfo.model.AdminUser;
+import com.buldreinfo.model.MergeDismissal;
 import com.buldreinfo.model.PermissionUser;
 import com.buldreinfo.model.Profile.ProfileDiscipline;
 import com.buldreinfo.model.Profile.ProfileDisciplineGradeDistribution;
@@ -727,9 +728,10 @@ public class UserRepository {
 				SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name
 				FROM user u
 				WHERE regexp_like(TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))),?,'i')
+				   OR EXISTS (SELECT 1 FROM user_email e WHERE e.user_id=u.id AND regexp_like(e.email,?,'i'))
 				ORDER BY u.firstname, u.lastname
 				""")
-				.param(searchRegexPattern)
+				.params(searchRegexPattern, searchRegexPattern)
 				.query((rs, _) -> User.from(rs.getInt("id"), rs.getString("name")))
 				.list();
 
@@ -894,8 +896,56 @@ public class UserRepository {
 		jdbcClient.sql("UPDATE IGNORE user_email SET user_id=? WHERE user_id=?").params(keepUserId, deleteUserId).update();
 		// user_login
 		jdbcClient.sql("UPDATE IGNORE user_login SET user_id=? WHERE user_id=?").params(keepUserId, deleteUserId).update();
+		// user_merge_dismissal (FK also cascades, but delete explicitly to stay deterministic)
+		jdbcClient.sql("DELETE FROM user_merge_dismissal WHERE user_id_1=? OR user_id_2=?").params(deleteUserId, deleteUserId).update();
 		// user
 		jdbcClient.sql("DELETE FROM user WHERE id=?").param(deleteUserId).update();
+	}
+
+	/**
+	 * Pairs of users that a superadmin has explicitly marked as "not merge candidates". Ids are always
+	 * returned canonically ordered (userId1 &lt; userId2).
+	 */
+	@Transactional(readOnly = true)
+	public List<MergeDismissal> getMergeDismissals() {
+		return jdbcClient.sql("""
+				SELECT user_id_1, user_id_2
+				FROM user_merge_dismissal
+				ORDER BY user_id_1, user_id_2
+				""")
+				.query((rs, _) -> new MergeDismissal(rs.getInt("user_id_1"), rs.getInt("user_id_2")))
+				.list();
+	}
+
+	/**
+	 * Mark two users as "not merge candidates" so the pair is excluded from the merge suggestions. The
+	 * ids are stored canonically (lowest id first) and the call is idempotent.
+	 */
+	@Transactional
+	public void addMergeDismissal(int userId1, int userId2) {
+		ensureUserExists(userId1);
+		ensureUserExists(userId2);
+		int lowUserId = Math.min(userId1, userId2);
+		int highUserId = Math.max(userId1, userId2);
+		jdbcClient.sql("""
+				INSERT INTO user_merge_dismissal (user_id_1, user_id_2)
+				VALUES (?, ?)
+				ON DUPLICATE KEY UPDATE user_id_1=user_id_1
+				""")
+				.params(lowUserId, highUserId)
+				.update();
+	}
+
+	/**
+	 * Undo {@link #addMergeDismissal(int, int)}. Silently does nothing when the pair is not dismissed.
+	 */
+	@Transactional
+	public void removeMergeDismissal(int userId1, int userId2) {
+		int lowUserId = Math.min(userId1, userId2);
+		int highUserId = Math.max(userId1, userId2);
+		jdbcClient.sql("DELETE FROM user_merge_dismissal WHERE user_id_1=? AND user_id_2=?")
+				.params(lowUserId, highUserId)
+				.update();
 	}
 
 	@Transactional
