@@ -1,6 +1,6 @@
 package com.buldreinfo.model;
 
-import java.util.Set;
+import java.util.List;
 
-public record UserSearchResult(int id, String name, MediaIdentity mediaIdentity, Set<String> regions) {}
+public record UserSearchResult(int id, String name, MediaIdentity mediaIdentity, List<String> regions) {}
 

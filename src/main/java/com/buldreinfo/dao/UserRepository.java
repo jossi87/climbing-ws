@@ -7,6 +7,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -17,7 +18,6 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -66,6 +66,53 @@ public class UserRepository {
 
 	public UserRepository(JdbcClient jdbcClient) {
 		this.jdbcClient = jdbcClient;
+	}
+
+	/** A region where a user has activity, most ascents first. */
+	public record UserActivityRegion(int regionId, String name) {}
+
+	/** The one definition of "regions a user has activity in" (fa + tick + aid FA). */
+	private static final String ACTIVITY_REGIONS_SQL = """
+			SELECT act.user_id, a.region_id, r.name, COUNT(DISTINCT p.id) ascents
+			FROM (SELECT user_id, problem_id FROM fa
+			      UNION ALL
+			      SELECT user_id, problem_id FROM tick
+			      UNION ALL
+			      SELECT user_id, problem_id FROM fa_aid_user) act
+			JOIN problem p ON act.problem_id=p.id
+			JOIN sector s ON p.sector_id=s.id
+			JOIN area a ON s.area_id=a.id
+			JOIN region r ON a.region_id=r.id
+			WHERE act.user_id IN (:userIds)
+			GROUP BY act.user_id, a.region_id, r.name
+			ORDER BY act.user_id, ascents DESC, r.name
+			""";
+
+	/**
+	 * Regions the given users have activity in, most ascents first. Used by search, the superadmin users page and the
+	 * profile page, so all of them show the same regions in the same order.
+	 */
+	@Transactional(readOnly = true)
+	public Map<Integer, List<UserActivityRegion>> getActivityRegionsByUser(Collection<Integer> userIds) {
+		Map<Integer, List<UserActivityRegion>> res = new HashMap<>();
+		if (userIds.isEmpty()) {
+			return res;
+		}
+		jdbcClient.sql(ACTIVITY_REGIONS_SQL)
+				.param("userIds", userIds)
+				.query(rs -> {
+					res.computeIfAbsent(rs.getInt("user_id"), _ -> new ArrayList<>())
+							.add(new UserActivityRegion(rs.getInt("region_id"), rs.getString("name")));
+				});
+		return res;
+	}
+
+	/**
+	 * The canonical list of region names a user has activity in, most ascents first. Names are de-duplicated because one
+	 * geographic region (e.g. "Rogaland") has one row per site (brattelinjer/buldreinfo).
+	 */
+	public static List<String> activityRegionNames(List<UserActivityRegion> activityRegions) {
+		return activityRegions.stream().map(UserActivityRegion::name).distinct().toList();
 	}
 
 	@Transactional(readOnly = true)
@@ -230,7 +277,7 @@ public class UserRepository {
 					List<String> emails = (emailsStr == null || emailsStr.isBlank())
 								? List.of()
 								: List.of(emailsStr.split(";"));
-					return new AdminUser(rs.getInt("id"), rs.getString("name"), rs.getString("firstname"), rs.getString("lastname"), false, mediaIdentity, TimeAgo.getTimeAgo(rs.getObject("last_login", LocalDate.class)), emails, List.of());
+					return new AdminUser(rs.getInt("id"), rs.getString("name"), rs.getString("firstname"), rs.getString("lastname"), false, mediaIdentity, TimeAgo.getTimeAgo(rs.getObject("last_login", LocalDate.class)), emails, List.<AdminUser.AdminRegion>of(), List.of());
 				})
 				.list();
 
@@ -268,11 +315,16 @@ public class UserRepository {
 				.query(Integer.class)
 				.list());
 
+		// Accounts are shown with the regions they have activity in; the associations above are only used for the
+		// rename permission, merge suggestions and profile links.
+		Map<Integer, List<UserActivityRegion>> activityRegionsByUser = getActivityRegionsByUser(users.stream().map(AdminUser::userId).toList());
+
 		return users.stream()
 				.map(u -> {
 					List<AdminUser.AdminRegion> regions = regionsByUser.getOrDefault(u.userId(), List.of());
+					List<String> activityRegions = activityRegionNames(activityRegionsByUser.getOrDefault(u.userId(), List.of()));
 					boolean canEditName = regions.isEmpty() || regions.stream().anyMatch(r -> superadminRegionIds.contains(r.id()));
-					return new AdminUser(u.userId(), u.name(), u.firstname(), u.lastname(), canEditName, u.mediaIdentity(), u.lastLogin(), u.emails(), regions);
+					return new AdminUser(u.userId(), u.name(), u.firstname(), u.lastname(), canEditName, u.mediaIdentity(), u.lastLogin(), u.emails(), regions, activityRegions);
 				})
 				.toList();
 	}
@@ -567,6 +619,7 @@ public class UserRepository {
 
 	@Transactional(readOnly = true)
 	public ProfileIdentity getProfileIdentity(Setup setup, int userId) {
+		List<UserActivityRegion> activityRegions = getActivityRegionsByUser(List.of(userId)).getOrDefault(userId, List.of());
 		var res = jdbcClient.sql("""
 				SELECT u.firstname, u.lastname, u.email_visible_to_all, u.theme_preference,
 				       m.id AS media_id, UNIX_TIMESTAMP(m.updated_at) AS media_version_stamp,
@@ -600,7 +653,8 @@ public class UserRepository {
 							rs.getString("theme_preference"),
 							mediaIdentity,
 							emails,
-							getUserRegion(userId, setup),
+							getUserRegion(userId, setup, activityRegions),
+							activityRegionNames(activityRegions),
 							(lastLogin == null) ? null : TimeAgo.getTimeAgo(lastLogin.toLocalDate())
 							);
 				})
@@ -766,34 +820,17 @@ public class UserRepository {
 			return List.of();
 		}
 
-		// Regions a user has climbed in (activity: fa + tick + aid FA).
-		Map<Integer, Set<String>> regionsByUser = new HashMap<>();
-		Set<Integer> inCurrentRegion = new HashSet<>();
-		jdbcClient.sql("""
-				SELECT ur.user_id, r.id region_id, r.name region_name
-				FROM (SELECT f.user_id, a.region_id FROM fa f
-				         JOIN problem p ON f.problem_id=p.id JOIN sector s ON p.sector_id=s.id JOIN area a ON s.area_id=a.id
-				      UNION
-				      SELECT t.user_id, a.region_id FROM tick t
-				         JOIN problem p ON t.problem_id=p.id JOIN sector s ON p.sector_id=s.id JOIN area a ON s.area_id=a.id
-				      UNION
-				      SELECT au.user_id, a.region_id FROM fa_aid_user au
-				         JOIN problem p ON au.problem_id=p.id JOIN sector s ON p.sector_id=s.id JOIN area a ON s.area_id=a.id) ur
-				JOIN region r ON r.id=ur.region_id
-				WHERE ur.user_id IN (:userIds)
-				""")
-				.param("userIds", rows.stream().map(Row::id).toList())
-				.query(rs -> {
-					int userId = rs.getInt("user_id");
-					regionsByUser.computeIfAbsent(userId, _ -> new TreeSet<>()).add(rs.getString("region_name"));
-					if (rs.getInt("region_id") == setup.idRegion()) {
-						inCurrentRegion.add(userId);
-					}
-				});
+		// Regions a user has activity in, most ascents first - see UserRepository.ACTIVITY_REGIONS_SQL.
+		Map<Integer, List<UserActivityRegion>> activityRegionsByUser = getActivityRegionsByUser(rows.stream().map(Row::id).toList());
+		Set<Integer> inCurrentRegion = activityRegionsByUser.entrySet().stream()
+				.filter(e -> e.getValue().stream().anyMatch(ar -> ar.regionId() == setup.idRegion()))
+				.map(Map.Entry::getKey)
+				.collect(Collectors.toSet());
 
 		// Same-named users are ordered so the ones connected to the current region come first.
 		return rows.stream()
-				.map(r -> new UserSearchResult(r.id(), r.name(), r.mediaIdentity(), regionsByUser.getOrDefault(r.id(), Set.of())))
+				.map(r -> new UserSearchResult(r.id(), r.name(), r.mediaIdentity(),
+						activityRegionNames(activityRegionsByUser.getOrDefault(r.id(), List.of()))))
 				.sorted(Comparator.comparing(UserSearchResult::name, String.CASE_INSENSITIVE_ORDER)
 						.thenComparing(u -> !inCurrentRegion.contains(u.id()))
 						.thenComparingInt(UserSearchResult::id))
@@ -1185,43 +1222,36 @@ public class UserRepository {
 		return res;
 	}
 
-	private List<UserRegion> getUserRegion(int userId, Setup setup) {
-		List<UserRegion> res = jdbcClient.sql("""
+	private List<UserRegion> getUserRegion(int userId, Setup setup, List<UserActivityRegion> activityRegions) {
+		Map<Integer, Integer> activityRankByRegionId = new HashMap<>();
+		for (int i = 0; i < activityRegions.size(); i++) {
+			activityRankByRegionId.putIfAbsent(activityRegions.get(i).regionId(), i);
+		}
+
+		record Row(int id, String name, String role, boolean enabled, boolean readOnly) {}
+		return jdbcClient.sql("""
 				WITH req AS (SELECT ? region_id, ? user_id),
-				target_types AS (SELECT rt.type_id FROM region_type rt JOIN req ON rt.region_id = req.region_id),
-				user_activity AS (
-				    SELECT DISTINCT region_id FROM (
-				        SELECT a.region_id FROM fa f JOIN problem p ON f.problem_id = p.id JOIN sector s ON p.sector_id = s.id JOIN area a ON s.area_id = a.id JOIN req ON f.user_id = req.user_id
-				        UNION ALL
-				        SELECT a.region_id FROM tick t JOIN problem p ON t.problem_id = p.id JOIN sector s ON p.sector_id = s.id JOIN area a ON s.area_id = a.id JOIN req ON t.user_id = req.user_id
-				    ) acts
-				)
+				target_types AS (SELECT rt.type_id FROM region_type rt JOIN req ON rt.region_id = req.region_id)
 				SELECT r.id, r.name,
 				       MAX(CASE WHEN r.id = req.region_id OR ur.admin_read = 1 OR ur.admin_write = 1 OR ur.superadmin_read = 1 OR ur.superadmin_write = 1 THEN 1 ELSE 0 END) AS read_only,
 				       MAX(ur.region_visible) AS region_visible,
-				       MAX(CASE WHEN ur.superadmin_write = 1 THEN 'Superadmin' WHEN ur.superadmin_read = 1 THEN 'Superadmin (read)' WHEN ur.admin_read = 1 THEN 'Admin (read)' WHEN ur.admin_write = 1 THEN 'Admin' END) AS role,
-				       MAX(CASE WHEN ua.region_id IS NOT NULL THEN 1 ELSE 0 END) AS activity
+				       MAX(CASE WHEN ur.superadmin_write = 1 THEN 'Superadmin' WHEN ur.superadmin_read = 1 THEN 'Superadmin (read)' WHEN ur.admin_read = 1 THEN 'Admin (read)' WHEN ur.admin_write = 1 THEN 'Admin' END) AS role
 				FROM req
 				JOIN region r ON 1=1
 				JOIN region_type rt ON r.id = rt.region_id
 				LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.user_id
-				LEFT JOIN user_activity ua ON r.id = ua.region_id
 				WHERE rt.type_id IN (SELECT type_id FROM target_types)
-				GROUP BY r.id, r.name 
-				ORDER BY r.name
+				GROUP BY r.id, r.name
 				""")
 				.params(setup.idRegion(), userId)
-				.query((rs, _) -> new UserRegion(
-						rs.getInt("id"),
-						rs.getString("name"),
-						rs.getString("role"),
-						rs.getBoolean("read_only") || rs.getBoolean("region_visible"),
-						rs.getBoolean("read_only"),
-						rs.getBoolean("activity")
-						))
-				.list();
-
-		return res;
+				.query((rs, _) -> new Row(rs.getInt("id"), rs.getString("name"), rs.getString("role"),
+						rs.getBoolean("read_only") || rs.getBoolean("region_visible"), rs.getBoolean("read_only")))
+				.list()
+				.stream()
+				// Regions with activity first (most ascents first), then the rest alphabetically.
+				.sorted(Comparator.comparingInt((Row r) -> activityRankByRegionId.getOrDefault(r.id(), Integer.MAX_VALUE)).thenComparing(r -> r.name()))
+				.map(r -> new UserRegion(r.id(), r.name(), r.role(), r.enabled(), r.readOnly(), activityRankByRegionId.containsKey(r.id())))
+				.toList();
 	}
 }
 
