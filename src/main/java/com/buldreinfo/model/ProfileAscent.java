@@ -15,6 +15,7 @@ public class ProfileAscent {
 	private final int idTickRepeat;
 	private final String subType;
 	private final int numPitches;
+	private final String group;
 	private final int idProblem;
 	private final int nr;
 	private final boolean lockedAdmin;
@@ -32,7 +33,7 @@ public class ProfileAscent {
 	
 	public ProfileAscent(String regionName, int areaId, String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin,
 			int sectorId, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin,
-			int id, int idTickRepeat, String subType, int numPitches,
+			int id, int idTickRepeat, String subType, int numPitches, String group,
 			int idProblem, int nr, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String date,
 			String dateHr, double stars, boolean fa, String grade, int gradeWeight, boolean noPersonalGrade) {
 		this.regionName = regionName;
@@ -48,6 +49,7 @@ public class ProfileAscent {
 		this.idTickRepeat = idTickRepeat;
 		this.subType = subType;
 		this.numPitches = numPitches;
+		this.group = group;
 		this.idProblem = idProblem;
 		this.nr = nr;
 		this.lockedAdmin = lockedAdmin;
@@ -89,6 +91,10 @@ public class ProfileAscent {
 	
 	public String getGrade() {
 		return grade;
+	}
+
+	public String getGroup() {
+		return group;
 	}
 	
 	public int getGradeWeight() {

@@ -27,7 +27,14 @@ public class ProfilesResourceTest extends BaseResourceTest {
 
 	@Test
 	public void testGetProfileAscents() {
-		var r = tester.getProfilesAscents(getRequest(Region.buldreinfo), USER_ID_SUPERADMIN);
+		var r = tester.getProfilesAscents(USER_ID_SUPERADMIN);
+		assertEquals(OK, r.getStatusCode());
+		assertInstanceOf(List.class, r.getBody());
+	}
+
+	@Test
+	public void testGetProfileAscentsSpansDisciplines() {
+		var r = tester.getProfilesAscents(USER_ID_SUPERADMIN);
 		assertEquals(OK, r.getStatusCode());
 		assertInstanceOf(List.class, r.getBody());
 	}
@@ -41,7 +48,7 @@ public class ProfilesResourceTest extends BaseResourceTest {
 
 	@Test
 	public void testGetProfileTodo() {
-		var r = tester.getProfilesTodo(getRequest(Region.buldreinfo), USER_ID_SUPERADMIN);
+		var r = tester.getProfilesTodo(USER_ID_SUPERADMIN);
 		assertEquals(OK, r.getStatusCode());
 		assertInstanceOf(ProfileTodo.class, r.getBody());
 	}

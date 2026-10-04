@@ -375,14 +375,14 @@ public class UserRepository {
 	}
 
 	@Transactional(readOnly = true)
-	public List<ProfileAscent> getProfileAscents(Optional<Integer> authUserId, Setup setup, int reqId) {
+	public List<ProfileAscent> getProfileAscents(Optional<Integer> authUserId, int reqId) {
 		List<ProfileAscent> res = new ArrayList<>();
 		Map<Integer, ProfileAscent> idProblemTickMap = new HashMap<>();
 
 		res.addAll(jdbcClient.sql("""
 				SELECT r.name region_name, a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
 				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
-				       t.id id_tick, 0 id_tick_repeat, ty.subtype, COUNT(DISTINCT ps.id) num_pitches,
+				       t.id id_tick, 0 id_tick_repeat, ty.subtype, ty.group group_name, COUNT(DISTINCT ps.id) num_pitches,
 				       p.id id_problem, p.nr, p.locked_admin, p.locked_superadmin, p.name,
 				       CASE WHEN (t.id IS NOT NULL) THEN t.comment ELSE p.description END comment,
 				       DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%Y-%m-%d') date,
@@ -393,19 +393,18 @@ public class UserRepository {
 				       CASE WHEN t.id IS NOT NULL AND gt.id IS NULL THEN 1 ELSE 0 END no_personal_grade
 				FROM problem p
 				JOIN grade g ON p.grade_id=g.id JOIN type ty ON p.type_id=ty.id JOIN sector s ON p.sector_id=s.id
-				JOIN area a ON s.area_id=a.id JOIN region r ON a.region_id=r.id JOIN region_type rt ON r.id=rt.region_id
+				JOIN area a ON s.area_id=a.id JOIN region r ON a.region_id=r.id
 				LEFT JOIN problem_section ps ON p.id=ps.problem_id
 				LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
 				LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?
 				LEFT JOIN grade gt ON t.grade_id=gt.id LEFT JOIN fa f ON (p.id=f.problem_id AND f.user_id=?)
 				WHERE (t.user_id IS NOT NULL OR f.user_id IS NOT NULL)
-				  AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
 				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-				GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, t.id, ty.subtype, p.id, p.nr, p.locked_admin, p.locked_superadmin, p.name, p.description, p.fa_date, t.date, t.stars, g.grade, gt.grade
+				GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, t.id, ty.subtype, ty.group, p.id, p.nr, p.locked_admin, p.locked_superadmin, p.name, p.description, p.fa_date, t.date, t.stars, g.grade, gt.grade
 				""")
-				.params(authUserId.orElse(0), reqId, reqId, setup.idRegion())
+				.params(authUserId.orElse(0), reqId, reqId)
 				.query((rs, _) -> {
-					var tick = new ProfileAscent(rs.getString("region_name"), rs.getInt("area_id"), rs.getString("area_name"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getInt("sector_id"), rs.getString("sector_name"), rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), rs.getInt("id_tick"), rs.getInt("id_tick_repeat"), (rs.getInt("num_pitches") > 1 ? "Multi-pitch " : "") + rs.getString("subtype"), rs.getInt("num_pitches"), rs.getInt("id_problem"), rs.getInt("nr"), rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getString("name"), rs.getString("comment"), rs.getString("date"), rs.getString("date_hr"), rs.getDouble("stars"), rs.getBoolean("fa"), rs.getString("grade"), rs.getInt("grade_weight"), rs.getBoolean("no_personal_grade"));
+					var tick = new ProfileAscent(rs.getString("region_name"), rs.getInt("area_id"), rs.getString("area_name"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getInt("sector_id"), rs.getString("sector_name"), rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), rs.getInt("id_tick"), rs.getInt("id_tick_repeat"), (rs.getInt("num_pitches") > 1 ? "Multi-pitch " : "") + rs.getString("subtype"), rs.getInt("num_pitches"), rs.getString("group_name"), rs.getInt("id_problem"), rs.getInt("nr"), rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getString("name"), rs.getString("comment"), rs.getString("date"), rs.getString("date_hr"), rs.getDouble("stars"), rs.getBoolean("fa"), rs.getString("grade"), rs.getInt("grade_weight"), rs.getBoolean("no_personal_grade"));
 					idProblemTickMap.put(tick.getIdProblem(), tick);
 					return tick;
 				}).list());
@@ -413,45 +412,45 @@ public class UserRepository {
 		res.addAll(jdbcClient.sql("""
 				SELECT r.name region_name, a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
 				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
-				       t.id id_tick, tr.id id_tick_repeat, ty.subtype, COUNT(DISTINCT ps.id) num_pitches,
+				       t.id id_tick, tr.id id_tick_repeat, ty.subtype, ty.group group_name, COUNT(DISTINCT ps.id) num_pitches,
 				       p.id id_problem, p.nr, p.locked_admin, p.locked_superadmin, p.name, tr.comment,
 				       DATE_FORMAT(tr.date,'%Y-%m-%d') date, DATE_FORMAT(tr.date,'%d/%m-%y') date_hr, t.stars, 0 fa, g.weight grade_weight, g.grade
-				FROM problem p JOIN type ty ON p.type_id=ty.id JOIN sector s ON p.sector_id=s.id JOIN area a ON s.area_id=a.id JOIN region r ON a.region_id=r.id JOIN region_type rt ON r.id=rt.region_id
+				FROM problem p JOIN type ty ON p.type_id=ty.id JOIN sector s ON p.sector_id=s.id JOIN area a ON s.area_id=a.id JOIN region r ON a.region_id=r.id
 				JOIN tick t ON p.id=t.problem_id AND t.user_id=? LEFT JOIN grade g ON t.grade_id=g.id JOIN tick_repeat tr ON t.id=tr.tick_id
 				LEFT JOIN problem_section ps ON p.id=ps.problem_id LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
-				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-				GROUP BY s.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, t.id, tr.id, ty.subtype, p.id, p.nr, p.locked_admin, p.locked_superadmin, p.name, tr.comment, tr.date, t.stars, g.weight, g.grade
+				WHERE p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
+				GROUP BY s.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, t.id, tr.id, ty.subtype, ty.group, p.id, p.nr, p.locked_admin, p.locked_superadmin, p.name, tr.comment, tr.date, t.stars, g.weight, g.grade
 				""")
-				.params(reqId, authUserId.orElse(0), setup.idRegion())
-				.query((rs, _) -> new ProfileAscent(rs.getString("region_name"), rs.getInt("area_id"), rs.getString("area_name"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getInt("sector_id"), rs.getString("sector_name"), rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), rs.getInt("id_tick"), rs.getInt("id_tick_repeat"), (rs.getInt("num_pitches") > 1 ? "Multi-pitch " : "") + rs.getString("subtype"), rs.getInt("num_pitches"), rs.getInt("id_problem"), rs.getInt("nr"), rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getString("name"), rs.getString("comment"), rs.getString("date"), rs.getString("date_hr"), rs.getDouble("stars"), rs.getBoolean("fa"), rs.getString("grade"), rs.getInt("grade_weight"), rs.getString("grade") == null))
+				.params(reqId, authUserId.orElse(0))
+				.query((rs, _) -> new ProfileAscent(rs.getString("region_name"), rs.getInt("area_id"), rs.getString("area_name"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getInt("sector_id"), rs.getString("sector_name"), rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), rs.getInt("id_tick"), rs.getInt("id_tick_repeat"), (rs.getInt("num_pitches") > 1 ? "Multi-pitch " : "") + rs.getString("subtype"), rs.getInt("num_pitches"), rs.getString("group_name"), rs.getInt("id_problem"), rs.getInt("nr"), rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getString("name"), rs.getString("comment"), rs.getString("date"), rs.getString("date_hr"), rs.getDouble("stars"), rs.getBoolean("fa"), rs.getString("grade"), rs.getInt("grade_weight"), rs.getString("grade") == null))
 				.list());
 
-		if (!setup.isBouldering()) {
-			jdbcClient.sql("""
-					SELECT r.name region_name, a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
-					       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, COUNT(DISTINCT ps.id) num_pitches,
-					       p.id id_problem, p.nr, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description description, DATE_FORMAT(aid.aid_date,'%Y-%m-%d') date, DATE_FORMAT(aid.aid_date,'%d/%m-%y') date_hr
-					FROM problem p JOIN sector s ON p.sector_id=s.id JOIN area a ON s.area_id=a.id JOIN region r ON a.region_id=r.id JOIN region_type rt ON r.id=rt.region_id
-					JOIN fa_aid aid ON p.id=aid.problem_id JOIN fa_aid_user aid_u ON p.id=aid_u.problem_id AND aid_u.user_id=?
-					LEFT JOIN problem_section ps ON p.id=ps.problem_id LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
-					WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-					GROUP BY a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, p.id, p.nr, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description, aid.aid_date
-					""")
-			.params(reqId, authUserId.orElse(0), setup.idRegion())
-			.query(rs -> {
-				int pid = rs.getInt("id_problem");
-				var existing = idProblemTickMap.get(pid);
-				if (existing != null) {
-					existing.setFa(true);
-					if (existing.getDate() == null) existing.setDate(rs.getString("date"));
-					if (existing.getDateHr() == null) existing.setDateHr(rs.getString("date_hr"));
-				} else {
-					var tick = new ProfileAscent(rs.getString("region_name"), rs.getInt("area_id"), rs.getString("area_name"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getInt("sector_id"), rs.getString("sector_name"), rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), 0, 0, "Aid", rs.getInt("num_pitches"), pid, rs.getInt("nr"), rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getString("name"), (rs.getString("description") != null && !rs.getString("description").isBlank() ? "First ascent (AID): " + rs.getString("description") : "First ascent (AID)"), rs.getString("date"), rs.getString("date_hr"), 0, true, "n/a", 0, false);
-					idProblemTickMap.put(pid, tick);
-					res.add(tick);
-				}
-			});
-		}
+		// Aid first ascents only exist for routes, but they belong to the same unified profile history, so they are
+		// listed on every site regardless of the site's own disciplines.
+		jdbcClient.sql("""
+				SELECT r.name region_name, a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
+				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, COUNT(DISTINCT ps.id) num_pitches,
+				       p.id id_problem, p.nr, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description description, DATE_FORMAT(aid.aid_date,'%Y-%m-%d') date, DATE_FORMAT(aid.aid_date,'%d/%m-%y') date_hr, ty.group problem_group
+				FROM problem p JOIN type ty ON p.type_id=ty.id JOIN sector s ON p.sector_id=s.id JOIN area a ON s.area_id=a.id JOIN region r ON a.region_id=r.id
+				JOIN fa_aid aid ON p.id=aid.problem_id JOIN fa_aid_user aid_u ON p.id=aid_u.problem_id AND aid_u.user_id=?
+				LEFT JOIN problem_section ps ON p.id=ps.problem_id LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
+				WHERE p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
+				GROUP BY a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, p.id, p.nr, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description, aid.aid_date, ty.group
+				""")
+				.params(reqId, authUserId.orElse(0))
+				.query(rs -> {
+					int pid = rs.getInt("id_problem");
+					var existing = idProblemTickMap.get(pid);
+					if (existing != null) {
+						existing.setFa(true);
+						if (existing.getDate() == null) existing.setDate(rs.getString("date"));
+						if (existing.getDateHr() == null) existing.setDateHr(rs.getString("date_hr"));
+					} else {
+						var tick = new ProfileAscent(rs.getString("region_name"), rs.getInt("area_id"), rs.getString("area_name"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getInt("sector_id"), rs.getString("sector_name"), rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), 0, 0, "Aid", rs.getInt("num_pitches"), rs.getString("problem_group"), pid, rs.getInt("nr"), rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getString("name"), (rs.getString("description") != null && !rs.getString("description").isBlank() ? "First ascent (AID): " + rs.getString("description") : "First ascent (AID)"), rs.getString("date"), rs.getString("date_hr"), 0, true, "n/a", 0, false);
+						idProblemTickMap.put(pid, tick);
+						res.add(tick);
+					}
+				});
 
 		if (!idProblemTickMap.isEmpty()) {
 			var coords = getProblemCoordinates(new ArrayList<>(idProblemTickMap.keySet()));
@@ -703,8 +702,13 @@ public class UserRepository {
 		return res;
 	}
 
+	/**
+	 * The user's todo list across every discipline and site, for the same reason ascents are not site-scoped: the
+	 * profile's discipline tabs are derived from `type.group`. Problems of sites other than the requesting one still
+	 * follow the normal locked-problem visibility rules (see the `ur` join).
+	 */
 	@Transactional(readOnly = true)
-	public ProfileTodo getProfileTodo(Optional<Integer> authUserId, Setup setup, int userId) {
+	public ProfileTodo getProfileTodo(Optional<Integer> authUserId, int userId) {
 		ProfileTodo res = new ProfileTodo(new ArrayList<>());
 		Map<Integer, ProfileTodoArea> areaLookup = new HashMap<>();
 		Map<Integer, ProfileTodoSector> sectorLookup = new HashMap<>();
@@ -742,17 +746,17 @@ public class UserRepository {
 				}
 			}
 
-			ProfileTodoProblem p = new ProfileTodoProblem(rs.getInt("todo_id"), rs.getInt("problem_id"), rs.getBoolean("problem_locked_admin"), rs.getBoolean("problem_locked_superadmin"), rs.getInt("problem_nr"), rs.getString("problem_name"), rs.getString("problem_grade"), rs.getString("problem_subtype"), rs.getInt("num_pitches"), coords, partners);
+			ProfileTodoProblem p = new ProfileTodoProblem(rs.getInt("todo_id"), rs.getInt("problem_id"), rs.getBoolean("problem_locked_admin"), rs.getBoolean("problem_locked_superadmin"), rs.getInt("problem_nr"), rs.getString("problem_name"), rs.getString("problem_grade"), rs.getInt("problem_grade_weight"), rs.getString("problem_subtype"), rs.getString("problem_group"), rs.getInt("num_pitches"), coords, partners);
 			s.problems().add(p);
 			return p;
 		};
 
 		jdbcClient.sql("""
-				WITH req AS (SELECT ? user_id, ? auth_user_id, ? region_id)
+				WITH req AS (SELECT ? user_id, ? auth_user_id)
 				SELECT a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
 				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
-				       t.id todo_id, p.id problem_id, p.nr problem_nr, p.name problem_name, g.grade problem_grade, 
-				       p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, ty.subtype problem_subtype, COUNT(DISTINCT ps.id) num_pitches,
+				       t.id todo_id, p.id problem_id, p.nr problem_nr, p.name problem_name, g.grade problem_grade, g.weight problem_grade_weight, 
+				       p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, ty.subtype problem_subtype, ty.group problem_group, COUNT(DISTINCT ps.id) num_pitches,
 				       COALESCE(pc.id, oc.id, sc.id, ac.id) coord_id,
 				       COALESCE(pc.latitude, oc.latitude, sc.latitude, ac.latitude) lat,
 				       COALESCE(pc.longitude, oc.longitude, sc.longitude, ac.longitude) lon,
@@ -765,17 +769,15 @@ public class UserRepository {
 				LEFT JOIN problem_section ps ON p.id = ps.problem_id
 				JOIN type ty ON p.type_id = ty.id
 				JOIN sector s ON p.sector_id = s.id JOIN area a ON s.area_id = a.id
-				JOIN region_type rt ON a.region_id = rt.region_id JOIN grade g ON p.grade_id = g.id
+				JOIN grade g ON p.grade_id = g.id
 				LEFT JOIN coordinates ac ON a.coordinates_id = ac.id LEFT JOIN coordinates sc ON s.parking_coordinates_id = sc.id
 				LEFT JOIN coordinates pc ON p.coordinates_id = pc.id LEFT JOIN sector_outline so ON s.id = so.sector_id AND so.sorting = 1
 				LEFT JOIN coordinates oc ON so.coordinates_id = oc.id LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.auth_user_id
-				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
-				  AND (a.region_id = req.region_id OR ur.user_id IS NOT NULL)
-				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
+				WHERE p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				GROUP BY p.id, t.id
 				ORDER BY a.name, s.name, p.nr
 				""")
-		.params(userId, authUserId.orElse(0), setup.idRegion())
+		.params(userId, authUserId.orElse(0))
 		.query(mapper)
 		.list();
 

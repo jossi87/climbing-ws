@@ -58,13 +58,11 @@ public class ProfilesController {
 	@Operation(summary = "Get profile ascents")
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@GetMapping(value = "/ascents", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<List<ProfileAscent>> getProfilesAscents(HttpServletRequest request, 
-			@RequestParam(name = "id") int id) {
+	public ResponseEntity<List<ProfileAscent>> getProfilesAscents(@RequestParam(name = "id") int id) {
 		if (id <= 0) throw new ValidationFailedException("Invalid user id=" + id);
 		userRepo.ensureUserExists(id);
-		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		return ResponseEntity.ok(userRepo.getProfileAscents(authUserId, setup, id));
+		return ResponseEntity.ok(userRepo.getProfileAscents(authUserId, id));
 	}
 
 	@Operation(summary = "Get profile media by user id")
@@ -81,13 +79,11 @@ public class ProfilesController {
 	@Operation(summary = "Get profile todo")
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@GetMapping(value = "/todo", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<ProfileTodo> getProfilesTodo(HttpServletRequest request, 
-			@RequestParam(name = "id") int id) {
+	public ResponseEntity<ProfileTodo> getProfilesTodo(@RequestParam(name = "id") int id) {
 		if (id <= 0) throw new ValidationFailedException("Invalid user id=" + id);
 		userRepo.ensureUserExists(id);
-		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		return ResponseEntity.ok(userRepo.getProfileTodo(authUserId, setup, id));
+		return ResponseEntity.ok(userRepo.getProfileTodo(authUserId, id));
 	}
 
 	@Operation(summary = "Update profile identity")
