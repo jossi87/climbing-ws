@@ -60,17 +60,9 @@ import com.buldreinfo.model.UserSearchResult;
 
 @Repository
 public class UserRepository {
-	public static final int USER_ID_UNKNOWN = 1049;
-	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-	private final JdbcClient jdbcClient;
-
-	public UserRepository(JdbcClient jdbcClient) {
-		this.jdbcClient = jdbcClient;
-	}
-
 	/** A region where a user has activity, most ascents first. */
 	public record UserActivityRegion(int regionId, String name) {}
-
+	public static final int USER_ID_UNKNOWN = 1049;
 	/** The one definition of "regions a user has activity in" (fa + tick + aid FA). */
 	private static final String ACTIVITY_REGIONS_SQL = """
 			SELECT act.user_id, a.region_id, r.name, COUNT(DISTINCT p.id) ascents
@@ -87,6 +79,65 @@ public class UserRepository {
 			GROUP BY act.user_id, a.region_id, r.name
 			ORDER BY act.user_id, ascents DESC, r.name
 			""";
+
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	/**
+	 * The canonical list of region names a user has activity in, most ascents first. Names are de-duplicated because one
+	 * geographic region (e.g. "Rogaland") has one row per site (brattelinjer/buldreinfo).
+	 */
+	public static List<String> activityRegionNames(List<UserActivityRegion> activityRegions) {
+		return activityRegions.stream().map(UserActivityRegion::name).distinct().toList();
+	}
+
+	private static String profileAscentSubType(int numPitches, String subtype) {
+		if (subtype == null) {
+			return null;
+		}
+		return (numPitches > 1 ? "Multi-pitch " : "") + subtype;
+	}
+
+	private final JdbcClient jdbcClient;
+
+	public UserRepository(JdbcClient jdbcClient) {
+		this.jdbcClient = jdbcClient;
+	}
+
+	/**
+	 * Mark two users as "not merge candidates" so the pair is excluded from the merge suggestions. The
+	 * ids are stored canonically (lowest id first) and the call is idempotent.
+	 */
+	@Transactional
+	public void addMergeDismissal(int userId1, int userId2) {
+		ensureUserExists(userId1);
+		ensureUserExists(userId2);
+		int lowUserId = Math.min(userId1, userId2);
+		int highUserId = Math.max(userId1, userId2);
+		jdbcClient.sql("""
+				INSERT INTO user_merge_dismissal (user_id_1, user_id_2)
+				VALUES (?, ?)
+				ON DUPLICATE KEY UPDATE user_id_1=user_id_1
+				""")
+				.params(lowUserId, highUserId)
+				.update();
+	}
+
+	@Transactional(readOnly = true)
+	public void ensureUserExists(int userId) {
+		if (userId <= 0) {
+			throw new IllegalArgumentException("Invalid userId=" + userId);
+		}
+
+		boolean exists = jdbcClient.sql("SELECT 1 FROM user WHERE id = ?")
+				.param(userId)
+				.query(Integer.class)
+				.optional()
+				.isPresent();
+
+		if (!exists) {
+			throw new NoSuchElementException("Could not find user with id=" + userId);
+		}
+	}
 
 	/**
 	 * Regions the given users have activity in, most ascents first. Used by search, the superadmin users page and the
@@ -105,31 +156,6 @@ public class UserRepository {
 							.add(new UserActivityRegion(rs.getInt("region_id"), rs.getString("name")));
 				});
 		return res;
-	}
-
-	/**
-	 * The canonical list of region names a user has activity in, most ascents first. Names are de-duplicated because one
-	 * geographic region (e.g. "Rogaland") has one row per site (brattelinjer/buldreinfo).
-	 */
-	public static List<String> activityRegionNames(List<UserActivityRegion> activityRegions) {
-		return activityRegions.stream().map(UserActivityRegion::name).distinct().toList();
-	}
-
-	@Transactional(readOnly = true)
-	public void ensureUserExists(int userId) {
-		if (userId <= 0) {
-			throw new IllegalArgumentException("Invalid userId=" + userId);
-		}
-
-		boolean exists = jdbcClient.sql("SELECT 1 FROM user WHERE id = ?")
-				.param(userId)
-				.query(Integer.class)
-				.optional()
-				.isPresent();
-
-		if (!exists) {
-			throw new NoSuchElementException("Could not find user with id=" + userId);
-		}
 	}
 
 	@Transactional(readOnly = true)
@@ -246,87 +272,19 @@ public class UserRepository {
 		return usId;
 	}
 
+	/**
+	 * Pairs of users that a superadmin has explicitly marked as "not merge candidates". Ids are always
+	 * returned canonically ordered (userId1 &lt; userId2).
+	 */
 	@Transactional(readOnly = true)
-	public List<AdminUser> getUsers(int authUserId) {
-		List<AdminUser> users = jdbcClient.sql("""
-				SELECT u.id,
-				       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))) AS name,
-				       u.firstname AS firstname,
-				       u.lastname AS lastname,
-				       m.id AS media_id,
-				       UNIX_TIMESTAMP(m.updated_at) AS media_version_stamp,
-				       mma.focus_x AS media_focus_x,
-				       mma.focus_y AS media_focus_y,
-				       mma.primary_color_hex AS media_primary_color_hex,
-				       e.emails,
-				       l.last_login AS last_login
-				FROM user u
-				LEFT JOIN media m ON u.media_id = m.id
-				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
-				LEFT JOIN (SELECT user_id, GROUP_CONCAT(DISTINCT email ORDER BY email SEPARATOR ';') AS emails
-				           FROM user_email GROUP BY user_id) e ON e.user_id = u.id
-				LEFT JOIN (SELECT user_id, MAX(`when`) AS last_login FROM user_login GROUP BY user_id) l ON l.user_id = u.id
-				ORDER BY u.id DESC
+	public List<MergeDismissal> getMergeDismissals() {
+		return jdbcClient.sql("""
+				SELECT user_id_1, user_id_2
+				FROM user_merge_dismissal
+				ORDER BY user_id_1, user_id_2
 				""")
-				.query((rs, _) -> {
-					int mediaId = rs.getInt("media_id");
-					MediaIdentity mediaIdentity = (mediaId > 0)
-								? new MediaIdentity(mediaId, rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex"))
-								: null;
-					String emailsStr = rs.getString("emails");
-					List<String> emails = (emailsStr == null || emailsStr.isBlank())
-								? List.of()
-								: List.of(emailsStr.split(";"));
-					return new AdminUser(rs.getInt("id"), rs.getString("name"), rs.getString("firstname"), rs.getString("lastname"), false, mediaIdentity, TimeAgo.getTimeAgo(rs.getObject("last_login", LocalDate.class)), emails, List.<AdminUser.AdminRegion>of(), List.of());
-				})
+				.query((rs, _) -> new MergeDismissal(rs.getInt("user_id_1"), rs.getInt("user_id_2")))
 				.list();
-
-		if (users.isEmpty()) {
-			return users;
-		}
-
-		Map<Integer, List<AdminUser.AdminRegion>> regionsByUser = new HashMap<>();
-		jdbcClient.sql("""
-				SELECT u.user_id,
-				       r.id AS region_id,
-				       r.name AS region_name,
-				       r.url AS region_url
-				FROM (SELECT user_id, region_id FROM user_login
-				      UNION
-				      SELECT user_id, region_id FROM user_region) u
-				JOIN region r ON r.id = u.region_id
-				WHERE u.user_id IN (:userIds)
-				ORDER BY r.name, r.id
-				""")
-				.param("userIds", users.stream().map(AdminUser::userId).toList())
-				.query(rs -> {
-					regionsByUser.computeIfAbsent(rs.getInt("user_id"), _ -> new ArrayList<>())
-							.add(new AdminUser.AdminRegion(rs.getInt("region_id"), rs.getString("region_name"), rs.getString("region_url")));
-				});
-
-		// A superadmin may rename an account only when the account has no region association, or when the superadmin is
-		// superadmin in at least one of the account's regions.
-		Set<Integer> superadminRegionIds = new HashSet<>(jdbcClient.sql("""
-				SELECT region_id
-				FROM user_region
-				WHERE user_id=? AND superadmin_write=1
-				""")
-				.param(authUserId)
-				.query(Integer.class)
-				.list());
-
-		// Accounts are shown with the regions they have activity in; the associations above are only used for the
-		// rename permission, merge suggestions and profile links.
-		Map<Integer, List<UserActivityRegion>> activityRegionsByUser = getActivityRegionsByUser(users.stream().map(AdminUser::userId).toList());
-
-		return users.stream()
-				.map(u -> {
-					List<AdminUser.AdminRegion> regions = regionsByUser.getOrDefault(u.userId(), List.of());
-					List<String> activityRegions = activityRegionNames(activityRegionsByUser.getOrDefault(u.userId(), List.of()));
-					boolean canEditName = regions.isEmpty() || regions.stream().anyMatch(r -> superadminRegionIds.contains(r.id()));
-					return new AdminUser(u.userId(), u.name(), u.firstname(), u.lastname(), canEditName, u.mediaIdentity(), u.lastLogin(), u.emails(), regions, activityRegions);
-				})
-				.toList();
 	}
 
 	@Transactional(readOnly = true)
@@ -404,7 +362,7 @@ public class UserRepository {
 				""")
 				.params(authUserId.orElse(0), reqId, reqId)
 				.query((rs, _) -> {
-					var tick = new ProfileAscent(rs.getString("region_name"), rs.getInt("area_id"), rs.getString("area_name"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getInt("sector_id"), rs.getString("sector_name"), rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), rs.getInt("id_tick"), rs.getInt("id_tick_repeat"), (rs.getInt("num_pitches") > 1 ? "Multi-pitch " : "") + rs.getString("subtype"), rs.getInt("num_pitches"), rs.getString("group_name"), rs.getInt("id_problem"), rs.getInt("nr"), rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getString("name"), rs.getString("comment"), rs.getString("date"), rs.getString("date_hr"), rs.getDouble("stars"), rs.getBoolean("fa"), rs.getString("grade"), rs.getInt("grade_weight"), rs.getBoolean("no_personal_grade"));
+					var tick = new ProfileAscent(rs.getString("region_name"), rs.getInt("area_id"), rs.getString("area_name"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getInt("sector_id"), rs.getString("sector_name"), rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), rs.getInt("id_tick"), rs.getInt("id_tick_repeat"), profileAscentSubType(rs.getInt("num_pitches"), rs.getString("subtype")), rs.getInt("num_pitches"), rs.getString("group_name"), rs.getInt("id_problem"), rs.getInt("nr"), rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getString("name"), rs.getString("comment"), rs.getString("date"), rs.getString("date_hr"), rs.getDouble("stars"), rs.getBoolean("fa"), rs.getString("grade"), rs.getInt("grade_weight"), rs.getBoolean("no_personal_grade"));
 					idProblemTickMap.put(tick.getIdProblem(), tick);
 					return tick;
 				}).list());
@@ -422,7 +380,7 @@ public class UserRepository {
 				GROUP BY s.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, t.id, tr.id, ty.subtype, ty.group, p.id, p.nr, p.locked_admin, p.locked_superadmin, p.name, tr.comment, tr.date, t.stars, g.weight, g.grade
 				""")
 				.params(reqId, authUserId.orElse(0))
-				.query((rs, _) -> new ProfileAscent(rs.getString("region_name"), rs.getInt("area_id"), rs.getString("area_name"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getInt("sector_id"), rs.getString("sector_name"), rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), rs.getInt("id_tick"), rs.getInt("id_tick_repeat"), (rs.getInt("num_pitches") > 1 ? "Multi-pitch " : "") + rs.getString("subtype"), rs.getInt("num_pitches"), rs.getString("group_name"), rs.getInt("id_problem"), rs.getInt("nr"), rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getString("name"), rs.getString("comment"), rs.getString("date"), rs.getString("date_hr"), rs.getDouble("stars"), rs.getBoolean("fa"), rs.getString("grade"), rs.getInt("grade_weight"), rs.getString("grade") == null))
+				.query((rs, _) -> new ProfileAscent(rs.getString("region_name"), rs.getInt("area_id"), rs.getString("area_name"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getInt("sector_id"), rs.getString("sector_name"), rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), rs.getInt("id_tick"), rs.getInt("id_tick_repeat"), profileAscentSubType(rs.getInt("num_pitches"), rs.getString("subtype")), rs.getInt("num_pitches"), rs.getString("group_name"), rs.getInt("id_problem"), rs.getInt("nr"), rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getString("name"), rs.getString("comment"), rs.getString("date"), rs.getString("date_hr"), rs.getDouble("stars"), rs.getBoolean("fa"), rs.getString("grade"), rs.getInt("grade_weight"), rs.getString("grade") == null))
 				.list());
 
 		// Aid first ascents only exist for routes, but they belong to the same unified profile history, so they are
@@ -786,6 +744,89 @@ public class UserRepository {
 	}
 
 	@Transactional(readOnly = true)
+	public List<AdminUser> getUsers(int authUserId) {
+		List<AdminUser> users = jdbcClient.sql("""
+				SELECT u.id,
+				       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))) AS name,
+				       u.firstname AS firstname,
+				       u.lastname AS lastname,
+				       m.id AS media_id,
+				       UNIX_TIMESTAMP(m.updated_at) AS media_version_stamp,
+				       mma.focus_x AS media_focus_x,
+				       mma.focus_y AS media_focus_y,
+				       mma.primary_color_hex AS media_primary_color_hex,
+				       e.emails,
+				       l.last_login AS last_login
+				FROM user u
+				LEFT JOIN media m ON u.media_id = m.id
+				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
+				LEFT JOIN (SELECT user_id, GROUP_CONCAT(DISTINCT email ORDER BY email SEPARATOR ';') AS emails
+				           FROM user_email GROUP BY user_id) e ON e.user_id = u.id
+				LEFT JOIN (SELECT user_id, MAX(`when`) AS last_login FROM user_login GROUP BY user_id) l ON l.user_id = u.id
+				ORDER BY u.id DESC
+				""")
+				.query((rs, _) -> {
+					int mediaId = rs.getInt("media_id");
+					MediaIdentity mediaIdentity = (mediaId > 0)
+								? new MediaIdentity(mediaId, rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex"))
+								: null;
+					String emailsStr = rs.getString("emails");
+					List<String> emails = (emailsStr == null || emailsStr.isBlank())
+								? List.of()
+								: List.of(emailsStr.split(";"));
+					return new AdminUser(rs.getInt("id"), rs.getString("name"), rs.getString("firstname"), rs.getString("lastname"), false, mediaIdentity, TimeAgo.getTimeAgo(rs.getObject("last_login", LocalDate.class)), emails, List.<AdminUser.AdminRegion>of(), List.of());
+				})
+				.list();
+
+		if (users.isEmpty()) {
+			return users;
+		}
+
+		Map<Integer, List<AdminUser.AdminRegion>> regionsByUser = new HashMap<>();
+		jdbcClient.sql("""
+				SELECT u.user_id,
+				       r.id AS region_id,
+				       r.name AS region_name,
+				       r.url AS region_url
+				FROM (SELECT user_id, region_id FROM user_login
+				      UNION
+				      SELECT user_id, region_id FROM user_region) u
+				JOIN region r ON r.id = u.region_id
+				WHERE u.user_id IN (:userIds)
+				ORDER BY r.name, r.id
+				""")
+				.param("userIds", users.stream().map(AdminUser::userId).toList())
+				.query(rs -> {
+					regionsByUser.computeIfAbsent(rs.getInt("user_id"), _ -> new ArrayList<>())
+							.add(new AdminUser.AdminRegion(rs.getInt("region_id"), rs.getString("region_name"), rs.getString("region_url")));
+				});
+
+		// A superadmin may rename an account only when the account has no region association, or when the superadmin is
+		// superadmin in at least one of the account's regions.
+		Set<Integer> superadminRegionIds = new HashSet<>(jdbcClient.sql("""
+				SELECT region_id
+				FROM user_region
+				WHERE user_id=? AND superadmin_write=1
+				""")
+				.param(authUserId)
+				.query(Integer.class)
+				.list());
+
+		// Accounts are shown with the regions they have activity in; the associations above are only used for the
+		// rename permission, merge suggestions and profile links.
+		Map<Integer, List<UserActivityRegion>> activityRegionsByUser = getActivityRegionsByUser(users.stream().map(AdminUser::userId).toList());
+
+		return users.stream()
+				.map(u -> {
+					List<AdminUser.AdminRegion> regions = regionsByUser.getOrDefault(u.userId(), List.of());
+					List<String> activityRegions = activityRegionNames(activityRegionsByUser.getOrDefault(u.userId(), List.of()));
+					boolean canEditName = regions.isEmpty() || regions.stream().anyMatch(r -> superadminRegionIds.contains(r.id()));
+					return new AdminUser(u.userId(), u.name(), u.firstname(), u.lastname(), canEditName, u.mediaIdentity(), u.lastLogin(), u.emails(), regions, activityRegions);
+				})
+				.toList();
+	}
+
+	@Transactional(readOnly = true)
 	public List<UserSearchResult> getUserSearch(Setup setup, Optional<Integer> authUserId, String value) {
 		if (authUserId.isEmpty()) {
 			throw new UnauthorizedException("User not logged in...");
@@ -995,40 +1036,6 @@ public class UserRepository {
 	}
 
 	/**
-	 * Pairs of users that a superadmin has explicitly marked as "not merge candidates". Ids are always
-	 * returned canonically ordered (userId1 &lt; userId2).
-	 */
-	@Transactional(readOnly = true)
-	public List<MergeDismissal> getMergeDismissals() {
-		return jdbcClient.sql("""
-				SELECT user_id_1, user_id_2
-				FROM user_merge_dismissal
-				ORDER BY user_id_1, user_id_2
-				""")
-				.query((rs, _) -> new MergeDismissal(rs.getInt("user_id_1"), rs.getInt("user_id_2")))
-				.list();
-	}
-
-	/**
-	 * Mark two users as "not merge candidates" so the pair is excluded from the merge suggestions. The
-	 * ids are stored canonically (lowest id first) and the call is idempotent.
-	 */
-	@Transactional
-	public void addMergeDismissal(int userId1, int userId2) {
-		ensureUserExists(userId1);
-		ensureUserExists(userId2);
-		int lowUserId = Math.min(userId1, userId2);
-		int highUserId = Math.max(userId1, userId2);
-		jdbcClient.sql("""
-				INSERT INTO user_merge_dismissal (user_id_1, user_id_2)
-				VALUES (?, ?)
-				ON DUPLICATE KEY UPDATE user_id_1=user_id_1
-				""")
-				.params(lowUserId, highUserId)
-				.update();
-	}
-
-	/**
 	 * Undo {@link #addMergeDismissal(int, int)}. Silently does nothing when the pair is not dismissed.
 	 */
 	@Transactional
@@ -1037,21 +1044,6 @@ public class UserRepository {
 		int highUserId = Math.max(userId1, userId2);
 		jdbcClient.sql("DELETE FROM user_merge_dismissal WHERE user_id_1=? AND user_id_2=?")
 				.params(lowUserId, highUserId)
-				.update();
-	}
-
-	@Transactional
-	public void updateUserName(int userId, String firstname, String lastname) {
-		ensureUserExists(userId);
-		if (firstname == null || firstname.isBlank()) {
-			throw new ValidationFailedException("First name is required");
-		}
-		jdbcClient.sql("""
-				UPDATE user
-				SET firstname=?, lastname=?
-				WHERE id=?
-				""")
-				.params(firstname.trim(), (lastname == null || lastname.isBlank()) ? null : lastname.trim(), userId)
 				.update();
 	}
 
@@ -1111,6 +1103,21 @@ public class UserRepository {
 			.params(userId, regionId)
 			.update();
 		}
+	}
+
+	@Transactional
+	public void updateUserName(int userId, String firstname, String lastname) {
+		ensureUserExists(userId);
+		if (firstname == null || firstname.isBlank()) {
+			throw new ValidationFailedException("First name is required");
+		}
+		jdbcClient.sql("""
+				UPDATE user
+				SET firstname=?, lastname=?
+				WHERE id=?
+				""")
+				.params(firstname.trim(), (lastname == null || lastname.isBlank()) ? null : lastname.trim(), userId)
+				.update();
 	}
 
 	@Transactional
