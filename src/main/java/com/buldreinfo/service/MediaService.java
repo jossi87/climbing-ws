@@ -167,6 +167,10 @@ public class MediaService {
 		return mediaRepo.getEmbeddedVideos();
 	}
 
+	public List<Integer> getHlsMovieIds() {
+		return mediaRepo.getHlsMovieIds();
+	}
+
 	public Media getMedia(Optional<Integer> authUserId, int id) {
 		return mediaRepo.getMedia(authUserId, id);
 	}

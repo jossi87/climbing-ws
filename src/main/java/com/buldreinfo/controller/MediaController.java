@@ -128,11 +128,11 @@ public class MediaController {
 			@RequestParam(name = "height", defaultValue = "0") int height) {
 
 		if (isMovie) {
-			String key = requestContext.acceptsWebm(request) ? S3KeyGenerator.getWebWebm(id) : S3KeyGenerator.getWebMp4(id);
+			String key = S3KeyGenerator.getWebHlsMaster(id);
 			if (!storage.exists(key)) {
 				throw new NoSuchElementException("Movie resource not found: " + key);
 			}
-			return createMovieRedirect(key, versionStamp);
+			return createRedirect(key, versionStamp);
 		}
 
 		boolean webP = requestContext.acceptsWebp(request);
@@ -379,18 +379,6 @@ public class MediaController {
 		return ResponseEntity.status(HttpStatus.FOUND)
 				.header(HttpHeaders.LOCATION, StorageManager.getPublicUrl(key, version))
 				.header(HttpHeaders.VARY, HttpHeaders.ACCEPT)
-				.cacheControl(redirectCacheControl(version))
-				.build();
-	}
-
-	/**
-	 * Video redirect. These additionally depend on the User-Agent: {@link RequestContext#acceptsWebm} sniffs the
-	 * browser instead of reading the Accept header, so shared caches have to vary on that as well.
-	 */
-	private ResponseEntity<Void> createMovieRedirect(String key, long version) {
-		return ResponseEntity.status(HttpStatus.FOUND)
-				.header(HttpHeaders.LOCATION, StorageManager.getPublicUrl(key, version))
-				.header(HttpHeaders.VARY, HttpHeaders.ACCEPT + ", " + HttpHeaders.USER_AGENT)
 				.cacheControl(redirectCacheControl(version))
 				.build();
 	}

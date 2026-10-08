@@ -21,6 +21,10 @@ public final class S3KeyGenerator {
 		};
 	}
 
+	public static String getOriginalMp4Prefix(int id) {
+		return "original/mp4/%s/".formatted(getFolderName(id));
+	}
+
 	public static String getWebJpg(int id) {
 		return "web/jpg/%s/%d.jpg".formatted(getFolderName(id), id);
 	}
@@ -33,12 +37,12 @@ public final class S3KeyGenerator {
 		return getWebJpgResizedPrefix(id) + "w%d_m%d.jpg".formatted(targetWidth, minDimension);
 	}
 
-	public static String getWebMp4(int id) {
-		return "web/mp4/%s/%d.mp4".formatted(getFolderName(id), id);
+	public static String getWebHlsPrefix(int id) {
+		return "web/hls/%s/%d/".formatted(getFolderName(id), id);
 	}
 
-	public static String getWebWebm(int id) {
-		return "web/webm/%s/%d.webm".formatted(getFolderName(id), id);
+	public static String getWebHlsMaster(int id) {
+		return getWebHlsPrefix(id) + "master.m3u8";
 	}
 
 	public static String getWebWebp(int id) {

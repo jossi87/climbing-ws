@@ -119,6 +119,13 @@ public class MediaRepository {
 	}
 
 	@Transactional(readOnly = true)
+	public List<Integer> getHlsMovieIds() {
+		return jdbcClient.sql("SELECT id FROM media WHERE is_movie=1 AND (embed_url IS NULL OR embed_url LIKE '%instagram.com%')")
+				.query(Integer.class)
+				.list();
+	}
+
+	@Transactional(readOnly = true)
 	public Media getMedia(Optional<Integer> authUserId, int id) {
 		var sql = """
 				WITH req AS (

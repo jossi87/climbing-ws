@@ -20,17 +20,6 @@ public class RequestContext {
 		this.regionRepo = regionRepo;
 	}
 
-	public boolean acceptsWebm(HttpServletRequest request) {
-		String accept = request.getHeader("Accept");
-		if (accept != null && accept.contains("video/webm")) return true;
-
-		String ua = request.getHeader("User-Agent");
-		if (ua != null && (ua.contains("Chrome") || ua.contains("Firefox") || ua.contains("Edg/"))) {
-			return !ua.contains("Like Mac OS X");
-		}
-		return false;
-	}
-
 	public boolean acceptsWebp(HttpServletRequest request) {
 		String accept = request.getHeader("Accept");
 		if (accept != null && accept.contains("image/webp")) return true;

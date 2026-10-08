@@ -287,7 +287,7 @@ public class ImageService {
 	 * Clockwise rotation to apply to the stored pixels so the user gets what he sees — the pixels plus the
 	 * EXIF orientation a viewer applies on top of them — rotated by {@code requestedDegrees}.
 	 */
-	static int composedRotationDegrees(int requestedDegrees, ImageRotation storedRotation) {
+	private static int composedRotationDegrees(int requestedDegrees, ImageRotation storedRotation) {
 		int storedDegrees = (storedRotation == null) ? 0 : storedRotation.degrees();
 		return Math.floorMod(requestedDegrees + storedDegrees, 360);
 	}
@@ -505,7 +505,7 @@ public class ImageService {
 	 * otherwise scaled so that the short side becomes {@code minDimension}. Returns the source dimensions
 	 * unchanged when neither applies, which the callers read as "no resize needed".
 	 */
-	static int[] targetDimensions(int sourceWidth, int sourceHeight, int targetWidth, int minDimension) {
+	private static int[] targetDimensions(int sourceWidth, int sourceHeight, int targetWidth, int minDimension) {
 		int newWidth = sourceWidth;
 		int newHeight = sourceHeight;
 		if (targetWidth > 0 && targetWidth < sourceWidth) {
@@ -523,7 +523,7 @@ public class ImageService {
 	 * Dimensions of the standard web image: capped to {@link #IMAGE_WEB_WIDTH} x {@link #IMAGE_WEB_HEIGHT},
 	 * never upscaled. Same rule as {@link #scaleToWebDimensionsIfNeeded}, without decoding the image.
 	 */
-	static int[] webDimensions(int width, int height) {
+	private static int[] webDimensions(int width, int height) {
 		if (width <= IMAGE_WEB_WIDTH && height <= IMAGE_WEB_HEIGHT) {
 			return new int[] { width, height };
 		}
@@ -532,7 +532,7 @@ public class ImageService {
 	}
 
 	/** True when a requested size is served by resizing the standard web image instead of the original. */
-	static boolean resizesFromWebImage(int targetWidth, int minDimension) {
+	private static boolean resizesFromWebImage(int targetWidth, int minDimension) {
 		return (targetWidth <= 0 || targetWidth <= IMAGE_WEB_WIDTH) && (minDimension <= 0 || minDimension <= IMAGE_WEB_WIDTH);
 	}
 

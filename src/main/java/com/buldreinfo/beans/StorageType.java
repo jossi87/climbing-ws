@@ -5,6 +5,10 @@ import java.util.Optional;
 
 public enum StorageType {
 	JPG("image/jpeg", "jpg"),
+	/** HLS master/media playlist produced by the adaptive streaming pipeline. */
+	M3U8("application/vnd.apple.mpegurl", "m3u8"),
+	/** fMP4 (CMAF) media segment referenced by the HLS playlists. */
+	M4S("video/iso.segment", "m4s"),
 	MOV("video/quicktime", "mov"),
 	MP4("video/mp4", "mp4"),
 	MTS("video/mp2t", "mts"),
@@ -55,10 +59,14 @@ public enum StorageType {
 		return mimeType;
 	}
 
+	/**
+	 * Whether this type is a user-uploaded movie source. The HLS streaming artifacts ({@link #M3U8},
+	 * {@link #M4S}) are server-generated derivatives, not movie sources, so they are excluded here.
+	 */
 	public boolean isMovie() {
 		return switch (this) {
 		case MP4, MOV, MTS, WEBM -> true;
-		case JPG, PNG, WEBP, PDF, XLSX -> false;
+		case JPG, PNG, WEBP, PDF, XLSX, M3U8, M4S -> false;
 		};
 	}
 }
