@@ -120,7 +120,7 @@ public class MediaRepository {
 
 	@Transactional(readOnly = true)
 	public List<Integer> getHlsMovieIds() {
-		return jdbcClient.sql("SELECT id FROM media WHERE is_movie=1 AND (embed_url IS NULL OR embed_url LIKE '%instagram.com%')")
+		return jdbcClient.sql("SELECT id FROM media WHERE is_movie=1 AND (embed_url IS NULL OR embed_url LIKE '%instagram.com%') ORDER BY id DESC")
 				.query(Integer.class)
 				.list();
 	}

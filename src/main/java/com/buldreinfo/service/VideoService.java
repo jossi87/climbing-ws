@@ -42,6 +42,14 @@ public class VideoService {
 
 	private static final int HLS_SEGMENT_SECONDS = 6;
 	private static final int HLS_AUDIO_KBPS = 128;
+	/** Grabbing a single thumbnail frame is quick; a few minutes is already generous. */
+	private static final int THUMBNAIL_TIMEOUT_MINUTES = 5;
+	/**
+	 * The whole ladder is encoded in a single ffmpeg pass. That is heavy: long clips (30 min+) on an oversubscribed
+	 * CPU run barely faster than real time, and tall sources add up-to-2160p rungs. Give ffmpeg hours, not minutes —
+	 * a timed-out encode just throws away everything it had produced.
+	 */
+	private static final int HLS_ENCODE_TIMEOUT_MINUTES = 360;
 
 	private final StorageManager storage;
 	private final ImageService imageService;
@@ -63,7 +71,7 @@ public class VideoService {
 			String seekFlag = thumbnailSeconds < 0 ? "-sseof" : "-ss";
 			String[] cmd = {ffmpegPath, "-y", "-nostdin", seekFlag, String.valueOf(thumbnailSeconds), "-i", src.toString(), 
 					"-t", "00:00:01", "-r", "1", "-f", "mjpeg", tempThumb.toString()};
-			runCommand(null, cmd);
+			runCommand(null, cmd, THUMBNAIL_TIMEOUT_MINUTES);
 			if (Files.exists(tempThumb) && Files.size(tempThumb) > 0) {
 				BufferedImage b = ImageIO.read(tempThumb.toFile());
 				if (b != null) {
@@ -204,7 +212,7 @@ public class VideoService {
 		cmd.add("-var_stream_map");
 		cmd.add(buildVarStreamMap(rungs, hasAudio));
 		cmd.add("v%v.m3u8");
-		runCommand(outDir, cmd.toArray(String[]::new));
+		runCommand(outDir, cmd.toArray(String[]::new), HLS_ENCODE_TIMEOUT_MINUTES);
 	}
 
 	private static String buildFilterComplex(List<HlsRung> rungs) {
@@ -253,15 +261,18 @@ public class VideoService {
 	}
 
 	private int probeSourceHeight(Path src) throws IOException, InterruptedException {
+		// "default=noprint_wrappers=1:nokey=1" prints the bare value. The csv writer we used before appends an extra
+		// (empty) column whenever the stream carries side data — rotation, HDR mastering metadata, etc. — which turned
+		// the output into "1080," and made Integer.parseInt throw for a large share of phone .mov files.
 		String[] cmd = {ffprobePath, "-v", "error", "-select_streams", "v:0",
-				"-show_entries", "stream=height", "-of", "csv=p=0", src.toString()};
+				"-show_entries", "stream=height", "-of", "default=noprint_wrappers=1:nokey=1", src.toString()};
 		String out = runCommandOutput(cmd).trim();
 		int newline = out.indexOf('\n');
 		if (newline >= 0) {
 			out = out.substring(0, newline).trim();
 		}
 		try {
-			int height = Integer.parseInt(out);
+			int height = Integer.parseInt(leadingDigits(out));
 			if (height <= 0) {
 				throw new NumberFormatException(out);
 			}
@@ -271,9 +282,18 @@ public class VideoService {
 		}
 	}
 
+	/** The leading run of digits in {@code value}, or "" when it does not start with a digit. */
+	private static String leadingDigits(String value) {
+		int end = 0;
+		while (end < value.length() && Character.isDigit(value.charAt(end))) {
+			end++;
+		}
+		return value.substring(0, end);
+	}
+
 	private boolean probeHasAudio(Path src) throws IOException, InterruptedException {
 		String[] cmd = {ffprobePath, "-v", "error", "-select_streams", "a:0",
-				"-show_entries", "stream=codec_type", "-of", "csv=p=0", src.toString()};
+				"-show_entries", "stream=codec_type", "-of", "default=noprint_wrappers=1:nokey=1", src.toString()};
 		return !runCommandOutput(cmd).isBlank();
 	}
 
@@ -308,17 +328,17 @@ public class VideoService {
 		return out;
 	}
 
-	private void runCommand(Path workingDir, String[] cmd) throws IOException, InterruptedException {
+	private void runCommand(Path workingDir, String[] cmd, int timeoutMinutes) throws IOException, InterruptedException {
 		ProcessBuilder pb = new ProcessBuilder(cmd);
 		if (workingDir != null) {
 			pb.directory(workingDir.toFile());
 		}
 		pb.inheritIO();
 		Process p = pb.start();
-		boolean finished = p.waitFor(30, TimeUnit.MINUTES);
+		boolean finished = p.waitFor(timeoutMinutes, TimeUnit.MINUTES);
 		if (!finished) {
 			p.destroyForcibly();
-			throw new IOException("Command timed out after 30 minutes: " + String.join(" ", cmd));
+			throw new IOException("Command timed out after " + timeoutMinutes + " minutes: " + String.join(" ", cmd));
 		}
 		int exitCode = p.exitValue();
 		if (exitCode != 0) {
