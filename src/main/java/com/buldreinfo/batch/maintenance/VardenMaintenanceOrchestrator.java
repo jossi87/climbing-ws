@@ -25,7 +25,7 @@ public class VardenMaintenanceOrchestrator {
 	private static final Path LOCAL_DB_BASE_PATH = Path.of("G:/My Drive/web/climbing-web/database");
 	private static final Path LOCAL_INFRA_PATH = Path.of("G:/My Drive/web/varden-infra");
 	private static final Path LOCAL_MEDIA_ROOT = Path.of("G:/My Drive/web/climbing-web/s3_bucket_climbing_web");
-	private static final Path LOCAL_FFMPEG_BIN_PATH = Path.of("G:/My Drive/web/climbing-web/sw/ffmpeg-master-latest-win64-gpl-shared/bin");
+	private static final Path LOCAL_FFMPEG_BIN_PATH = Path.of("G:/My Drive/web/climbing-web/sw/ffmpeg-9.0.2-essentials_build/bin");
 	private static final Path LOCAL_FFMPEG_PATH = LOCAL_FFMPEG_BIN_PATH.resolve("ffmpeg.exe");
 	private static final Path LOCAL_FFPROBE_PATH = LOCAL_FFMPEG_BIN_PATH.resolve("ffprobe.exe");
 	private static final Path LOCAL_YT_DLP_PATH = Path.of("G:/My Drive/web/climbing-web/sw/yt-dlp/yt-dlp.exe");
@@ -73,14 +73,6 @@ public class VardenMaintenanceOrchestrator {
 		}
 		else {
 			logger.debug("S3BucketDeleteResized skipped");
-		}
-		boolean runS3BucketDeleteLegacyVideo = false;
-		if (runS3BucketDeleteLegacyVideo) {
-			logger.debug("S3BucketDeleteLegacyVideoBatch started");
-			new S3BucketDeleteLegacyVideoBatch().run(storage);
-		}
-		else {
-			logger.debug("S3BucketDeleteLegacyVideoBatch skipped");
 		}
 		logger.info("VardenMaintenanceOrchestrator finished successfully.");
 	}

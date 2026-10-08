@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import javax.imageio.ImageIO;
@@ -42,6 +43,12 @@ public class VideoService {
 
 	private static final int HLS_SEGMENT_SECONDS = 6;
 	private static final int HLS_AUDIO_KBPS = 128;
+	/**
+	 * Audio codecs we can carry into the fMP4/HLS output verbatim. When the source already uses one we copy the audio
+	 * instead of re-encoding: that is lossless, faster, and keeps the audio exactly as uploaded (an AAC→AAC re-encode
+	 * only loses quality). Anything else is transcoded to {@link #HLS_AUDIO_KBPS} kbit/s stereo AAC.
+	 */
+	private static final Set<String> HLS_COPY_AUDIO_CODECS = Set.of("aac");
 	/** Grabbing a single thumbnail frame is quick; a few minutes is already generous. */
 	private static final int THUMBNAIL_TIMEOUT_MINUTES = 5;
 	/**
@@ -148,10 +155,12 @@ public class VideoService {
 	 */
 	public void generateHls(Path src, Path outDir) throws IOException, InterruptedException {
 		int sourceHeight = probeSourceHeight(src);
-		boolean hasAudio = probeHasAudio(src);
+		String audioCodec = probeAudioCodec(src);
+		boolean hasAudio = !audioCodec.isEmpty();
+		boolean copyAudio = HLS_COPY_AUDIO_CODECS.contains(audioCodec);
 		List<HlsRung> rungs = selectRungs(sourceHeight);
 		Files.createDirectories(outDir);
-		logger.info("Generating HLS: {} ({}p, audio={}) -> {} rung(s) {}", src, sourceHeight, hasAudio, rungs.size(), rungs);
+		logger.info("Generating HLS: {} ({}p, audio={}) -> {} rung(s) {}", src, sourceHeight, audioCodec.isEmpty() ? "none" : audioCodec, rungs.size(), rungs);
 
 		List<String> cmd = new ArrayList<>();
 		cmd.add(ffmpegPath);
@@ -189,11 +198,15 @@ public class VideoService {
 		}
 		if (hasAudio) {
 			cmd.add("-c:a");
-			cmd.add("aac");
-			cmd.add("-b:a");
-			cmd.add(HLS_AUDIO_KBPS + "k");
-			cmd.add("-ac");
-			cmd.add("2");
+			if (copyAudio) {
+				cmd.add("copy");
+			} else {
+				cmd.add("aac");
+				cmd.add("-b:a");
+				cmd.add(HLS_AUDIO_KBPS + "k");
+				cmd.add("-ac");
+				cmd.add("2");
+			}
 		}
 		cmd.add("-f");
 		cmd.add("hls");
@@ -266,7 +279,7 @@ public class VideoService {
 		// the output into "1080," and made Integer.parseInt throw for a large share of phone .mov files.
 		String[] cmd = {ffprobePath, "-v", "error", "-select_streams", "v:0",
 				"-show_entries", "stream=height", "-of", "default=noprint_wrappers=1:nokey=1", src.toString()};
-		String out = runCommandOutput(cmd).trim();
+		String out = valueLines(runCommandOutput(cmd)).trim();
 		int newline = out.indexOf('\n');
 		if (newline >= 0) {
 			out = out.substring(0, newline).trim();
@@ -291,10 +304,28 @@ public class VideoService {
 		return value.substring(0, end);
 	}
 
-	private boolean probeHasAudio(Path src) throws IOException, InterruptedException {
+	/**
+	 * The value lines of a probe's merged output, with ffmpeg's own log lines removed. ffprobe writes the values to
+	 * stdout and diagnostics to stderr, and {@link #runCommandOutput} merges the two; a file with slightly malformed
+	 * AAC makes the parser log {@code [aac @ 0x…] Input buffer exhausted before END element found} ahead of the value.
+	 * Every log line starts with '[', a value never does, so dropping those leaves just the value.
+	 */
+	private static String valueLines(String mergedOutput) {
+		StringBuilder values = new StringBuilder();
+		for (String line : mergedOutput.lines().toList()) {
+			String value = line.strip();
+			if (!value.isEmpty() && !value.startsWith("[")) {
+				values.append(value).append('\n');
+			}
+		}
+		return values.toString();
+	}
+
+	/** The first audio stream's codec name (e.g. {@code aac}), or "" when the source carries no audio. */
+	private String probeAudioCodec(Path src) throws IOException, InterruptedException {
 		String[] cmd = {ffprobePath, "-v", "error", "-select_streams", "a:0",
-				"-show_entries", "stream=codec_type", "-of", "default=noprint_wrappers=1:nokey=1", src.toString()};
-		return !runCommandOutput(cmd).isBlank();
+				"-show_entries", "stream=codec_name", "-of", "default=noprint_wrappers=1:nokey=1", src.toString()};
+		return valueLines(runCommandOutput(cmd)).lines().findFirst().orElse("");
 	}
 
 	private void deleteRecursively(Path dir) {
