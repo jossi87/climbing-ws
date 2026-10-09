@@ -56,14 +56,22 @@ public class S3BucketDownloadBatch {
 					skipCount.incrementAndGet();
 					return;
 				}
-				if (localSize == s3Size) {
+				// A playlist can be rewritten to the same length — its byte ranges move while their digit count stays
+				// put — so its content decides too. Keeping it here while its segment is pulled below would leave a
+				// pair on disk that disagrees with the pair in the bucket.
+				if (localSize == s3Size && SyncedContent.matches(key, localPath, s3Object.eTag())) {
 					int currentSkips = skipCount.incrementAndGet();
 					if (currentSkips % 10_000 == 0) {
 						logger.info("Sync Progress: {} files verified and skipped", currentSkips);
 					}
 					return; 
 				}
-				logger.info("Size mismatch detected (S3: {} vs Local: {}) for: {} - Most likely a thumbnail-change from website", s3Size, localSize, key);
+				if (localSize == s3Size) {
+					logger.info("Content mismatch detected (S3: {} vs Local: {} bytes) for: {} - Most likely a regenerated HLS playlist", s3Size, localSize, key);
+				}
+				else {
+					logger.info("Size mismatch detected (S3: {} vs Local: {}) for: {} - Most likely a thumbnail-change from website", s3Size, localSize, key);
+				}
 			}
 			else {
 				Files.createDirectories(localPath.getParent());

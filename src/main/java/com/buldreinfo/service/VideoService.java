@@ -43,6 +43,8 @@ public class VideoService {
 
 	private static final int HLS_SEGMENT_SECONDS = 6;
 	private static final int HLS_AUDIO_KBPS = 128;
+	/** The playlist a player starts from: it lists the rungs, and every rung lists the segments of its m4s file. */
+	private static final String HLS_MASTER_PLAYLIST = "master.m3u8";
 	/**
 	 * Audio codecs we can carry into the fMP4/HLS output verbatim. When the source already uses one we copy the audio
 	 * instead of re-encoding: that is lossless, faster, and keeps the audio exactly as uploaded (an AAC→AAC re-encode
@@ -57,6 +59,11 @@ public class VideoService {
 	 * a timed-out encode just throws away everything it had produced.
 	 */
 	private static final int HLS_ENCODE_TIMEOUT_MINUTES = 360;
+	/**
+	 * The probes, and the audio check that reuses {@link #runCommandOutput}, each read a single second of a single
+	 * stream, so the limit only exists to stop a hung ffmpeg from stalling the pipeline.
+	 */
+	private static final int PROBE_TIMEOUT_MINUTES = 5;
 
 	private final StorageManager storage;
 	private final ImageService imageService;
@@ -152,16 +159,27 @@ public class VideoService {
 	 * {@code single_file} HLS flag packs the init segment and every media fragment into one byte-range addressed
 	 * file, so a movie costs roughly two objects per rung plus the master. Rungs the source is too small for are
 	 * dropped and the top rung is the source resolution, so nothing is ever upscaled.
+	 * <p>
+	 * Copying the audio reproduces the source exactly, including any defect it carries: one malformed AAC frame (a
+	 * two byte runt in the first packet is enough) makes Chrome refuse the first fragment of every rung, so the movie
+	 * never starts even though the original download and VLC play it fine. The audio is therefore decoded once before
+	 * the ladder is built, and re-encoded whenever that check complains — see {@link #canCopyAudio(Path)}.
 	 */
 	public void generateHls(Path src, Path outDir) throws IOException, InterruptedException {
 		int sourceHeight = probeSourceHeight(src);
 		String audioCodec = probeAudioCodec(src);
 		boolean hasAudio = !audioCodec.isEmpty();
-		boolean copyAudio = HLS_COPY_AUDIO_CODECS.contains(audioCodec);
+		boolean copyAudio = canCopyAudio(src);
 		List<HlsRung> rungs = selectRungs(sourceHeight);
 		Files.createDirectories(outDir);
 		logger.info("Generating HLS: {} ({}p, audio={}) -> {} rung(s) {}", src, sourceHeight, audioCodec.isEmpty() ? "none" : audioCodec, rungs.size(), rungs);
 
+		encodeHls(src, outDir, rungs, hasAudio, copyAudio);
+	}
+
+	/** Runs the single ffmpeg pass producing every rung, copying the audio when {@link #canCopyAudio(Path)} allows it. */
+	private void encodeHls(Path src, Path outDir, List<HlsRung> rungs, boolean hasAudio, boolean copyAudio)
+			throws IOException, InterruptedException {
 		List<String> cmd = new ArrayList<>();
 		cmd.add(ffmpegPath);
 		cmd.add("-y");
@@ -221,11 +239,53 @@ public class VideoService {
 		cmd.add("-hls_segment_filename");
 		cmd.add("v%v.m4s");
 		cmd.add("-master_pl_name");
-		cmd.add("master.m3u8");
+		cmd.add(HLS_MASTER_PLAYLIST);
 		cmd.add("-var_stream_map");
 		cmd.add(buildVarStreamMap(rungs, hasAudio));
 		cmd.add("v%v.m3u8");
 		runCommand(outDir, cmd.toArray(String[]::new), HLS_ENCODE_TIMEOUT_MINUTES);
+	}
+
+	/**
+	 * True when the audio track of {@code src} may be copied into the ladder untouched. Copying is lossless and
+	 * cheap, but it reproduces whatever the source carries: with the movie that prompted this, the first AAC frame
+	 * was a two byte runt, and Chrome rejects the fragment holding it, so playback silently never starts while the
+	 * original download and VLC are fine. Sources we would not copy anyway — no audio at all, or a codec we always
+	 * re-encode — are not at risk and answer true without decoding anything.
+	 */
+	public boolean canCopyAudio(Path src) throws IOException, InterruptedException {
+		if (!HLS_COPY_AUDIO_CODECS.contains(probeAudioCodec(src))) {
+			return true;
+		}
+		if (audioDecodesCleanly(src)) {
+			return true;
+		}
+		logger.warn("The audio track of {} does not decode cleanly; it will be re-encoded instead of copied", src);
+		return false;
+	}
+
+	/**
+	 * True when the audio track of {@code src} decodes without ffmpeg complaining; malformed AAC shows up here as
+	 * {@code Input buffer exhausted before END element found}. ffmpeg exits 0 on such a source (it only logs), so
+	 * the output is what decides, and the video is deliberately left out with {@code -vn} because probing a video
+	 * stream adds warnings of its own that would be mistaken for damage.
+	 * <p>
+	 * A source whose audio could not be decoded at all, or not decoded cleanly, is treated as dirty: with no clean
+	 * answer to go by, re-encoding is the safe choice for audio that may be copied into a ladder.
+	 */
+	private boolean audioDecodesCleanly(Path src) throws InterruptedException {
+		String[] cmd = {ffmpegPath, "-v", "error", "-nostdin", "-t", "1", "-i", src.toString(), "-vn", "-f", "null", "-"};
+		try {
+			String report = runCommandOutput(cmd);
+			if (report.isBlank()) {
+				return true;
+			}
+			logger.warn("Decoding the audio of {} reported: {}", src, report.strip());
+			return false;
+		} catch (IOException e) {
+			logger.warn("Unable to decode the audio of {}: {}", src, e.getMessage());
+			return false;
+		}
 	}
 
 	private static String buildFilterComplex(List<HlsRung> rungs) {
@@ -347,10 +407,10 @@ public class VideoService {
 		ProcessBuilder pb = new ProcessBuilder(cmd);
 		pb.redirectErrorStream(true);
 		Process p = pb.start();
-		boolean finished = p.waitFor(5, TimeUnit.MINUTES);
+		boolean finished = p.waitFor(PROBE_TIMEOUT_MINUTES, TimeUnit.MINUTES);
 		if (!finished) {
 			p.destroyForcibly();
-			throw new IOException("Command timed out after 5 minutes: " + String.join(" ", cmd));
+			throw new IOException("Command timed out after " + PROBE_TIMEOUT_MINUTES + " minutes: " + String.join(" ", cmd));
 		}
 		String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 		if (p.exitValue() != 0) {

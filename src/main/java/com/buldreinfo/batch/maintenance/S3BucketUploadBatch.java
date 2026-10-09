@@ -69,7 +69,7 @@ public class S3BucketUploadBatch {
 						.build());
 				boolean sameSize = remoteMeta.contentLength() == localSize;
 				boolean sameMime = remoteMeta.contentType().equalsIgnoreCase(type.getMimeType());
-				if (sameSize && sameMime) {
+				if (sameSize && sameMime && SyncedContent.matches(relativePath, file, remoteMeta.eTag())) {
 					shouldUpload = false;
 					int currentSkips = skipCount.incrementAndGet();
 					if (currentSkips % 10_000 == 0) {
@@ -78,8 +78,10 @@ public class S3BucketUploadBatch {
 				} else {
 					if (!sameMime) {
 						logger.warn("Fixing MimeType mismatch for {}: Cloud={}, Correct={}", relativePath, remoteMeta.contentType(), type.getMimeType());
-					} else {
+					} else if (!sameSize) {
 						logger.info("Updating {} due to size change.", relativePath);
+					} else {
+						logger.info("Updating {} because its content changed without changing its length.", relativePath);
 					}
 				}
 			} catch (NoSuchKeyException _) {
