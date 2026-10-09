@@ -127,6 +127,13 @@ public class MediaController {
 			@RequestParam(name = "width", defaultValue = "0") int width,
 			@RequestParam(name = "height", defaultValue = "0") int height) {
 
+		// "Original" means the untouched upload — the stored movie file for a video, the stored JPEG for an image —
+		// so it has to be answered before the isMovie branch below, which hands out the HLS master playlist.
+		// Serving that manifest here is what made "Download Original" on a movie save a few hundred bytes of text.
+		if (original) {
+			return createRedirect(findOriginalKey(id, isMovie), versionStamp);
+		}
+
 		if (isMovie) {
 			String key = S3KeyGenerator.getWebHlsMaster(id);
 			if (!storage.exists(key)) {
@@ -138,14 +145,6 @@ public class MediaController {
 		boolean webP = requestContext.acceptsWebp(request);
 		StorageType outputType = webP ? StorageType.WEBP : StorageType.JPG;
 		String key;
-
-		if (original) {
-			key = S3KeyGenerator.getOriginalJpg(id);
-			if (!storage.exists(key)) {
-				throw new NoSuchElementException("Original JPG not found for id: " + id);
-			}
-			return createRedirect(key, versionStamp);
-		}
 
 		if (targetWidth > 0 || minDimension > 0) {
 			key = webP ? S3KeyGenerator.getWebWebpResized(id, targetWidth, minDimension) : S3KeyGenerator.getWebJpgResized(id, targetWidth, minDimension);
@@ -365,6 +364,25 @@ public class MediaController {
 		var authUserId = requestContext.getAuthenticatedUserId();
 		mediaService.rotateMedia(authUserId, idMedia, degrees);
 		return ResponseEntity.ok().build();
+	}
+
+	/**
+	 * The key of the untouched upload behind {@code id}: the original JPEG for an image, or the original movie file
+	 * for a video. Which container a movie was uploaded in is not recorded, so {@link StorageType#MOVIE_SOURCE_TYPES}
+	 * is probed in turn — one existence check per candidate, which the existence cache turns into a single HEAD
+	 * request per container ever. An embedded video (YouTube/Vimeo/Instagram) has no original at all and ends up in
+	 * the {@link NoSuchElementException} below.
+	 */
+	private String findOriginalKey(int id, boolean isMovie) {
+		List<String> candidates = isMovie
+				? StorageType.MOVIE_SOURCE_TYPES.stream().map(type -> S3KeyGenerator.getOriginalMp4(id, type)).toList()
+				: List.of(S3KeyGenerator.getOriginalJpg(id));
+		for (String candidate : candidates) {
+			if (storage.exists(candidate)) {
+				return candidate;
+			}
+		}
+		throw new NoSuchElementException("Original not found for id: " + id + ", looked for " + candidates);
 	}
 
 	/**

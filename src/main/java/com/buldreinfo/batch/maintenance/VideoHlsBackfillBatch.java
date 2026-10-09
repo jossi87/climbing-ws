@@ -35,7 +35,7 @@ public class VideoHlsBackfillBatch {
 	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	private static final String MASTER_PLAYLIST = "master.m3u8";
 	private static final String SCRATCH_SUFFIX = ".tmp";
-	private static final List<String> ORIGINAL_EXTENSIONS = List.of(StorageType.MP4.getExtension(), StorageType.MOV.getExtension(), StorageType.MTS.getExtension());
+	private static final List<String> ORIGINAL_EXTENSIONS = StorageType.MOVIE_SOURCE_TYPES.stream().map(StorageType::getExtension).toList();
 	private final Path localMediaRoot;
 	private final VideoService videoService;
 	private final List<Integer> hlsMovieIds;

@@ -1,6 +1,7 @@
 package com.buldreinfo.beans;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 public enum StorageType {
@@ -17,6 +18,15 @@ public enum StorageType {
 	WEBM("video/webm", "webm"),
 	WEBP("image/webp", "webp"),
 	XLSX("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx");
+
+	/**
+	 * Containers a user-uploaded movie source is accepted in, in the order an existing original is looked for.
+	 * Which one a given movie actually used is not recorded anywhere, so code that needs the original file itself
+	 * — as opposed to its derived HLS ladder and images — has to probe them in turn. {@link #WEBM} is deliberately
+	 * absent: {@link S3KeyGenerator#getOriginalMp4} cannot even build a key for it, and the upload endpoint
+	 * promises no more than these three ({@link #isMovie()} still lists webm because a browser may offer it).
+	 */
+	public static final List<StorageType> MOVIE_SOURCE_TYPES = List.of(MP4, MOV, MTS);
 
 	public static Optional<StorageType> fromExtension(String ext) {
 		if (ext == null || ext.isBlank()) {
