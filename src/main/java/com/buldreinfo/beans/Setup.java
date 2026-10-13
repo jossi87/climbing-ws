@@ -7,16 +7,7 @@ import com.buldreinfo.model.CompassDirection;
 import com.buldreinfo.model.LatLng;
 
 public record Setup(String domain, String url, int idRegion, boolean isBouldering, boolean isClimbing, boolean isIce, GradeConverter gradeConverter, List<CompassDirection> compassDirections, String title, String description, LatLng defaultCenter, int defaultZoom) {
-	public static SetupBuilder newBuilder(String domain, String group) {
-		boolean isBouldering = false;
-		boolean isClimbing = false;
-		boolean isIce = false;
-		switch (group) {
-		case "Bouldering" -> isBouldering = true;
-		case "Climbing" -> isClimbing = true;
-		case "Ice" -> isIce = true;
-		default -> throw new IllegalArgumentException("Invalid group: " + group);
-		}
+	public static SetupBuilder newBuilder(String domain, boolean isBouldering, boolean isClimbing, boolean isIce) {
 		return new SetupBuilder(domain, isBouldering, isClimbing, isIce);
 	}
 

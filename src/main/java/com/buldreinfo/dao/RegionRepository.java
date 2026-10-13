@@ -122,14 +122,17 @@ public class RegionRepository {
 	@Transactional(readOnly = true)
 	public List<Region> getRegions(int currIdRegion) {
 		List<Region> regions = jdbcClient.sql("""
-				SELECT r.id region_id, t.group, r.name, r.url 
-				FROM region r, region_type rt, type t 
-				WHERE r.id=rt.region_id AND rt.type_id=t.id AND t.id IN (1,2,10) 
-				GROUP BY r.id, t.group, r.name, r.url ORDER BY t.group, r.name
+				SELECT r.id region_id, d.name discipline, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, r.name, r.url
+				FROM region r, region_type rt, type t, discipline d
+				WHERE r.id=rt.region_id AND rt.type_id=t.id AND t.discipline_id=d.id AND t.id IN (1,2,10)
+				GROUP BY r.id, d.name, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, r.name, r.url ORDER BY d.name, r.name
 				""")
 				.query((rs, _) -> new Region(
 						rs.getInt("region_id"),
-						rs.getString("group"), 
+						rs.getString("discipline"), 
+						rs.getBoolean("is_bouldering"),
+						rs.getBoolean("is_rope_climbing"),
+						rs.getBoolean("is_ice_climbing"),
 						rs.getString("name"), 
 						rs.getString("url"), 
 						rs.getInt("region_id") == currIdRegion, 
@@ -155,10 +158,11 @@ public class RegionRepository {
 		var converterCache = new HashMap<Integer, GradeConverter>();
 
 		var res = jdbcClient.sql("""
-				SELECT DISTINCT r.id, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom, t.group, tgs.grade_system_id
+				SELECT DISTINCT r.id, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, tgs.grade_system_id
 				FROM region r
 				JOIN region_type rt ON r.id = rt.region_id
 				JOIN type t ON rt.type_id = t.id
+				JOIN discipline d ON t.discipline_id = d.id
 				JOIN type_grade_system tgs ON t.id = tgs.type_id
 				ORDER BY r.id
 				""")
@@ -166,7 +170,7 @@ public class RegionRepository {
 					int gradeSystemId = rs.getInt("grade_system_id");
 					var converter = converterCache.computeIfAbsent(gradeSystemId, this::getGradesConverter);
 
-					return Setup.newBuilder(rs.getString("url").replace("https://", "").replace("http://", ""), rs.getString("group"))
+					return Setup.newBuilder(rs.getString("url").replace("https://", "").replace("http://", ""), rs.getBoolean("is_bouldering"), rs.getBoolean("is_rope_climbing"), rs.getBoolean("is_ice_climbing"))
 							.withIdRegion(rs.getInt("id"))
 							.withTitle(rs.getString("title"))
 							.withDescription(rs.getString("description"))
