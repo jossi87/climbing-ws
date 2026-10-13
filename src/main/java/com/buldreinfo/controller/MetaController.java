@@ -147,7 +147,7 @@ public class MetaController {
 							sheet.writeInt("FA_YEAR", p.faYear());
 							sheet.writeInt("LENGTH_METER", p.lengthMeter());
 							sheet.writeInt("STARTING_ALTITUDE", p.startingAltitude());
-							String type = p.t().type() + (p.t().subType() != null ? " (" + p.t().subType() + ")" : "");
+							String type = p.t().type() + " (" + p.t().subType() + ")";
 							sheet.writeString("TYPE", type);
 							if (!setup.isBouldering()) sheet.writeInt("PITCHES", p.numPitches() > 0 ? p.numPitches() : 1);
 							if (setup.isBouldering()) {

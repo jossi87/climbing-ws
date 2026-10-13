@@ -2,23 +2,34 @@ package com.buldreinfo.model;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
+/**
+ * Grade distribution for one grade: how many problems of each type sit in the sectors/regions the chart shows.
+ * The per-type columns are keyed by {@code climbing.type.id} and labelled with the DB subtype, so the API never has to
+ * know type names.
+ */
 public class GradeDistribution {
-	public class GradeDistributionRow {
+	/** Problems of one type within a chart row. */
+	public record GradeDistributionType(Type type, int num) {}
+
+	public static class GradeDistributionRow {
 		private final int id;
 		private final String name;
-		private int numBoulder = 0;
-		private int numSport = 0;
-		private int numTrad = 0;
-		private int numMixed = 0;
-		private int numTopRope = 0;
-		private int numAid = 0;
-		private int numAidTrad = 0;
-		private int numIce = 0;
+		private final List<GradeDistributionType> types = new ArrayList<>();
 		public GradeDistributionRow(int id, String name) {
 			this.id = id;
 			this.name = name;
+		}
+		/** Adds the problems of one type, merging repeated visits (a row arrives once per type in the query). */
+		public void addType(Type type, int num) {
+			for (int i = 0; i < types.size(); i++) {
+				var existing = types.get(i);
+				if (existing.type().id() == type.id()) {
+					types.set(i, new GradeDistributionType(existing.type(), existing.num() + num));
+					return;
+				}
+			}
+			types.add(new GradeDistributionType(type, num));
 		}
 		public int getId() {
 			return id;
@@ -26,53 +37,11 @@ public class GradeDistribution {
 		public String getName() {
 			return name;
 		}
-		public int getNumAid() {
-			return numAid;
+		public int getNum() {
+			return types.stream().mapToInt(GradeDistributionType::num).sum();
 		}
-		public int getNumAidTrad() {
-			return numAidTrad;
-		}
-		public int getNumBoulder() {
-			return numBoulder;
-		}
-		public int getNumIce() {
-			return numIce;
-		}
-		public int getNumMixed() {
-			return numMixed;
-		}
-		public int getNumSport() {
-			return numSport;
-		}
-		public int getNumTopRope() {
-			return numTopRope;
-		}
-		public int getNumTrad() {
-			return numTrad;
-		}
-		public void setNumAid(int numAid) {
-			this.numAid = numAid;
-		}
-		public void setNumAidTrad(int numAidTrad) {
-			this.numAidTrad = numAidTrad;
-		}
-		public void setNumBoulder(int numBoulder) {
-			this.numBoulder = numBoulder;
-		}
-		public void setNumIce(int numIce) {
-			this.numIce = numIce;
-		}
-		public void setNumMixed(int numMixed) {
-			this.numMixed = numMixed;
-		}
-		public void setNumSport(int numSport) {
-			this.numSport = numSport;
-		}
-		public void setNumTopRope(int numTopRope) {
-			this.numTopRope = numTopRope;
-		}
-		public void setNumTrad(int numTrad) {
-			this.numTrad = numTrad;
+		public List<GradeDistributionType> getTypes() {
+			return types;
 		}
 	}
 	private final String grade;
@@ -87,49 +56,22 @@ public class GradeDistribution {
 		this.color = color;
 	}
 	
-	public void addSector(int id, String name, String type, int num) {
-		GradeDistributionRow row = null;
-		Optional<GradeDistributionRow> optRow = rows.stream().filter(x -> x.getId() == id).findAny();
-		if (optRow.isPresent()) {
-			row = optRow.get();
+	/**
+	 * Adds the problems of one type in one sector/region. {@code primary} is the two-tone bar shading the chart draws
+	 * (bouldering, ice climbing and bolted routes use the bright "primary" shade) and is computed from the type and
+	 * discipline flags in SQL — never from the type or subtype name.
+	 */
+	public void addSector(int id, String name, Type type, boolean primary, int num) {
+		GradeDistributionRow row = rows.stream().filter(x -> x.getId() == id).findAny().orElseGet(() -> {
+			GradeDistributionRow added = new GradeDistributionRow(id, name);
+			rows.add(added);
+			return added;
+		});
+		row.addType(type, num);
+		if (primary) {
+			this.prim += num;
 		} else {
-			row = new GradeDistributionRow(id, name);
-			rows.add(row);
-		}
-		switch (type) {
-		case "Boulder" -> {
-			this.prim += num;
-			row.setNumBoulder(num);
-		}
-		case "Bolt" -> {
-			this.prim += num;
-			row.setNumSport(num);
-		}
-		case "Trad" -> {
 			this.sec += num;
-			row.setNumTrad(num);
-		}
-		case "Mixed" -> {
-			this.sec += num;
-			row.setNumMixed(num);
-		}
-		case "Top rope" -> {
-			this.sec += num;
-			row.setNumTopRope(num);
-		}
-		case "Aid" -> {
-			this.sec += num;
-			row.setNumAid(num);
-		}
-		case "Aid/Trad" -> {
-			this.sec += num;
-			row.setNumAidTrad(num);
-		}
-		case "Ice" -> {
-			this.prim += num;
-			row.setNumIce(num);
-		}
-		default -> throw new IllegalArgumentException("Invalid type: " + type);
 		}
 		this.num += num;
 	}

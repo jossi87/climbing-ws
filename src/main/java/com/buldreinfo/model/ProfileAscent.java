@@ -16,6 +16,7 @@ public class ProfileAscent {
 	private final int id;
 	private final int idTickRepeat;
 	private final String subType;
+	private final boolean tradGear;
 	private final int numPitches;
 	private final String discipline;
 	private final boolean isBouldering;
@@ -38,7 +39,7 @@ public class ProfileAscent {
 	
 	public ProfileAscent(String regionName, int areaId, String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin,
 			int sectorId, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin,
-			int id, int idTickRepeat, String subType, int numPitches,
+			int id, int idTickRepeat, String subType, boolean tradGear, int numPitches,
 			String discipline, boolean isBouldering, boolean isRopeClimbing, boolean isIceClimbing,
 			int idProblem, int nr, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String date,
 			String dateHr, double stars, boolean fa, String grade, int gradeWeight, boolean noPersonalGrade) {
@@ -54,6 +55,7 @@ public class ProfileAscent {
 		this.id = id;
 		this.idTickRepeat = idTickRepeat;
 		this.subType = subType;
+		this.tradGear = tradGear;
 		this.numPitches = numPitches;
 		this.discipline = discipline;
 		this.isBouldering = isBouldering;
@@ -171,6 +173,11 @@ public class ProfileAscent {
 
 	public String getSubType() {
 		return subType;
+	}
+
+	@JsonProperty("tradGear")
+	public boolean isTradGear() {
+		return tradGear;
 	}
 
 	public boolean isAreaLockedAdmin() {

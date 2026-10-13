@@ -1,5 +1,6 @@
 package com.buldreinfo.dao;
 
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -108,7 +109,7 @@ public class HierarchyRepository {
 				  JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
 				),
 				x AS (
-				  SELECT g.label_major g_base, r.id region_id, r.name region, COALESCE(ty.subtype,'Boulder') t, COUNT(DISTINCT p.id) num
+				  SELECT g.label_major g_base, r.id region_id, r.name region, ty.id type_id, COUNT(DISTINCT p.id) num
 				  FROM req JOIN region r ON 1=1
 				  JOIN region_type rt ON r.id = rt.region_id
 				  JOIN area a ON r.id = a.region_id
@@ -121,14 +122,19 @@ public class HierarchyRepository {
 				  WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
 				    AND (a.region_id = req.region_id OR ur.user_id IS NOT NULL)
 				    AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-				  GROUP BY r.id, r.name, g.label_major, ty.subtype
+				  GROUP BY r.id, r.name, g.label_major, ty.id
 				)
-				SELECT g.label_major grade, clr.hex_code color, x.region_id, x.region, x.t, COALESCE(x.num, 0) num
+				SELECT g.label_major grade, clr.hex_code color, x.region_id, x.region,
+				       ty2.id type_id, ty2.type, ty2.subtype, ty2.is_bolted, ty2.trad_gear,
+				       CASE WHEN d2.is_bouldering=1 OR d2.is_ice_climbing=1 OR ty2.is_bolted=1 THEN 1 ELSE 0 END is_primary,
+				       COALESCE(x.num, 0) num
 				FROM req JOIN target_systems ts ON 1=1
 				JOIN (SELECT label_major, grade_system_id, grade_color_id, MIN(weight) sort FROM grade GROUP BY label_major, grade_system_id, grade_color_id) g ON g.grade_system_id = ts.grade_system_id
 				JOIN grade_color clr ON g.grade_color_id = clr.id
 				LEFT JOIN x ON g.label_major = x.g_base
-				ORDER BY g.sort, x.region, x.t
+				LEFT JOIN type ty2 ON ty2.id = x.type_id
+				LEFT JOIN discipline d2 ON ty2.discipline_id = d2.id
+				ORDER BY g.sort, x.region, x.type_id
 				""";
 		Map<String, GradeDistribution> res = new LinkedHashMap<>();
 		jdbcClient.sql(sql)
@@ -139,7 +145,7 @@ public class HierarchyRepository {
 			var dist = res.computeIfAbsent(label, k -> new GradeDistribution(k, color));
 			int regionId = rs.getInt("region_id");
 			if (!rs.wasNull()) {
-				dist.addSector(regionId, rs.getString("region"), rs.getString("t"), rs.getInt("num"));
+				dist.addSector(regionId, rs.getString("region"), readType(rs), rs.getBoolean("is_primary"), rs.getInt("num"));
 			}
 		});
 
@@ -248,7 +254,7 @@ public class HierarchyRepository {
 				  JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
 				),
 				x AS (
-				  SELECT g.label_major g_base, s.sorting, s.id sector_id, s.name sector, COALESCE(ty.subtype,'Boulder') t, COUNT(p.id) num
+				  SELECT g.label_major g_base, s.sorting, s.id sector_id, s.name sector, ty.id type_id, COUNT(p.id) num
 				  FROM req
 				  JOIN sector s ON (CASE WHEN req.sector_id != 0 THEN s.id = req.sector_id ELSE s.area_id = req.area_id END)
 				  JOIN area a ON s.area_id = a.id
@@ -258,9 +264,12 @@ public class HierarchyRepository {
 				  JOIN target_systems ts ON g.grade_system_id = ts.grade_system_id
 				  LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.auth_user_id 
 				  WHERE p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-				  GROUP BY s.sorting, s.id, s.name, g.label_major, ty.subtype
+				  GROUP BY s.sorting, s.id, s.name, g.label_major, ty.id
 				)
-				SELECT g.label_major grade, clr.hex_code color, x.sector_id, x.sector, x.t, COALESCE(x.num, 0) num
+				SELECT g.label_major grade, clr.hex_code color, x.sector_id, x.sector,
+				       ty2.id type_id, ty2.type, ty2.subtype, ty2.is_bolted, ty2.trad_gear,
+				       CASE WHEN d2.is_bouldering=1 OR d2.is_ice_climbing=1 OR ty2.is_bolted=1 THEN 1 ELSE 0 END is_primary,
+				       COALESCE(x.num, 0) num
 				FROM req
 				JOIN target_systems ts ON 1=1
 				JOIN (
@@ -269,7 +278,9 @@ public class HierarchyRepository {
 				) g ON g.grade_system_id = ts.grade_system_id
 				JOIN grade_color clr ON g.grade_color_id = clr.id
 				LEFT JOIN x ON g.label_major = x.g_base
-				ORDER BY g.sort, x.sorting, x.sector, x.t
+				LEFT JOIN type ty2 ON ty2.id = x.type_id
+				LEFT JOIN discipline d2 ON ty2.discipline_id = d2.id
+				ORDER BY g.sort, x.sorting, x.sector, x.type_id
 				""";
 		Map<String, GradeDistribution> res = new LinkedHashMap<>();
 		jdbcClient.sql(sqlStr)
@@ -281,10 +292,18 @@ public class HierarchyRepository {
 
 			int sectorId = rs.getInt("sector_id");
 			if (!rs.wasNull()) {
-				dist.addSector(sectorId, rs.getString("sector"), rs.getString("t"), rs.getInt("num"));
+				dist.addSector(sectorId, rs.getString("sector"), readType(rs), rs.getBoolean("is_primary"), rs.getInt("num"));
 			}
 		});
 		return res.values();
+	}
+
+	/**
+	 * Reads the {@code climbing.type} columns selected as {@code type_id, type, subtype, is_bolted, trad_gear} from the
+	 * current row.
+	 */
+	private static Type readType(ResultSet rs) throws SQLException {
+		return new Type(rs.getInt("type_id"), rs.getString("type"), rs.getString("subtype"), rs.getBoolean("is_bolted"), rs.getBoolean("trad_gear"));
 	}
 
 	@Transactional(readOnly = true)
@@ -722,7 +741,7 @@ public class HierarchyRepository {
 				    COALESCE(t.stars, 0) AS stars, 
 				    GREATEST(COALESCE(t.user_ticked, 0), COALESCE(fa.user_is_fa, 0)) AS ticked,
 				    CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END AS todo,
-				    ty.id AS type_id, ty.type, ty.subtype, 
+				    ty.id AS type_id, ty.type, ty.subtype, ty.is_bolted, ty.trad_gear, 
 				    (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p.pid) AS num_pitches 
 				FROM filtered_problems p
 				JOIN type ty ON p.type_id = ty.id
@@ -806,7 +825,7 @@ public class HierarchyRepository {
 			double stars = rs.getDouble("stars");
 			var ticked = rs.getBoolean("ticked");
 			var todo = rs.getBoolean("todo");
-			var t = new Type(rs.getInt("type_id"), rs.getString("type"), rs.getString("subtype"));
+			var t = readType(rs);
 			int numPitches = rs.getInt("num_pitches");
 			var p = new TocProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, lengthMeter, startingAltitude, coordinates, grade, faUser, faYear, ffaUser, ffaYear, numTicks, stars, ticked, todo, t, numPitches);
 			s.problems().add(p);

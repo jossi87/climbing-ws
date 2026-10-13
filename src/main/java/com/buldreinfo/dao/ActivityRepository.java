@@ -233,7 +233,7 @@ public class ActivityRepository {
 				SELECT x.activity_timestamp, a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, 
 				       s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, 
 				       x.problem_id, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, p.name problem_name, 
-				       ty.subtype problem_subtype, g.grade, GROUP_CONCAT(DISTINCT concat(x.id,'-',x.type) SEPARATOR ',') activities 
+				       ty.subtype problem_subtype, ty.trad_gear problem_trad_gear, g.grade, GROUP_CONCAT(DISTINCT concat(x.id,'-',x.type) SEPARATOR ',') activities 
 				FROM req CROSS JOIN x
 				JOIN problem p ON x.problem_id = p.id
 				JOIN type ty ON p.type_id = ty.id 
@@ -244,7 +244,7 @@ public class ActivityRepository {
 				WHERE a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
 				  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
 				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-				GROUP BY x.activity_timestamp, a.id, s.id, x.problem_id, p.name, ty.subtype, g.grade
+				GROUP BY x.activity_timestamp, a.id, s.id, x.problem_id, p.name, ty.subtype, ty.trad_gear, g.grade
 				ORDER BY x.activity_timestamp DESC, x.problem_id DESC
 				""";
 
@@ -273,7 +273,7 @@ public class ActivityRepository {
 							rs.getInt("area_id"), rs.getString("area_name"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"),
 							rs.getInt("sector_id"), rs.getString("sector_name"), rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"),
 							rs.getInt("problem_id"), rs.getBoolean("problem_locked_admin"), rs.getBoolean("problem_locked_superadmin"), 
-							rs.getString("problem_name"), rs.getString("problem_subtype"), rs.getString("grade"));
+							rs.getString("problem_name"), rs.getString("problem_subtype"), rs.getBoolean("problem_trad_gear"), rs.getString("grade"));
 				}).list();
 
 		var activityLookup = new HashMap<Integer, Activity>();

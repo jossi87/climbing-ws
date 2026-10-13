@@ -263,7 +263,7 @@ public class TopoGenerator {
 				boolean isHighlight = isTargetProblem && isTargetPitch;
 
 				String lineColor = svg.problemGradeColor();
-				String dash = (svg.problemSubtype() == null || svg.problemSubtype().equalsIgnoreCase("bolt")) ? String.valueOf(10 * elemScale) : null;
+				String dash = svg.primary() ? String.valueOf(10 * elemScale) : null;
 
 				drawReactHaloPath(g2d, elemScale, d, lineColor, isHighlight, dash);
 

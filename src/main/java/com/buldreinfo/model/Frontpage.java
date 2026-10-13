@@ -11,10 +11,10 @@ public record Frontpage(FrontpageStats stats,
 	public record FrontpageStats(int areas, int problems, int ticks) {}
 	public record FrontpageRandomMedia(MediaIdentity identity, int width, int height, int idArea, String area, int idSector, String sector, int idProblem, String problem, String grade, User photographer, List<User> tagged) {}
 	public record FrontpageFirstAscent(String timeAgo, int areaId, String areaName,
-			int problemId, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String problemName, String problemSubtype,
+			int problemId, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String problemName, String problemSubtype, boolean problemTradGear,
 			String grade, List<User> users) {}
 	public record FrontpageRecentAscent(String timeAgo, int areaId, String areaName,
-			int problemId, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String problemName, String problemSubtype, String grade,
+			int problemId, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String problemName, String problemSubtype, boolean problemTradGear, String grade,
 			User u, boolean repeat) {}
 	public record FrontpageNewestMedia(MediaIdentity identity, boolean isMovie, boolean is360,
 			int problemId, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String problemName, String grade) {}

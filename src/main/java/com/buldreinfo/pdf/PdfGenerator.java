@@ -960,7 +960,7 @@ public class PdfGenerator implements AutoCloseable {
 
 	private void writeSectors(Setup setup, List<Sector> sectors) throws BadElementException, IOException, InterruptedException, ExecutionException {
 		for (Sector s : sectors) {
-			final boolean showType = s.problems().stream().filter(p -> p.t().subType() != null).findAny().isPresent();
+			final boolean showType = s.problems().stream().map(p -> p.t().id()).distinct().count() > 1;
 			document.newPage();
 			document.add(new Paragraph(s.name(), FONT_H2));
 			if (s.accessInfo() != null && !s.accessInfo().isBlank()) {

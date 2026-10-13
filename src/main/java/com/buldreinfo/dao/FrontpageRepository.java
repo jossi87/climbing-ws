@@ -56,7 +56,7 @@ public class FrontpageRepository {
 				)
 				SELECT 
 				    x.activity_timestamp, a.id AS area_id, a.name AS area_name,
-				    p.id AS problem_id, p.name AS problem_name, p.locked_admin AS problem_locked_admin, p.locked_superadmin AS problem_locked_superadmin, ty.subtype AS problem_subtype,
+				    p.id AS problem_id, p.name AS problem_name, p.locked_admin AS problem_locked_admin, p.locked_superadmin AS problem_locked_superadmin, ty.subtype AS problem_subtype, ty.trad_gear AS problem_trad_gear,
 				    g.grade AS grade,
 				    IF(COUNT(u.id) > 0,
 				        JSON_ARRAYAGG(
@@ -102,6 +102,7 @@ public class FrontpageRepository {
 							rs.getBoolean("problem_locked_superadmin"),
 							rs.getString("problem_name"),
 							rs.getString("problem_subtype"),
+							rs.getBoolean("problem_trad_gear"),
 							rs.getString("grade"),
 							users
 							);
@@ -192,7 +193,7 @@ public class FrontpageRepository {
 				    LIMIT 8
 				)
 				SELECT ra.activity_timestamp, ra.is_repeat, ra.tick_id, a.id AS area_id, a.name AS area_name,
-				       p.id AS problem_id, p.name AS problem_name, p.locked_admin AS problem_locked_admin, p.locked_superadmin AS problem_locked_superadmin, ty.subtype AS problem_subtype,
+				       p.id AS problem_id, p.name AS problem_name, p.locked_admin AS problem_locked_admin, p.locked_superadmin AS problem_locked_superadmin, ty.subtype AS problem_subtype, ty.trad_gear AS problem_trad_gear,
 				       g.grade AS tick_grade, u.id AS user_id, TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) AS user_name,
 				       m.id AS media_id, UNIX_TIMESTAMP(m.updated_at) AS media_version_stamp, mma.focus_x AS media_focus_x, mma.focus_y AS media_focus_y, mma.primary_color_hex AS media_primary_color_hex
 				FROM recent_activity ra
@@ -231,6 +232,7 @@ public class FrontpageRepository {
 							rs.getBoolean("problem_locked_superadmin"),
 							rs.getString("problem_name"),
 							rs.getString("problem_subtype"),
+							rs.getBoolean("problem_trad_gear"),
 							tickGrade,
 							user,
 							rs.getInt("is_repeat") == 1

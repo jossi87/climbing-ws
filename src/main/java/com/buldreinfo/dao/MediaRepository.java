@@ -205,6 +205,7 @@ public class MediaRepository {
 				               'problemGrade', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN g3.grade ELSE COALESCE(g_sect3.grade, g3.grade) END,
 				               'problemGradeColor', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN clr3.hex_code ELSE COALESCE(clr_sect3.hex_code, clr3.hex_code) END,
 				               'problemSubtype', ty3.subtype,
+				               'problemTradGear', ty3.trad_gear,
 				               'nr', p3.nr,
 				               'pitch', COALESCE(ps3.nr, 0),
 				               'path', s3.path,
@@ -212,7 +213,7 @@ public class MediaRepository {
 				               'texts', s3.texts,
 				               'anchors', s3.anchors,
 				               'tradBelayStations', s3.trad_belay_stations,
-				               'primary', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
+				               'primary', CASE WHEN d3.is_bouldering=1 OR d3.is_ice_climbing=1 OR ty3.is_bolted=1 THEN true ELSE false END,
 				               'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL THEN true ELSE false END,
 				               'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = req.auth_user_id) IS NOT NULL THEN true ELSE false END,
 				               'dangerous', COALESCE((
@@ -226,7 +227,7 @@ public class MediaRepository {
 				           JOIN problem p3 ON s3.problem_id = p3.id
 				           JOIN grade g3 ON p3.consensus_grade_id = g3.id
 				           JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
-				           JOIN type ty3 ON p3.type_id = ty3.id
+				           JOIN type ty3 ON p3.type_id = ty3.id JOIN discipline d3 ON ty3.discipline_id = d3.id
 				           JOIN sector sec3 ON p3.sector_id = sec3.id
 				           JOIN area a5 ON sec3.area_id = a5.id
 				           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
@@ -328,6 +329,7 @@ public class MediaRepository {
 				               'problemGrade', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN g3.grade ELSE COALESCE(g_sect3.grade, g3.grade) END,
 				               'problemGradeColor', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN clr3.hex_code ELSE COALESCE(clr_sect3.hex_code, clr3.hex_code) END,
 				               'problemSubtype', ty3.subtype,
+				               'problemTradGear', ty3.trad_gear,
 				               'nr', p3.nr,
 				               'pitch', COALESCE(ps3.nr, 0),
 				               'path', s3.path,
@@ -335,7 +337,7 @@ public class MediaRepository {
 				               'texts', s3.texts,
 				               'anchors', s3.anchors,
 				               'tradBelayStations', s3.trad_belay_stations,
-				               'primary', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
+				               'primary', CASE WHEN d3.is_bouldering=1 OR d3.is_ice_climbing=1 OR ty3.is_bolted=1 THEN true ELSE false END,
 				               'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL THEN true ELSE false END,
 				               'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = req.auth_user_id) IS NOT NULL THEN true ELSE false END,
 				               'dangerous', COALESCE((
@@ -349,7 +351,7 @@ public class MediaRepository {
 				           JOIN problem p3 ON s3.problem_id = p3.id
 				           JOIN grade g3 ON p3.consensus_grade_id = g3.id
 				           JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
-				           JOIN type ty3 ON p3.type_id = ty3.id
+				           JOIN type ty3 ON p3.type_id = ty3.id JOIN discipline d3 ON ty3.discipline_id = d3.id
 				           JOIN sector sec3 ON p3.sector_id = sec3.id
 				           JOIN area a5 ON sec3.area_id = a5.id
 				           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
@@ -514,6 +516,7 @@ public class MediaRepository {
 				               'problemGrade', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN g3.grade ELSE COALESCE(g_sect3.grade, g3.grade) END,
 				               'problemGradeColor', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN clr3.hex_code ELSE COALESCE(clr_sect3.hex_code, clr3.hex_code) END,
 				               'problemSubtype', ty3.subtype,
+				               'problemTradGear', ty3.trad_gear,
 				               'nr', p3.nr,
 				               'pitch', COALESCE(ps3.nr, 0),
 				               'path', s3.path,
@@ -521,7 +524,7 @@ public class MediaRepository {
 				               'texts', s3.texts,
 				               'anchors', s3.anchors,
 				               'tradBelayStations', s3.trad_belay_stations,
-				               'primary', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
+				               'primary', CASE WHEN d3.is_bouldering=1 OR d3.is_ice_climbing=1 OR ty3.is_bolted=1 THEN true ELSE false END,
 				               'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL THEN true ELSE false END,
 				               'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = req.auth_user_id) IS NOT NULL THEN true ELSE false END,
 				               'dangerous', COALESCE((
@@ -535,7 +538,7 @@ public class MediaRepository {
 				           JOIN problem p3 ON s3.problem_id = p3.id
 				           JOIN grade g3 ON p3.consensus_grade_id = g3.id
 				           JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
-				           JOIN type ty3 ON p3.type_id = ty3.id
+				           JOIN type ty3 ON p3.type_id = ty3.id JOIN discipline d3 ON ty3.discipline_id = d3.id
 				           JOIN sector sec3 ON p3.sector_id = sec3.id
 				           JOIN area a5 ON sec3.area_id = a5.id
 				           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
@@ -675,6 +678,7 @@ public class MediaRepository {
 				               'problemGrade', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN g3.grade ELSE COALESCE(g_sect3.grade, g3.grade) END,
 				               'problemGradeColor', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN clr3.hex_code ELSE COALESCE(clr_sect3.hex_code, clr3.hex_code) END,
 				               'problemSubtype', ty3.subtype,
+				               'problemTradGear', ty3.trad_gear,
 				               'nr', p3.nr,
 				               'pitch', COALESCE(ps3.nr, 0),
 				               'path', s3.path,
@@ -682,7 +686,7 @@ public class MediaRepository {
 				               'texts', s3.texts,
 				               'anchors', s3.anchors,
 				               'tradBelayStations', s3.trad_belay_stations,
-				               'primary', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
+				               'primary', CASE WHEN d3.is_bouldering=1 OR d3.is_ice_climbing=1 OR ty3.is_bolted=1 THEN true ELSE false END,
 				               'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL THEN true ELSE false END,
 				               'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = req.auth_user_id) IS NOT NULL THEN true ELSE false END,
 				               'dangerous', COALESCE((
@@ -696,7 +700,7 @@ public class MediaRepository {
 				           JOIN problem p3 ON s3.problem_id = p3.id
 				           JOIN grade g3 ON p3.consensus_grade_id = g3.id
 				           JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
-				           JOIN type ty3 ON p3.type_id = ty3.id
+				           JOIN type ty3 ON p3.type_id = ty3.id JOIN discipline d3 ON ty3.discipline_id = d3.id
 				           JOIN sector sec3 ON p3.sector_id = sec3.id
 				           JOIN area a5 ON sec3.area_id = a5.id
 				           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
@@ -782,6 +786,7 @@ public class MediaRepository {
 				               'problemGrade', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN g3.grade ELSE COALESCE(g_sect3.grade, g3.grade) END,
 				               'problemGradeColor', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN clr3.hex_code ELSE COALESCE(clr_sect3.hex_code, clr3.hex_code) END,
 				               'problemSubtype', ty3.subtype,
+				               'problemTradGear', ty3.trad_gear,
 				               'nr', p3.nr,
 				               'pitch', COALESCE(ps3.nr, 0),
 				               'path', s3.path,
@@ -789,7 +794,7 @@ public class MediaRepository {
 				               'texts', s3.texts,
 				               'anchors', s3.anchors,
 				               'tradBelayStations', s3.trad_belay_stations,
-				               'primary', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
+				               'primary', CASE WHEN d3.is_bouldering=1 OR d3.is_ice_climbing=1 OR ty3.is_bolted=1 THEN true ELSE false END,
 				               'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL THEN true ELSE false END,
 				               'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = req.auth_user_id) IS NOT NULL THEN true ELSE false END,
 				               'dangerous', COALESCE((
@@ -803,7 +808,7 @@ public class MediaRepository {
 				           JOIN problem p3 ON s3.problem_id = p3.id
 				           JOIN grade g3 ON p3.consensus_grade_id = g3.id
 				           JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
-				           JOIN type ty3 ON p3.type_id = ty3.id
+				           JOIN type ty3 ON p3.type_id = ty3.id JOIN discipline d3 ON ty3.discipline_id = d3.id
 				           JOIN sector sec3 ON p3.sector_id = sec3.id
 				           JOIN area a5 ON sec3.area_id = a5.id
 				           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
@@ -920,6 +925,7 @@ public class MediaRepository {
 				               'problemGrade', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN g3.grade ELSE COALESCE(g_sect3.grade, g3.grade) END,
 				               'problemGradeColor', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN clr3.hex_code ELSE COALESCE(clr_sect3.hex_code, clr3.hex_code) END,
 				               'problemSubtype', ty3.subtype,
+				               'problemTradGear', ty3.trad_gear,
 				               'nr', p3.nr,
 				               'pitch', COALESCE(ps3.nr, 0),
 				               'path', s3.path,
@@ -927,7 +933,7 @@ public class MediaRepository {
 				               'texts', s3.texts,
 				               'anchors', s3.anchors,
 				               'tradBelayStations', s3.trad_belay_stations,
-				               'primary', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
+				               'primary', CASE WHEN d3.is_bouldering=1 OR d3.is_ice_climbing=1 OR ty3.is_bolted=1 THEN true ELSE false END,
 				               'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = :authUserId LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = :authUserId LIMIT 1) IS NOT NULL THEN true ELSE false END,
 				               'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = :authUserId) IS NOT NULL THEN true ELSE false END,
 				               'dangerous', COALESCE((
@@ -941,7 +947,7 @@ public class MediaRepository {
 				           JOIN problem p3 ON s3.problem_id = p3.id
 				           JOIN grade g3 ON p3.consensus_grade_id = g3.id
 				           JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
-				           JOIN type ty3 ON p3.type_id = ty3.id
+				           JOIN type ty3 ON p3.type_id = ty3.id JOIN discipline d3 ON ty3.discipline_id = d3.id
 				           JOIN sector sec3 ON p3.sector_id = sec3.id
 				           JOIN area a5 ON sec3.area_id = a5.id
 				           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
@@ -1058,6 +1064,7 @@ public class MediaRepository {
 				               'problemGrade', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN g3.grade ELSE COALESCE(g_sect3.grade, g3.grade) END,
 				               'problemGradeColor', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN clr3.hex_code ELSE COALESCE(clr_sect3.hex_code, clr3.hex_code) END,
 				               'problemSubtype', ty3.subtype,
+				               'problemTradGear', ty3.trad_gear,
 				               'nr', p3.nr,
 				               'pitch', COALESCE(ps3.nr, 0),
 				               'path', s3.path,
@@ -1065,7 +1072,7 @@ public class MediaRepository {
 				               'texts', s3.texts,
 				               'anchors', s3.anchors,
 				               'tradBelayStations', s3.trad_belay_stations,
-				               'primary', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
+				               'primary', CASE WHEN d3.is_bouldering=1 OR d3.is_ice_climbing=1 OR ty3.is_bolted=1 THEN true ELSE false END,
 				               'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL THEN true ELSE false END,
 				               'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = req.auth_user_id) IS NOT NULL THEN true ELSE false END,
 				               'dangerous', COALESCE((
@@ -1079,7 +1086,7 @@ public class MediaRepository {
 				           JOIN problem p3 ON s3.problem_id = p3.id
 				           JOIN grade g3 ON p3.consensus_grade_id = g3.id
 				           JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
-				           JOIN type ty3 ON p3.type_id = ty3.id
+				           JOIN type ty3 ON p3.type_id = ty3.id JOIN discipline d3 ON ty3.discipline_id = d3.id
 				           JOIN sector sec3 ON p3.sector_id = sec3.id
 				           JOIN area a5 ON sec3.area_id = a5.id
 				           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch

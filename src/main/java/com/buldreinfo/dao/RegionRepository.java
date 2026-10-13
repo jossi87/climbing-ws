@@ -124,7 +124,7 @@ public class RegionRepository {
 		List<Region> regions = jdbcClient.sql("""
 				SELECT r.id region_id, d.name discipline, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, r.name, r.url
 				FROM region r, region_type rt, type t, discipline d
-				WHERE r.id=rt.region_id AND rt.type_id=t.id AND t.discipline_id=d.id AND t.id IN (1,2,10)
+				WHERE r.id=rt.region_id AND rt.type_id=t.id AND t.discipline_id=d.id
 				GROUP BY r.id, d.name, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, r.name, r.url ORDER BY d.name, r.name
 				""")
 				.query((rs, _) -> new Region(
@@ -186,9 +186,9 @@ public class RegionRepository {
 
 	@Transactional(readOnly = true)
 	public List<Type> getTypes(int regionId) {
-		return jdbcClient.sql("SELECT t.id, t.type, t.subtype FROM type t, region_type rt WHERE t.id=rt.type_id AND rt.region_id=? GROUP BY t.id, t.type, t.subtype ORDER BY t.id, t.type, t.subtype")
+		return jdbcClient.sql("SELECT t.id, t.type, t.subtype, t.is_bolted, t.trad_gear FROM type t, region_type rt WHERE t.id=rt.type_id AND rt.region_id=? GROUP BY t.id, t.type, t.subtype, t.is_bolted, t.trad_gear ORDER BY t.id, t.type, t.subtype")
 				.param(regionId)
-				.query((rs, _) -> new Type(rs.getInt("id"), rs.getString("type"), rs.getString("subtype")))
+				.query((rs, _) -> new Type(rs.getInt("id"), rs.getString("type"), rs.getString("subtype"), rs.getBoolean("is_bolted"), rs.getBoolean("trad_gear")))
 				.list();
 	}
 

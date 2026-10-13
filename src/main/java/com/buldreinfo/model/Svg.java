@@ -1,5 +1,5 @@
 package com.buldreinfo.model;
 
-public record Svg(boolean delete, int id, int problemId, String problemName, String problemGrade, String problemGradeColor, String problemSubtype, int nr,
+public record Svg(boolean delete, int id, int problemId, String problemName, String problemGrade, String problemGradeColor, String problemSubtype, boolean problemTradGear, int nr,
 		int pitch, String path, boolean hasAnchor, String texts, String anchors, String tradBelayStations,
 		boolean primary, boolean ticked, boolean todo, boolean dangerous) {}

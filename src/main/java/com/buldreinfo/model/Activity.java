@@ -23,6 +23,7 @@ public class Activity {
 	private final boolean problemLockedSuperadmin;
 	private final String problemName;
 	private final String problemSubtype;
+	private final boolean problemTradGear;
 	private String grade;
 	private List<ActivityMedia> media;
 	private int stars = -1;
@@ -32,7 +33,7 @@ public class Activity {
 	private String description;
 	private String message;
 	private List<User> users;
-	public Activity(Set<Integer> activityIds, String timeAgo, int areaId, String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, int sectorId, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int problemId, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String problemName, String problemSubtype, String grade) {
+	public Activity(Set<Integer> activityIds, String timeAgo, int areaId, String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, int sectorId, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int problemId, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String problemName, String problemSubtype, boolean problemTradGear, String grade) {
 		this.activityIds = activityIds;
 		this.timeAgo = timeAgo;
 		this.areaId = areaId;
@@ -48,6 +49,7 @@ public class Activity {
 		this.problemLockedSuperadmin = problemLockedSuperadmin;
 		this.problemName = problemName;
 		this.problemSubtype = problemSubtype;
+		this.problemTradGear = problemTradGear;
 		this.grade = grade;
 	}
 	public void addMedia(MediaIdentity identity, boolean isMovie, boolean is360, String embedUrl) {
@@ -111,6 +113,9 @@ public class Activity {
 	}
 	public String getProblemSubtype() {
 		return problemSubtype;
+	}
+	public boolean isProblemTradGear() {
+		return problemTradGear;
 	}
 	public int getSectorId() {
 		return sectorId;
