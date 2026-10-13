@@ -503,10 +503,10 @@ public class UserRepository {
 				            WHEN is_bouldering = 1 THEN 'Boulder problems'
 				            WHEN is_ice_climbing = 1 THEN 'Climbing routes (ice)'
 				            WHEN pitches > 0 THEN 'Climbing routes (multi-pitch)'
-				            WHEN is_bolted = 1 THEN 'Climbing routes (single-pitch bolted)'
+				            WHEN is_bolted = 1 THEN 'Climbing routes (single-pitch sport)'
 				            ELSE 'Climbing routes (single-pitch traditional)'
 				        END AS type,
-				-- 0=boulder, 1=ice, 2=multi-pitch, 3=single-pitch bolted, 4=single-pitch traditional (first matching branch wins)
+				-- 0=boulder, 1=ice, 2=multi-pitch, 3=single-pitch sport, 4=single-pitch traditional (first matching branch wins)
 				        CASE 
 				            WHEN is_bouldering = 1 THEN 0
 				            WHEN is_ice_climbing = 1 THEN 1
