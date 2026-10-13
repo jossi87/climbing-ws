@@ -347,6 +347,24 @@ CREATE TABLE `instagram_scrape_log` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `map`
+--
+
+DROP TABLE IF EXISTS `map`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `map` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci NOT NULL,
+  `url` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci NOT NULL,
+  `attribution` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci NOT NULL,
+  `max_zoom` int NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `map_name_unique` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `media`
 --
 
@@ -682,6 +700,24 @@ CREATE TABLE `region` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `region_map`
+--
+
+DROP TABLE IF EXISTS `region_map`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `region_map` (
+  `region_id` int NOT NULL,
+  `map_id` int NOT NULL,
+  `is_default` tinyint NOT NULL DEFAULT '0',
+  PRIMARY KEY (`region_id`,`map_id`),
+  KEY `region_map_map_id_idx` (`map_id`),
+  CONSTRAINT `region_map_map_id` FOREIGN KEY (`map_id`) REFERENCES `map` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `region_map_region_id` FOREIGN KEY (`region_id`) REFERENCES `region` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `region_outline`
 --
 
@@ -887,7 +923,7 @@ CREATE TABLE `todo` (
   KEY `todo_fk2_idx` (`problem_id`),
   CONSTRAINT `todo_fk1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `todo_fk2` FOREIGN KEY (`problem_id`) REFERENCES `problem` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=23189 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=23190 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1043,7 +1079,7 @@ CREATE TABLE `user_login` (
   KEY `idx_user_login_retention` (`when`),
   CONSTRAINT `user_login_region_id` FOREIGN KEY (`region_id`) REFERENCES `region` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_login_user_id` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=820463 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=820497 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1102,4 +1138,4 @@ CREATE TABLE `user_region` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-10-13  8:52:06
+-- Dump completed on 2026-10-13 10:36:38

@@ -16,6 +16,7 @@ import com.buldreinfo.beans.Setup;
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.config.OpenApiConfig;
 import com.buldreinfo.dao.HierarchyRepository;
+import com.buldreinfo.dao.MapRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.excel.ExcelWorkbook;
@@ -39,13 +40,15 @@ public class MetaController {
 	private final RequestContext requestContext;
 	private final HierarchyRepository hierarchyRepo;
 	private final UserRepository userRepo;
+	private final MapRepository mapRepo;
 	private final RegionRepository regionRepo;
 
-	public MetaController(RequestContext requestContext, HierarchyRepository hierarchyRepo, RegionRepository regionRepo, UserRepository userRepo) {
+	public MetaController(RequestContext requestContext, HierarchyRepository hierarchyRepo, RegionRepository regionRepo, UserRepository userRepo, MapRepository mapRepo) {
 		this.requestContext = requestContext;
 		this.hierarchyRepo = hierarchyRepo;
 		this.userRepo = userRepo;
 		this.regionRepo = regionRepo;
+		this.mapRepo = mapRepo;
 	}
 
 	@Operation(summary = "Get grade distribution by Area Id or Sector Id")
@@ -78,7 +81,7 @@ public class MetaController {
 	public ResponseEntity<Meta> getMeta(HttpServletRequest request) {
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		return ResponseEntity.ok(Meta.from(setup, authUserId, userRepo, regionRepo));
+		return ResponseEntity.ok(Meta.from(setup, authUserId, userRepo, regionRepo, mapRepo));
 	}
 
 	@Operation(summary = "Get robots.txt")

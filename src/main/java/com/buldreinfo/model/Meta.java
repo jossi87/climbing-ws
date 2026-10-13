@@ -5,6 +5,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import com.buldreinfo.beans.Setup;
+import com.buldreinfo.dao.MapRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
 
@@ -15,15 +16,16 @@ public record Meta(
 		List<Grade> grades, List<Integer> faYears,
 		int defaultZoom, LatLng defaultCenter,
 		boolean isBouldering, boolean isClimbing, boolean isIce, String url,
-		List<Type> types, List<Region> regions, List<CompassDirection> compassDirections
+		List<Type> types, List<Region> regions, List<Map> maps, List<CompassDirection> compassDirections
 		) {
 
-	public static Meta from(Setup setup, Optional<Integer> authUserId, UserRepository userRepo, RegionRepository regionRepo) {
+	public static Meta from(Setup setup, Optional<Integer> authUserId, UserRepository userRepo, RegionRepository regionRepo, MapRepository mapRepo) {
 		var authUserFuture = CompletableFuture.supplyAsync(() -> userRepo.getAuthenticatedUser(setup, authUserId).orElse(null));
 		var faYearsFuture = CompletableFuture.supplyAsync(() -> regionRepo.getFaYears(setup.idRegion()));
 		var typesFuture = CompletableFuture.supplyAsync(() -> regionRepo.getTypes(setup.idRegion()));
 		var regionsFuture = CompletableFuture.supplyAsync(() -> regionRepo.getRegions(setup.idRegion()));
-		CompletableFuture.allOf(authUserFuture, faYearsFuture, typesFuture, regionsFuture).join();
+		var mapsFuture = CompletableFuture.supplyAsync(() -> mapRepo.getMaps(setup.idRegion()));
+		CompletableFuture.allOf(authUserFuture, faYearsFuture, typesFuture, regionsFuture, mapsFuture).join();
 		try {
 			var authUser = Optional.ofNullable(authUserFuture.join());
 			return new Meta(
@@ -45,6 +47,7 @@ public record Meta(
 					setup.url(),
 					typesFuture.join(),
 					regionsFuture.join(),
+					mapsFuture.join(),
 					setup.compassDirections()
 					);
 		} catch (Exception e) {
