@@ -192,6 +192,19 @@ public class RegionRepository {
 				.list();
 	}
 
+	@Transactional
+	public void setRegionOutline(int regionId, List<Coordinates> outline) {
+		jdbcClient.sql("DELETE FROM region_outline WHERE region_id=?").param(regionId).update();
+		if (outline != null && !outline.isEmpty()) {
+			int[] sorting = {0};
+			for (Coordinates coord : outline) {
+				jdbcClient.sql("INSERT INTO region_outline (region_id, coordinates_id, sorting) VALUES (?, ?, ?)")
+					.params(regionId, coord.id(), ++sorting[0])
+					.update();
+			}
+		}
+	}
+
 	private List<CompassDirection> getCompassDirections() {
 		return jdbcClient.sql("SELECT id, direction FROM compass_direction ORDER BY id")
 				.query((rs, _) -> new CompassDirection(rs.getInt("id"), rs.getString("direction")))
