@@ -104,9 +104,8 @@ public class HierarchyRepository {
 		String sql = """
 				WITH req AS (SELECT ? auth_user_id, ? region_id),
 				target_systems AS (
-				  SELECT DISTINCT tgs.grade_system_id FROM req 
-				  JOIN region_type rt ON req.region_id = rt.region_id 
-				  JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
+				  SELECT DISTINCT rgs.grade_system_id FROM req 
+				  JOIN region_grade_system rgs ON req.region_id = rgs.region_id
 				),
 				x AS (
 				  SELECT g.label_major g_base, r.id region_id, r.name region, ty.id type_id, COUNT(DISTINCT p.id) num
@@ -247,11 +246,10 @@ public class HierarchyRepository {
 				  SELECT ? auth_user_id, ? sector_id, ? area_id
 				),
 				target_systems AS (
-				  SELECT DISTINCT tgs.grade_system_id 
+				  SELECT DISTINCT rgs.grade_system_id 
 				  FROM req 
 				  JOIN area a ON a.id = COALESCE(NULLIF(req.area_id, 0), (SELECT area_id FROM sector WHERE id = req.sector_id))
-				  JOIN region_type rt ON a.region_id = rt.region_id 
-				  JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
+				  JOIN region_grade_system rgs ON a.region_id = rgs.region_id
 				),
 				x AS (
 				  SELECT g.label_major g_base, s.sorting, s.id sector_id, s.name sector, ty.id type_id, COUNT(p.id) num

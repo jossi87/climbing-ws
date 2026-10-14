@@ -27,7 +27,7 @@ Import the [latest database dump](https://github.com/jossi87/climbing-ws/blob/ma
 > INSERT INTO map (id, name, url, attribution, max_zoom) VALUES (1, 'OpenStreetMap', 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', '&copy; OpenStreetMap', 19);
 > INSERT INTO region_map (region_id, map_id, is_default) VALUES (1, 1, 1);
 > INSERT INTO grade_system (id, name) VALUES (1, 'Climbing');
-> INSERT INTO type_grade_system (type_id, grade_system_id) VALUES (1, 1);
+> INSERT INTO region_grade_system (region_id, grade_system_id) VALUES (1, 1);
 > INSERT INTO grade_color (id, hex_code) VALUES (0, '#CCCCCC');
 > INSERT INTO grade_color (id, hex_code) VALUES (6, '#FF0000');
 > INSERT INTO grade (id, grade_system_id, grade, weight, label_major, label_compact, grade_color_id) VALUES (1, 1, 'n/a', 0, 'n/a', 'n/a', 0);

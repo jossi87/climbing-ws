@@ -191,10 +191,9 @@ public class AreaRepository {
 	public Map<Integer, List<GradeCount>> getAreaSimplifiedGradeCounts(int areaId) {
 		var sqlStr = """
 				WITH target_systems AS (
-				  SELECT DISTINCT tgs.grade_system_id 
+				  SELECT DISTINCT rgs.grade_system_id 
 				  FROM area a
-				  JOIN region_type rt ON a.region_id = rt.region_id 
-				  JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
+				  JOIN region_grade_system rgs ON a.region_id = rgs.region_id
 				  WHERE a.id = :areaId
 				),
 				all_labels AS (

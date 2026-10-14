@@ -361,7 +361,9 @@ public class ProblemRepository {
 	public void updateProblemConsensusGrade(int problemId) {
 		jdbcClient.sql("""
 				UPDATE problem p
-				LEFT JOIN type_grade_system tgs ON p.type_id = tgs.type_id
+				JOIN sector s ON p.sector_id = s.id
+				JOIN area a ON s.area_id = a.id
+				LEFT JOIN region_grade_system rgs ON a.region_id = rgs.region_id
 				LEFT JOIN (
 				    SELECT ROUND(AVG(w)) as avg_weight
 				    FROM (
@@ -383,7 +385,7 @@ public class ProblemRepository {
 				        )
 				    ) votes
 				) calc ON 1=1
-				LEFT JOIN grade g_final ON g_final.grade_system_id = tgs.grade_system_id 
+				LEFT JOIN grade g_final ON g_final.grade_system_id = rgs.grade_system_id 
 				                       AND g_final.weight = calc.avg_weight
 				SET p.consensus_grade_id = COALESCE(g_final.id, p.grade_id)
 				WHERE p.id = ?

@@ -158,12 +158,12 @@ public class RegionRepository {
 		var converterCache = new HashMap<Integer, GradeConverter>();
 
 		var res = jdbcClient.sql("""
-				SELECT DISTINCT r.id, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, tgs.grade_system_id
+				SELECT DISTINCT r.id, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, rgs.grade_system_id
 				FROM region r
 				JOIN region_type rt ON r.id = rt.region_id
 				JOIN type t ON rt.type_id = t.id
 				JOIN discipline d ON t.discipline_id = d.id
-				JOIN type_grade_system tgs ON t.id = tgs.type_id
+				JOIN region_grade_system rgs ON r.id = rgs.region_id
 				ORDER BY r.id
 				""")
 				.query((rs, _) -> {

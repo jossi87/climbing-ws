@@ -918,12 +918,12 @@ public class UserRepository {
 					JOIN type pt ON p.type_id = pt.id JOIN sector s ON p.sector_id = s.id
 					JOIN area a ON s.area_id = a.id JOIN region r ON a.region_id = r.id
 					JOIN region_type rt ON r.id = rt.region_id AND rt.type_id = p.type_id
-					JOIN type ty ON rt.type_id = ty.id JOIN type_grade_system tgs ON p.type_id = tgs.type_id
+					JOIN type ty ON rt.type_id = ty.id JOIN region_grade_system rgs ON r.id = rgs.region_id
 					LEFT JOIN problem_section ps ON p.id = ps.problem_id
 					LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = ?
 					LEFT JOIN tick t ON p.id = t.problem_id AND t.user_id = ?
 					LEFT JOIN fa f ON p.id = f.problem_id AND f.user_id = ?
-					LEFT JOIN grade g ON g.grade_system_id = tgs.grade_system_id 
+					LEFT JOIN grade g ON g.grade_system_id = rgs.grade_system_id 
 					    AND g.id = IF(t.id IS NOT NULL, t.grade_id, p.grade_id)
 					WHERE (t.user_id IS NOT NULL OR f.user_id IS NOT NULL)
 					  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
@@ -942,12 +942,12 @@ public class UserRepository {
 					JOIN type pt ON p.type_id = pt.id JOIN sector s ON p.sector_id = s.id
 					JOIN area a ON s.area_id = a.id JOIN region r ON a.region_id = r.id
 					JOIN region_type rt ON r.id = rt.region_id AND rt.type_id = p.type_id
-					JOIN type ty ON rt.type_id = ty.id JOIN type_grade_system tgs ON p.type_id = tgs.type_id
+					JOIN type ty ON rt.type_id = ty.id JOIN region_grade_system rgs ON r.id = rgs.region_id
 					JOIN tick t ON p.id = t.problem_id AND t.user_id = ?
 					JOIN tick_repeat tr ON t.id = tr.tick_id
 					LEFT JOIN problem_section ps ON p.id = ps.problem_id
 					LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = ?
-					LEFT JOIN grade g ON g.grade_system_id = tgs.grade_system_id AND g.id = t.grade_id
+					LEFT JOIN grade g ON g.grade_system_id = rgs.grade_system_id AND g.id = t.grade_id
 					WHERE p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 					GROUP BY tr.id, p.id, ty.type, pt.subtype, r.url, a.name, s.name, p.name, tr.comment, tr.date, t.stars, g.grade
 					ORDER BY ty.type, a.name, s.name, p.name, tr.date
