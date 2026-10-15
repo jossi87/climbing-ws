@@ -48,6 +48,7 @@ import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 @Component
@@ -126,6 +127,30 @@ public final class StorageManager {
 			cache.put(objectKey, false);
 			return false;
 		}
+	}
+
+	/**
+	 * A signed, short-lived URL for reading an object with the given {@code Content-Disposition}.
+	 * <p>
+	 * Needed because of the two ways the object is otherwise reachable: {@link #getPublicUrl} serves it through
+	 * the {@code /media-proxy/} path, which sets {@code Content-Disposition: inline}, and the bucket URL directly
+	 * has no such header at all. Neither can be told to save the file instead of displaying it — a
+	 * {@code response-content-disposition} parameter is only honoured on a <em>signed</em> request (an unsigned
+	 * one is rejected), which is exactly why this presigner exists.
+	 *
+	 * @param objectKey          object to hand out
+	 * @param contentDisposition value for {@code Content-Disposition}, e.g. {@code attachment; filename="1.mp4"}
+	 */
+	public String generatePresignedDownloadUrl(String objectKey, String contentDisposition) {
+		GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+				.bucket(BUCKET_NAME).key(objectKey)
+				.responseContentDisposition(contentDisposition).build();
+
+		GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+				.signatureDuration(Duration.ofHours(1))
+				.getObjectRequest(getObjectRequest).build();
+
+		return s3Presigner.presignGetObject(presignRequest).url().toString();
 	}
 
 	public String generatePresignedPutUrl(String objectKey, String contentType, long contentLength) {

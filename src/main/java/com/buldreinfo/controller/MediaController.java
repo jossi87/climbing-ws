@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.http.CacheControl;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -113,13 +114,14 @@ public class MediaController {
 	}
 
 	@Operation(summary = "Get media file by id")
-	@ApiResponse(responseCode = "302", description = "Redirects to the generated or cached static asset URL hosted on S3 Storage")
+	@ApiResponse(responseCode = "302", description = "Redirects to the generated or cached static asset URL hosted on S3 Storage, or - with download=true - to a signed storage URL that saves the original under its own name")
 	@GetMapping("/file")
 	public ResponseEntity<Void> getMediaFile(HttpServletRequest request,
 			@RequestParam(name = "id") int id,
 			@RequestParam(name = "isMovie") boolean isMovie,
 			@RequestParam(name = "versionStamp", defaultValue = "0") long versionStamp,
 			@RequestParam(name = "original", defaultValue = "false") boolean original,
+			@RequestParam(name = "download", defaultValue = "false") boolean download,
 			@RequestParam(name = "targetWidth", defaultValue = "0") int targetWidth,
 			@RequestParam(name = "minDimension", defaultValue = "0") int minDimension,
 			@RequestParam(name = "x", defaultValue = "0") int x,
@@ -131,7 +133,8 @@ public class MediaController {
 		// so it has to be answered before the isMovie branch below, which hands out the HLS master playlist.
 		// Serving that manifest here is what made "Download Original" on a movie save a few hundred bytes of text.
 		if (original) {
-			return createRedirect(findOriginalKey(id, isMovie), versionStamp);
+			String key = findOriginalKey(id, isMovie);
+			return download ? createDownloadRedirect(key, id) : createRedirect(key, versionStamp);
 		}
 
 		if (isMovie) {
@@ -383,6 +386,30 @@ public class MediaController {
 			}
 		}
 		throw new NoSuchElementException("Original not found for id: " + id + ", looked for " + candidates);
+	}
+
+	/**
+	 * Hand the browser a URL that saves the original instead of displaying it.
+	 * <p>
+	 * The proxy URL {@link #createRedirect} answers with is served as {@code Content-Disposition: inline}, so a
+	 * browser pointed at it for a movie plays the movie in the tab. A client cannot paper over that either: the
+	 * route the frontend used to take — {@code downloadFileWithProgress} — assembled the whole response in a JS
+	 * Blob before saving it, and an original movie is free to be hundreds of MB (media 23263 is 731 MB, against
+	 * the 800 MB upload limit), which a phone will not hold in memory — so "Download Original" did nothing at all
+	 * on mobile while working on a desktop. Answering with a signed URL that carries
+	 * {@code Content-Disposition: attachment} lets the browser stream the file straight to disk, resume it when
+	 * the connection drops, and keeps the app out of the memory question entirely.
+	 * <p>
+	 * The redirect itself is never cached: it is signed and short-lived, so a client has to ask for a fresh one
+	 * per download.
+	 */
+	private ResponseEntity<Void> createDownloadRedirect(String key, int id) {
+		String extension = StorageType.fromFilename(key).map(StorageType::getExtension).orElse("bin");
+		String contentDisposition = ContentDisposition.attachment().filename(id + "." + extension).build().toString();
+		return ResponseEntity.status(HttpStatus.FOUND)
+				.header(HttpHeaders.LOCATION, storage.generatePresignedDownloadUrl(key, contentDisposition))
+				.cacheControl(CacheControl.noStore())
+				.build();
 	}
 
 	/**
