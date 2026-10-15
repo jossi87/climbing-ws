@@ -38,17 +38,19 @@ public class ActivityController {
 	public ResponseEntity<List<Activity>> getActivity(HttpServletRequest request,
 			@RequestParam(name = "idArea") int idArea,
 			@RequestParam(name = "idSector") int idSector,
-			@RequestParam(name = "lowerGrade", defaultValue = "0") int lowerGrade,
+			@RequestParam(name = "lowerGradeWeight", defaultValue = "0") int lowerGradeWeight,
+			@RequestParam(name = "lowerGradeSystemId", defaultValue = "0") int lowerGradeSystemId,
 			@RequestParam(name = "fa", defaultValue = "false") boolean fa,
 			@RequestParam(name = "comments", defaultValue = "false") boolean comments,
 			@RequestParam(name = "ticks", defaultValue = "false") boolean ticks,
 			@RequestParam(name = "media", defaultValue = "false") boolean media,
 			@RequestParam(name = "offset", defaultValue = "0") int offset) {
 		if (idArea < 0 || idSector < 0) throw new ValidationFailedException("IDs cannot be negative");
-		if (lowerGrade < 0) throw new ValidationFailedException("lowerGrade cannot be negative");
+		if (lowerGradeWeight < 0) throw new ValidationFailedException("lowerGradeWeight cannot be negative");
+		if (lowerGradeSystemId < 0) throw new ValidationFailedException("lowerGradeSystemId cannot be negative");
 		if (offset < 0) throw new ValidationFailedException("offset cannot be negative");
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		return ResponseEntity.ok(activityRepo.getActivity(setup, authUserId, idArea, idSector, lowerGrade, fa, comments, ticks, media, offset));
+		return ResponseEntity.ok(activityRepo.getActivity(setup, authUserId, idArea, idSector, lowerGradeWeight, lowerGradeSystemId, fa, comments, ticks, media, offset));
 	}
 }

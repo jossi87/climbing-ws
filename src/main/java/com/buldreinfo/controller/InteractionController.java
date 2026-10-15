@@ -180,11 +180,10 @@ public class InteractionController {
 	@Operation(summary = "Update tick (public ascent)")
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@PostMapping("/ticks")
-	public ResponseEntity<Void> postTicks(HttpServletRequest request, @RequestBody Tick t) {
+	public ResponseEntity<Void> postTicks(@RequestBody Tick t) {
 		if (t == null || t.idProblem() <= 0) throw new ValidationFailedException("Invalid idProblem");
-		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		tickService.setTick(setup, authUserId, t);
+		tickService.setTick(authUserId, t);
 		return ResponseEntity.ok().build();
 	}
 

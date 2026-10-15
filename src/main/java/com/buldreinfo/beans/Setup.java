@@ -2,11 +2,11 @@ package com.buldreinfo.beans;
 
 import java.util.List;
 
-import com.buldreinfo.helpers.GradeConverter;
 import com.buldreinfo.model.CompassDirection;
+import com.buldreinfo.model.GradeSystem;
 import com.buldreinfo.model.LatLng;
 
-public record Setup(String domain, String url, int idRegion, boolean isBouldering, boolean isClimbing, boolean isIce, GradeConverter gradeConverter, List<CompassDirection> compassDirections, String title, String description, LatLng defaultCenter, int defaultZoom) {
+public record Setup(String domain, String url, int idRegion, boolean isBouldering, boolean isClimbing, boolean isIce, List<GradeSystem> gradeSystems, List<CompassDirection> compassDirections, String title, String description, LatLng defaultCenter, int defaultZoom) {
 	public static SetupBuilder newBuilder(String domain, boolean isBouldering, boolean isClimbing, boolean isIce) {
 		return new SetupBuilder(domain, isBouldering, isClimbing, isIce);
 	}
@@ -17,7 +17,7 @@ public record Setup(String domain, String url, int idRegion, boolean isBoulderin
 		private int defaultZoom;
 		private String description;
 		private final String domain;
-		private GradeConverter gradeConverter;
+		private List<GradeSystem> gradeSystems;
 		private int idRegion;
 		private final boolean isBouldering;
 		private final boolean isClimbing;
@@ -34,7 +34,7 @@ public record Setup(String domain, String url, int idRegion, boolean isBoulderin
 		}
 
 		public Setup build() {
-			return new Setup(domain, url, idRegion, isBouldering, isClimbing, isIce, gradeConverter, compassDirections, title, description, defaultCenter, defaultZoom);
+			return new Setup(domain, url, idRegion, isBouldering, isClimbing, isIce, gradeSystems, compassDirections, title, description, defaultCenter, defaultZoom);
 		}
 
 		public SetupBuilder withCompassDirections(List<CompassDirection> compassDirections) {
@@ -57,8 +57,8 @@ public record Setup(String domain, String url, int idRegion, boolean isBoulderin
 			return this;
 		}
 
-		public SetupBuilder withGradeConverter(GradeConverter gradeConverter) {
-			this.gradeConverter = gradeConverter;
+		public SetupBuilder withGradeSystems(List<GradeSystem> gradeSystems) {
+			this.gradeSystems = gradeSystems;
 			return this;
 		}
 

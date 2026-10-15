@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.exception.ForbiddenException;
 import com.buldreinfo.exception.UnauthorizedException;
+import com.buldreinfo.helpers.GradeConverter;
 import com.buldreinfo.helpers.HitsFormatter;
 import com.buldreinfo.model.Comment;
 import com.buldreinfo.model.Coordinates;
@@ -52,10 +53,12 @@ public class ProblemRepository {
 	}
 	private final JdbcClient jdbcClient;
 	private final JsonHelper jsonHelper;
+	private final GradeSystemRepository gradeSystemRepo;
 
-	public ProblemRepository(JdbcClient jdbcClient, JsonHelper jsonHelper) {
+	public ProblemRepository(JdbcClient jdbcClient, JsonHelper jsonHelper, GradeSystemRepository gradeSystemRepo) {
 		this.jdbcClient = jdbcClient;
 		this.jsonHelper = jsonHelper;
+		this.gradeSystemRepo = gradeSystemRepo;
 	}
 
 	@Transactional(readOnly = true)
@@ -166,7 +169,8 @@ public class ProblemRepository {
 		                  EXISTS(SELECT 1 FROM fa WHERE problem_id = req.problem_id AND user_id = req.auth_user_id), 1, 0) AS ticked, 
 		               ty.id type_id, ty.type, ty.subtype, ty.is_bolted, ty.trad_gear,
 		               p.trivia, p.starting_altitude, p.aspect, p.descent,
-		               sd.sections_json AS compiled_sections
+		               sd.sections_json AS compiled_sections,
+		               MIN(a.grade_system_id) grade_system_id
 		        FROM req
 		        JOIN problem p ON p.id = req.problem_id
 		        LEFT JOIN stars_count sc_data ON p.id = sc_data.pid
@@ -221,7 +225,7 @@ public class ProblemRepository {
 		                        sections.set(sections.indexOf(section), section.withMedia(sectionMedia));
 		                    }
 		                }
-		                return new Problem(null, areaId, rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getString("area_name"), areaCoordinates, rs.getString("area_access_info"), rs.getString("area_access_closed"), rs.getBoolean("area_no_dogs_allowed"), rs.getInt("area_sun_from_hour"), rs.getInt("area_sun_to_hour"), sectorId, rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), rs.getString("sector_name"), rs.getString("sector_access_info"), rs.getString("sector_access_closed"), rs.getInt("sector_sun_from_hour"), rs.getInt("sector_sun_to_hour"), parking, outline, wallDirCalc, wallDirMan, trails, neighbours, id, rs.getString("broken"), false, rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getInt("nr"), rs.getString("name"), rock, rs.getString("description"), rs.getString("grade"), rs.getString("original_grade"), rs.getString("fa_date"), rs.getString("fa_date_hr"), fa, rs.getInt("length_meter"), coords, media, rs.getInt("num_ticks"), rs.getDouble("stars"), rs.getBoolean("ticked"), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new Type(rs.getInt("type_id"), rs.getString("type"), rs.getString("subtype"), rs.getBoolean("is_bolted"), rs.getBoolean("trad_gear")), sections, isTodo, linksFuture.join(), HitsFormatter.formatHits(rs.getLong("hits")), null, rs.getString("trivia"), triviaMedia, rs.getString("starting_altitude"), rs.getString("aspect"), rs.getString("descent"));
+		                return new Problem(null, areaId, rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getString("area_name"), areaCoordinates, rs.getString("area_access_info"), rs.getString("area_access_closed"), rs.getBoolean("area_no_dogs_allowed"), rs.getInt("area_sun_from_hour"), rs.getInt("area_sun_to_hour"), sectorId, rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), rs.getString("sector_name"), rs.getString("sector_access_info"), rs.getString("sector_access_closed"), rs.getInt("sector_sun_from_hour"), rs.getInt("sector_sun_to_hour"), parking, outline, wallDirCalc, wallDirMan, trails, neighbours, id, rs.getString("broken"), false, rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getInt("nr"), rs.getString("name"), rock, rs.getString("description"), rs.getString("grade"), rs.getString("original_grade"), rs.getString("fa_date"), rs.getString("fa_date_hr"), fa, rs.getInt("length_meter"), coords, media, rs.getInt("num_ticks"), rs.getDouble("stars"), rs.getBoolean("ticked"), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new Type(rs.getInt("type_id"), rs.getString("type"), rs.getString("subtype"), rs.getBoolean("is_bolted"), rs.getBoolean("trad_gear")), sections, isTodo, linksFuture.join(), HitsFormatter.formatHits(rs.getLong("hits")), null, rs.getString("trivia"), triviaMedia, rs.getString("starting_altitude"), rs.getString("aspect"), rs.getString("descent"), rs.getInt("grade_system_id"));
 		        })
 		        .optional()
 		        .orElse(null);
@@ -249,7 +253,8 @@ public class ProblemRepository {
 
 		return jdbcClient.sql("""
 				WITH req AS (SELECT ? AS auth_user_id, ? AS region_id, ? AS search_regex)
-				SELECT p.id, a.name AS area_name, s.name AS sector_name, p.name AS problem_name, g.grade, COUNT(DISTINCT ps.id) AS num_pitches
+				SELECT p.id, a.name AS area_name, s.name AS sector_name, p.name AS problem_name, g.grade, COUNT(DISTINCT ps.id) AS num_pitches,
+				       MIN(a.grade_system_id) grade_system_id
 				FROM req
 				CROSS JOIN area a
 				INNER JOIN region r ON a.region_id = r.id
@@ -275,13 +280,14 @@ public class ProblemRepository {
 						rs.getString("sector_name"),
 						rs.getString("problem_name"),
 						rs.getString("grade"),
-						Math.max(1, rs.getInt("num_pitches"))
+						Math.max(1, rs.getInt("num_pitches")),
+						rs.getInt("grade_system_id")
 						))
 				.list();
 	}
 
 	@Transactional
-	public int setProblemDb(Optional<Integer> authUserId, Setup s, Problem p, boolean isLockedAdmin, LocalDate dt, int gradeId, Integer coordinatesId, int nr, Function<String, Integer> userCreator) {
+	public int setProblemDb(Optional<Integer> authUserId, Setup s, Problem p, boolean isLockedAdmin, LocalDate dt, int gradeId, GradeConverter gradeConverter, Integer coordinatesId, int nr, Function<String, Integer> userCreator) {
 		int idProblem = p.id();
 
 		if (idProblem > 0) {
@@ -336,7 +342,7 @@ public class ProblemRepository {
 		jdbcClient.sql("DELETE FROM problem_section WHERE problem_id=?").param(idProblem).update();
 		if (p.sections() != null && p.sections().size() > 1) {
 			for (var section : p.sections()) {
-				jdbcClient.sql("INSERT INTO problem_section (problem_id, nr, description, grade_id) VALUES (?, ?, ?, ?)").params(idProblem, section.nr(), StringUtils.stripToNull(section.description()), s.gradeConverter().getIdGradeFromGrade(section.grade())).update();
+				jdbcClient.sql("INSERT INTO problem_section (problem_id, nr, description, grade_id) VALUES (?, ?, ?, ?)").params(idProblem, section.nr(), StringUtils.stripToNull(section.description()), gradeConverter.getIdGradeFromGrade(section.grade())).update();
 			}
 		}
 
@@ -359,11 +365,12 @@ public class ProblemRepository {
 
 	@Transactional
 	public void updateProblemConsensusGrade(int problemId) {
+		var gradeSystemId = gradeSystemRepo.getProblemGradeSystem(problemId).orElse(0);
 		jdbcClient.sql("""
 				UPDATE problem p
 				JOIN sector s ON p.sector_id = s.id
 				JOIN area a ON s.area_id = a.id
-				LEFT JOIN region_grade_system rgs ON a.region_id = rgs.region_id
+				LEFT JOIN region_grade_system rgs ON a.region_id = rgs.region_id AND ? = 0
 				LEFT JOIN (
 				    SELECT ROUND(AVG(w)) as avg_weight
 				    FROM (
@@ -385,12 +392,12 @@ public class ProblemRepository {
 				        )
 				    ) votes
 				) calc ON 1=1
-				LEFT JOIN grade g_final ON g_final.grade_system_id = rgs.grade_system_id 
+				LEFT JOIN grade g_final ON g_final.grade_system_id = IF(? = 0, rgs.grade_system_id, ?)
 				                       AND g_final.weight = calc.avg_weight
 				SET p.consensus_grade_id = COALESCE(g_final.id, p.grade_id)
 				WHERE p.id = ?
 				""")
-		.params(problemId, problemId, problemId)
+		.params(gradeSystemId, problemId, problemId, gradeSystemId, gradeSystemId, problemId)
 		.update();
 	}
 

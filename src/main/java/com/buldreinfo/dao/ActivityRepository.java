@@ -192,18 +192,18 @@ public class ActivityRepository {
 	}
 
 	@Transactional(readOnly = true)
-	public List<Activity> getActivity(Setup setup, Optional<Integer> authUserId, int idArea, int idSector, int lowerGrade, boolean fa, boolean comments, boolean ticks, boolean media, int offset) {
+	public List<Activity> getActivity(Setup setup, Optional<Integer> authUserId, int idArea, int idSector, int lowerGradeWeight, int lowerGradeSystemId, boolean fa, boolean comments, boolean ticks, boolean media, int offset) {
 		var faIds = new HashSet<Integer>();
 		var tickIds = new HashSet<Integer>();
 		var repeatIds = new HashSet<Integer>();
 		var mediaIds = new HashSet<Integer>();
 		var gbIds = new HashSet<Integer>();
-		var showAllTime = offset > 0 || lowerGrade > 0 || !fa || !comments || !ticks || !media || idArea > 0 || idSector > 0;
+		var showAllTime = offset > 0 || lowerGradeWeight > 0 || lowerGradeSystemId > 0 || !fa || !comments || !ticks || !media || idArea > 0 || idSector > 0;
 
 		var sqlStr = """
 				WITH req AS (
 				  SELECT ? auth_user_id, ? region_id, ? show_all_time,
-				         ? hide_fa, ? hide_guestbook, ? hide_ticks, ? hide_media, ? min_grade_weight,
+				         ? hide_fa, ? hide_guestbook, ? hide_ticks, ? hide_media, ? min_grade_weight, ? filter_grade_system_id,
 				         ? filter_area_id, ? filter_sector_id
 				),
 				x AS (
@@ -224,7 +224,10 @@ public class ActivityRepository {
 				    AND (req.hide_guestbook = 0 OR a1.type != 'GUESTBOOK')
 				    AND (req.hide_ticks = 0 OR a1.type NOT IN ('TICK','TICK_REPEAT'))
 				    AND (req.hide_media = 0 OR a1.type != 'MEDIA')
-				    AND (req.min_grade_weight = 0 OR p1.grade_id IN (SELECT id FROM grade WHERE id >= req.min_grade_weight))
+				    AND (req.min_grade_weight = 0 OR EXISTS (
+				          SELECT 1 FROM grade g1
+				          WHERE g1.id = p1.grade_id AND g1.weight >= req.min_grade_weight
+				            AND (req.filter_grade_system_id = 0 OR g1.grade_system_id = req.filter_grade_system_id)))
 				    AND (req.filter_area_id = 0 OR s1.area_id = req.filter_area_id)
 				    AND (req.filter_sector_id = 0 OR s1.id = req.filter_sector_id)
 				  ORDER BY a1.activity_timestamp DESC, a1.problem_id DESC
@@ -233,7 +236,8 @@ public class ActivityRepository {
 				SELECT x.activity_timestamp, a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, 
 				       s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, 
 				       x.problem_id, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, p.name problem_name, 
-				       ty.subtype problem_subtype, ty.trad_gear problem_trad_gear, g.grade, GROUP_CONCAT(DISTINCT concat(x.id,'-',x.type) SEPARATOR ',') activities 
+				       ty.subtype problem_subtype, ty.trad_gear problem_trad_gear, g.grade, GROUP_CONCAT(DISTINCT concat(x.id,'-',x.type) SEPARATOR ',') activities,
+				       MIN(a.grade_system_id) grade_system_id 
 				FROM req CROSS JOIN x
 				JOIN problem p ON x.problem_id = p.id
 				JOIN type ty ON p.type_id = ty.id 
@@ -249,7 +253,7 @@ public class ActivityRepository {
 				""";
 
 		List<Activity> res = jdbcClient.sql(sqlStr)
-				.params(authUserId.orElse(0), setup.idRegion(), showAllTime, !fa, !comments, !ticks, !media, lowerGrade, idArea, idSector, offset)
+				.params(authUserId.orElse(0), setup.idRegion(), showAllTime, !fa, !comments, !ticks, !media, lowerGradeWeight, lowerGradeSystemId, idArea, idSector, offset)
 				.query((rs, _) -> {
 					var ts = rs.getObject("activity_timestamp", LocalDateTime.class);
 					var currentActivityIds = new HashSet<Integer>();
@@ -273,7 +277,7 @@ public class ActivityRepository {
 							rs.getInt("area_id"), rs.getString("area_name"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"),
 							rs.getInt("sector_id"), rs.getString("sector_name"), rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"),
 							rs.getInt("problem_id"), rs.getBoolean("problem_locked_admin"), rs.getBoolean("problem_locked_superadmin"), 
-							rs.getString("problem_name"), rs.getString("problem_subtype"), rs.getBoolean("problem_trad_gear"), rs.getString("grade"));
+							rs.getString("problem_name"), rs.getString("problem_subtype"), rs.getBoolean("problem_trad_gear"), rs.getString("grade"), rs.getInt("grade_system_id"));
 				}).list();
 
 		var activityLookup = new HashMap<Integer, Activity>();

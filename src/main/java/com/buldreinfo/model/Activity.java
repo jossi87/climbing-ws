@@ -24,6 +24,7 @@ public class Activity {
 	private final String problemName;
 	private final String problemSubtype;
 	private final boolean problemTradGear;
+	private final int gradeSystemId;
 	private String grade;
 	private List<ActivityMedia> media;
 	private int stars = -1;
@@ -33,7 +34,7 @@ public class Activity {
 	private String description;
 	private String message;
 	private List<User> users;
-	public Activity(Set<Integer> activityIds, String timeAgo, int areaId, String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, int sectorId, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int problemId, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String problemName, String problemSubtype, boolean problemTradGear, String grade) {
+	public Activity(Set<Integer> activityIds, String timeAgo, int areaId, String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, int sectorId, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int problemId, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String problemName, String problemSubtype, boolean problemTradGear, String grade, int gradeSystemId) {
 		this.activityIds = activityIds;
 		this.timeAgo = timeAgo;
 		this.areaId = areaId;
@@ -50,6 +51,7 @@ public class Activity {
 		this.problemName = problemName;
 		this.problemSubtype = problemSubtype;
 		this.problemTradGear = problemTradGear;
+		this.gradeSystemId = gradeSystemId;
 		this.grade = grade;
 	}
 	public void addMedia(MediaIdentity identity, boolean isMovie, boolean is360, String embedUrl) {
@@ -83,6 +85,9 @@ public class Activity {
 	}
 	public int getAreaId() {
 		return areaId;
+	}
+	public int getGradeSystemId() {
+		return gradeSystemId;
 	}
 	public String getAreaName() {
 		return areaName;

@@ -1,6 +1,7 @@
 package com.buldreinfo.test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.springframework.http.HttpStatus.OK;
 
@@ -18,7 +19,14 @@ public class MetaResourceTest extends BaseResourceTest {
 	public void testGetMeta() {
 		var r = tester.getMeta(getRequest(Region.buldreinfo));
 		assertEquals(OK, r.getStatusCode());
-		assertInstanceOf(Meta.class, r.getBody());
+		var meta = assertInstanceOf(Meta.class, r.getBody());
+		assertFalse(meta.gradeSystems().isEmpty());
+		for (var system : meta.gradeSystems()) {
+			assertFalse(system.grades().isEmpty(), "No grades for grade system " + system.name());
+			for (var grade : system.grades()) {
+				assertFalse(grade.grade() == null || grade.grade().isBlank());
+			}
+		}
 	}
 
 	@Test

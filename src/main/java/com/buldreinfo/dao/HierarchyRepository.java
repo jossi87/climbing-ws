@@ -43,11 +43,13 @@ import com.buldreinfo.model.Type;
 @Repository
 public class HierarchyRepository {
 	private final JdbcClient jdbcClient;
+	private final GradeSystemRepository gradeSystemRepo;
 	private final SectorRepository sectorRepo;
 	private final UserRepository userRepo;
 
-	public HierarchyRepository(JdbcClient jdbcClient, SectorRepository sectorRepo, UserRepository userRepo) {
+	public HierarchyRepository(JdbcClient jdbcClient, GradeSystemRepository gradeSystemRepo, SectorRepository sectorRepo, UserRepository userRepo) {
 		this.jdbcClient = jdbcClient;
+		this.gradeSystemRepo = gradeSystemRepo;
 		this.sectorRepo = sectorRepo;
 		this.userRepo = userRepo;
 	}
@@ -241,15 +243,14 @@ public class HierarchyRepository {
 
 	@Transactional(readOnly = true)
 	public Collection<GradeDistribution> getGradeDistribution(Optional<Integer> authUserId, int optionalAreaId, int optionalSectorId) {
+		int gradeSystemId = (optionalAreaId > 0 ? gradeSystemRepo.getAreaGradeSystem(optionalAreaId) : gradeSystemRepo.getSectorGradeSystem(optionalSectorId))
+				.orElseThrow(() -> new NoSuchElementException("Could not resolve grade system for idArea=" + optionalAreaId + ", idSector=" + optionalSectorId));
 		var sqlStr = """
 				WITH req AS (
 				  SELECT ? auth_user_id, ? sector_id, ? area_id
 				),
 				target_systems AS (
-				  SELECT DISTINCT rgs.grade_system_id 
-				  FROM req 
-				  JOIN area a ON a.id = COALESCE(NULLIF(req.area_id, 0), (SELECT area_id FROM sector WHERE id = req.sector_id))
-				  JOIN region_grade_system rgs ON a.region_id = rgs.region_id
+				  SELECT ? grade_system_id
 				),
 				x AS (
 				  SELECT g.label_major g_base, s.sorting, s.id sector_id, s.name sector, ty.id type_id, COUNT(p.id) num
@@ -282,7 +283,7 @@ public class HierarchyRepository {
 				""";
 		Map<String, GradeDistribution> res = new LinkedHashMap<>();
 		jdbcClient.sql(sqlStr)
-		.params(authUserId.orElse(0), optionalSectorId, optionalAreaId)
+		.params(authUserId.orElse(0), optionalSectorId, optionalAreaId, gradeSystemId)
 		.query(rs -> {
 			var label = rs.getString("grade");
 			var color = rs.getString("color");

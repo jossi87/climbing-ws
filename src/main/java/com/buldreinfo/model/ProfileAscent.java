@@ -35,6 +35,7 @@ public class ProfileAscent {
 	private final String grade;
 	private final int gradeWeight;
 	private final boolean noPersonalGrade;
+	private final int gradeSystemId;
 	private Coordinates coordinates;
 	
 	public ProfileAscent(String regionName, int areaId, String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin,
@@ -42,7 +43,7 @@ public class ProfileAscent {
 			int id, int idTickRepeat, String subType, boolean tradGear, int numPitches,
 			String discipline, boolean isBouldering, boolean isRopeClimbing, boolean isIceClimbing,
 			int idProblem, int nr, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String date,
-			String dateHr, double stars, boolean fa, String grade, int gradeWeight, boolean noPersonalGrade) {
+			String dateHr, double stars, boolean fa, String grade, int gradeWeight, boolean noPersonalGrade, int gradeSystemId) {
 		this.regionName = regionName;
 		this.areaId = areaId;
 		this.areaName = areaName;
@@ -74,6 +75,7 @@ public class ProfileAscent {
 		this.grade = grade;
 		this.gradeWeight = gradeWeight;
 		this.noPersonalGrade = noPersonalGrade;
+		this.gradeSystemId = gradeSystemId;
 	}
 	
 	public int getAreaId() {
@@ -125,6 +127,10 @@ public class ProfileAscent {
 	
 	public int getGradeWeight() {
 		return gradeWeight;
+	}
+
+	public int getGradeSystemId() {
+		return gradeSystemId;
 	}
 
 	public int getId() {

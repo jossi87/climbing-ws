@@ -15,11 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.exception.ForbiddenException;
 import com.buldreinfo.exception.UnauthorizedException;
-import com.buldreinfo.helpers.GradeConverter;
 import com.buldreinfo.infrastructure.CacheConstants;
 import com.buldreinfo.model.CompassDirection;
 import com.buldreinfo.model.Coordinates;
-import com.buldreinfo.model.Grade;
 import com.buldreinfo.model.LatLng;
 import com.buldreinfo.model.Region;
 import com.buldreinfo.model.Type;
@@ -27,9 +25,11 @@ import com.buldreinfo.model.Type;
 @Repository
 public class RegionRepository {
 	private final JdbcClient jdbcClient;
+	private final GradeSystemRepository gradeSystemRepo;
 
-	public RegionRepository(JdbcClient jdbcClient) {
+	public RegionRepository(JdbcClient jdbcClient, GradeSystemRepository gradeSystemRepo) {
 		this.jdbcClient = jdbcClient;
+		this.gradeSystemRepo = gradeSystemRepo;
 	}
 
 	@Transactional(readOnly = true)
@@ -155,33 +155,28 @@ public class RegionRepository {
 	@Transactional(readOnly = true)
 	public List<Setup> getSetups() {
 		var compassDirections = getCompassDirections();
-		var converterCache = new HashMap<Integer, GradeConverter>();
+		var gradeSystemsByRegion = gradeSystemRepo.getGradeSystemsByRegion();
 
-		var res = jdbcClient.sql("""
-				SELECT DISTINCT r.id, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, rgs.grade_system_id
+		return jdbcClient.sql("""
+				SELECT r.id, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom,
+				       MAX(d.is_bouldering) is_bouldering, MAX(d.is_rope_climbing) is_rope_climbing, MAX(d.is_ice_climbing) is_ice_climbing
 				FROM region r
 				JOIN region_type rt ON r.id = rt.region_id
 				JOIN type t ON rt.type_id = t.id
 				JOIN discipline d ON t.discipline_id = d.id
-				JOIN region_grade_system rgs ON r.id = rgs.region_id
+				GROUP BY r.id, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom
 				ORDER BY r.id
 				""")
-				.query((rs, _) -> {
-					int gradeSystemId = rs.getInt("grade_system_id");
-					var converter = converterCache.computeIfAbsent(gradeSystemId, this::getGradesConverter);
-
-					return Setup.newBuilder(rs.getString("url").replace("https://", "").replace("http://", ""), rs.getBoolean("is_bouldering"), rs.getBoolean("is_rope_climbing"), rs.getBoolean("is_ice_climbing"))
-							.withIdRegion(rs.getInt("id"))
-							.withTitle(rs.getString("title"))
-							.withDescription(rs.getString("description"))
-							.withDefaultCenter(new LatLng(rs.getDouble("latitude"), rs.getDouble("longitude")))
-							.withDefaultZoom(rs.getInt("default_zoom"))
-							.withCompassDirections(compassDirections)
-							.withGradeConverter(converter)
-							.build();
-				}).list();
-
-		return res;
+				.query((rs, _) -> Setup.newBuilder(rs.getString("url").replace("https://", "").replace("http://", ""), rs.getBoolean("is_bouldering"), rs.getBoolean("is_rope_climbing"), rs.getBoolean("is_ice_climbing"))
+						.withIdRegion(rs.getInt("id"))
+						.withTitle(rs.getString("title"))
+						.withDescription(rs.getString("description"))
+						.withDefaultCenter(new LatLng(rs.getDouble("latitude"), rs.getDouble("longitude")))
+						.withDefaultZoom(rs.getInt("default_zoom"))
+						.withCompassDirections(compassDirections)
+						.withGradeSystems(gradeSystemsByRegion.getOrDefault(rs.getInt("id"), List.of()))
+						.build())
+				.list();
 	}
 
 	@Transactional(readOnly = true)
@@ -209,22 +204,6 @@ public class RegionRepository {
 		return jdbcClient.sql("SELECT id, direction FROM compass_direction ORDER BY id")
 				.query((rs, _) -> new CompassDirection(rs.getInt("id"), rs.getString("direction")))
 				.list();
-	}
-
-	private List<Grade> getGrades(int gradeSystemId) {
-		return jdbcClient.sql("""
-				SELECT g.id, g.grade, g.label_compact, c.hex_code color
-				FROM grade g
-				JOIN grade_color c ON g.grade_color_id=c.id
-				WHERE g.grade_system_id=? ORDER BY g.weight
-				""")
-				.param(gradeSystemId)
-				.query((rs, _) -> new Grade(rs.getInt("id"), rs.getString("grade"), rs.getString("label_compact"), rs.getString("color")))
-				.list();
-	}
-
-	private GradeConverter getGradesConverter(int gradeSystemId) {
-		return new GradeConverter(getGrades(gradeSystemId));
 	}
 
 	private Map<Integer, List<Coordinates>> getRegionOutlines(Collection<Integer> idRegions) {

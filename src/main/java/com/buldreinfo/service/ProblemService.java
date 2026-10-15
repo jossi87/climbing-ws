@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.dao.ActivityRepository;
 import com.buldreinfo.dao.ExternalLinksRepository;
+import com.buldreinfo.dao.GradeSystemRepository;
 import com.buldreinfo.dao.HierarchyRepository;
 import com.buldreinfo.dao.ProblemRepository;
 import com.buldreinfo.dao.SectorRepository;
@@ -29,6 +30,7 @@ public class ProblemService {
 	private final ActivityRepository activityRepo;
 	private final ExternalLinksRepository externalLinksRepo;
 	private final GeoService geoService;
+	private final GradeSystemRepository gradeSystemRepo;
 	private final HierarchyRepository hierarchyRepo;
 	private final MediaService mediaService;
 	private final ProblemRepository problemRepo;
@@ -39,6 +41,7 @@ public class ProblemService {
 			ActivityRepository activityRepo,
 			ExternalLinksRepository externalLinksRepo,
 			GeoService geoService,
+			GradeSystemRepository gradeSystemRepo,
 			HierarchyRepository hierarchyRepo,
 			MediaService mediaService,
 			ProblemRepository problemRepo,
@@ -47,6 +50,7 @@ public class ProblemService {
 		this.activityRepo = activityRepo;
 		this.externalLinksRepo = externalLinksRepo;
 		this.geoService = geoService;
+		this.gradeSystemRepo = gradeSystemRepo;
 		this.hierarchyRepo = hierarchyRepo;
 		this.mediaService = mediaService;
 		this.problemRepo = problemRepo;
@@ -70,7 +74,7 @@ public class ProblemService {
 			try {
 				var res = hierarchyRepo.getCanonicalUrl(setup, 0, 0, reqId);
 				if (res.redirectUrl() != null && !res.redirectUrl().isEmpty()) {
-					return new Problem(res.redirectUrl(), 0, false, false, null, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, 0, null, null, 0, 0.0, false, null, null, null, null, null, false, null, null, null, null, null, null, null, null);
+					return new Problem(res.redirectUrl(), 0, false, false, null, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, 0, null, null, 0, 0.0, false, null, null, null, null, null, false, null, null, null, null, null, null, null, null, 0);
 				}
 			} catch (NoSuchElementException _) {}
 			throw new NoSuchElementException("Could not find problem with id=" + reqId);
@@ -100,7 +104,8 @@ public class ProblemService {
 		}
 
 		sectorRepo.tryFixSectorOrdering(p.sectorId(), p.id(), p.nr());
-		var gradeId = s.gradeConverter().getIdGradeFromGrade(p.originalGrade());
+		var gradeConverter = gradeSystemRepo.getConverterForSector(p.sectorId());
+		var gradeId = gradeConverter.getIdGradeFromGrade(p.originalGrade());
 		var coordinatesId = p.coordinates() == null || p.coordinates().id() == 0 ? null : p.coordinates().id();
 
 		int nr = p.nr();
@@ -111,7 +116,7 @@ public class ProblemService {
 			}
 		}
 
-		int idProblem = problemRepo.setProblemDb(authUserId, s, p, isLockedAdmin, dt, gradeId, coordinatesId, nr,
+		int idProblem = problemRepo.setProblemDb(authUserId, s, p, isLockedAdmin, dt, gradeId, gradeConverter, coordinatesId, nr,
 				name -> userRepo.getExistingOrInsertUser(name)
 				);
 

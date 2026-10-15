@@ -13,7 +13,7 @@ public record Meta(
 		String title,
 		boolean isAuthenticated, boolean isAdmin, boolean isSuperAdmin,
 		int userId, String authenticatedName, String themePreference, MediaIdentity mediaIdentity,
-		List<Grade> grades, List<Integer> faYears,
+		List<GradeSystem> gradeSystems, List<Integer> faYears,
 		int defaultZoom, LatLng defaultCenter,
 		boolean isBouldering, boolean isClimbing, boolean isIce, String url,
 		List<Type> types, List<Region> regions, List<Map> maps, List<CompassDirection> compassDirections
@@ -37,7 +37,7 @@ public record Meta(
 					authUser.map(AuthenticatedUser::authenticatedName).orElse(null),
 					authUser.map(AuthenticatedUser::themePreference).orElse(null),
 					authUser.map(AuthenticatedUser::mediaIdentity).orElse(null),
-					setup.gradeConverter().getGrades(),
+					setup.gradeSystems() == null ? List.of() : setup.gradeSystems(),
 					faYearsFuture.join(),
 					setup.defaultZoom(),
 					setup.defaultCenter(),

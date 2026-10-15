@@ -84,7 +84,8 @@ public class SectorRepository {
 
 		Sector s = jdbcClient.sql("""
 				WITH req AS (SELECT ? region_id, ? auth_user_id, ? sector_id)
-				SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, a.name area_name, ac.id area_coordinates_id, ac.latitude area_coordinates_latitude, ac.longitude area_coordinates_longitude, ac.elevation area_coordinates_elevation, ac.elevation_source area_coordinates_elevation_source, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.hits
+				SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, a.name area_name, ac.id area_coordinates_id, ac.latitude area_coordinates_latitude, ac.longitude area_coordinates_longitude, ac.elevation area_coordinates_elevation, ac.elevation_source area_coordinates_elevation_source, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.hits,
+				       MIN(a.grade_system_id) grade_system_id
 				FROM req
 				JOIN sector s ON req.sector_id=s.id
 				JOIN area a ON s.area_id=a.id
@@ -106,9 +107,8 @@ public class SectorRepository {
 					var areaCoordinates = areaCoordinatesId == 0 ? null : new Coordinates(areaCoordinatesId, rs.getDouble("area_coordinates_latitude"), rs.getDouble("area_coordinates_longitude"), rs.getDouble("area_coordinates_elevation"), rs.getString("area_coordinates_elevation_source"), 0.0);
 					var mediaRes = mediaSupplier.get();
 					var partitioned = Optional.ofNullable(mediaRes).orElse(List.of()).stream().collect(Collectors.partitioningBy(x -> x.sectors().stream().anyMatch(MediaSector::trivia)));
-					return new Sector(null, orderByGrade, rs.getInt("area_id"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getString("area_access_info"), rs.getString("area_access_closed"), rs.getBoolean("area_no_dogs_allowed"), rs.getInt("area_sun_from_hour"), rs.getInt("area_sun_to_hour"), rs.getString("area_name"), areaCoordinates, reqId, false, rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getString("name"), rs.getString("description"), rs.getString("access_info"), rs.getString("access_closed"), rs.getInt("sun_from_hour"), rs.getInt("sun_to_hour"), parking, outlineSupplier.get(), setup.getCompassDirection(rs.getInt("compass_direction_id_calculated")), setup.getCompassDirection(rs.getInt("compass_direction_id_manual")), trailsSupplier.get().get(reqId), partitioned.get(false), partitioned.get(true), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), linksSupplier.get(), HitsFormatter.formatHits(rs.getLong("hits")));
+					return new Sector(null, orderByGrade, rs.getInt("area_id"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getString("area_access_info"), rs.getString("area_access_closed"), rs.getBoolean("area_no_dogs_allowed"), rs.getInt("area_sun_from_hour"), rs.getInt("area_sun_to_hour"), rs.getString("area_name"), areaCoordinates, reqId, false, rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getString("name"), rs.getString("description"), rs.getString("access_info"), rs.getString("access_closed"), rs.getInt("sun_from_hour"), rs.getInt("sun_to_hour"), parking, outlineSupplier.get(), setup.getCompassDirection(rs.getInt("compass_direction_id_calculated")), setup.getCompassDirection(rs.getInt("compass_direction_id_manual")), trailsSupplier.get().get(reqId), partitioned.get(false), partitioned.get(true), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), linksSupplier.get(), HitsFormatter.formatHits(rs.getLong("hits")), rs.getInt("grade_system_id"));
 				}).optional().orElse(null);
-
 		if (s == null) {
 			return null;
 		}
@@ -192,7 +192,7 @@ public class SectorRepository {
 				    SELECT ? auth_user_id, ? area_id, ? sector_id, ? include_fa_aid
 				),
 				filtered_problems AS (
-				    SELECT p.*
+				    SELECT p.*, a.grade_system_id
 				    FROM problem p
 				    JOIN sector s ON s.id = p.sector_id
 				    JOIN area a ON s.area_id = a.id
@@ -218,7 +218,7 @@ public class SectorRepository {
 				    SELECT mp.problem_id, COUNT(DISTINCT CASE WHEN m.is_movie = 0 THEN m.id END) AS num_images, COUNT(DISTINCT CASE WHEN m.is_movie = 1 THEN m.id END) AS num_movies
 				    FROM media_problem mp JOIN media m ON mp.media_id = m.id WHERE mp.trivia = 0 AND m.deleted_user_id IS NULL AND mp.problem_id IN (SELECT id FROM filtered_problems) GROUP BY mp.problem_id
 				)
-				SELECT p.sector_id, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, fa_aid.fa_aid_names, fa_aid.fa_aid_date, fa.fa_names, YEAR(p.fa_date) AS ffa_year, ty.id AS type_id, ty.type, ty.subtype, ty.is_bolted, ty.trad_gear, g.weight, g.grade, COALESCE(t.total_ticks, 0) AS total_ticks, COALESCE(t.avg_stars, 0) AS stars, GREATEST(COALESCE(t.user_ticked, 0), COALESCE(fa.user_is_fa, 0)) AS ticked, CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END AS todo, gb.danger, p.length_meter, co.id AS coordinates_id, co.latitude, co.longitude, co.elevation, co.elevation_source, (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p.id) AS num_pitches, COALESCE(m.num_images, 0) AS num_images, COALESCE(m.num_movies, 0) AS num_movies, CASE WHEN EXISTS (SELECT 1 FROM svg WHERE svg.problem_id = p.id) THEN 1 ELSE 0 END AS has_topo
+				SELECT p.sector_id, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, fa_aid.fa_aid_names, fa_aid.fa_aid_date, fa.fa_names, YEAR(p.fa_date) AS ffa_year, ty.id AS type_id, ty.type, ty.subtype, ty.is_bolted, ty.trad_gear, g.weight, g.grade, COALESCE(t.total_ticks, 0) AS total_ticks, COALESCE(t.avg_stars, 0) AS stars, GREATEST(COALESCE(t.user_ticked, 0), COALESCE(fa.user_is_fa, 0)) AS ticked, CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END AS todo, gb.danger, p.length_meter, co.id AS coordinates_id, co.latitude, co.longitude, co.elevation, co.elevation_source, (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p.id) AS num_pitches, COALESCE(m.num_images, 0) AS num_images, COALESCE(m.num_movies, 0) AS num_movies, CASE WHEN EXISTS (SELECT 1 FROM svg WHERE svg.problem_id = p.id) THEN 1 ELSE 0 END AS has_topo, p.grade_system_id
 				FROM filtered_problems p
 				JOIN grade g ON p.consensus_grade_id = g.id
 				JOIN type ty ON p.type_id = ty.id
@@ -246,7 +246,7 @@ public class SectorRepository {
 					rs.getString("fa_names"), rs.getInt("ffa_year"), rs.getInt("length_meter"), rs.getInt("num_pitches"),
 					rs.getInt("num_images") > 0, rs.getInt("num_movies") > 0, rs.getBoolean("has_topo"), coords,
 					rs.getInt("total_ticks"), rs.getDouble("stars"), rs.getBoolean("ticked"), rs.getBoolean("todo"),
-					new Type(rs.getInt("type_id"), rs.getString("type"), rs.getString("subtype"), rs.getBoolean("is_bolted"), rs.getBoolean("trad_gear")), rs.getBoolean("danger")
+					new Type(rs.getInt("type_id"), rs.getString("type"), rs.getString("subtype"), rs.getBoolean("is_bolted"), rs.getBoolean("trad_gear")), rs.getBoolean("danger"), rs.getInt("grade_system_id")
 					);
 			res.computeIfAbsent(sid, _ -> new ArrayList<>()).add(p);
 		});

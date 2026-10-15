@@ -31,8 +31,8 @@ public class TickService {
     }
 
     @Transactional
-    public void setTick(Setup setup, Optional<Integer> authUserId, Tick t) {
-        tickRepo.setTick(setup, authUserId, t);
+    public void setTick(Optional<Integer> authUserId, Tick t) {
+        tickRepo.setTick(authUserId, t);
         activityRepo.fillActivity(List.of(t.idProblem()));
         problemRepo.updateProblemConsensusGrade(t.idProblem());
     }

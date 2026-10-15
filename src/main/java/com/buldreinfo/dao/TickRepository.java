@@ -21,9 +21,11 @@ import com.buldreinfo.util.StringUtils;
 @Repository
 public class TickRepository {
 	private final JdbcClient jdbcClient;
+	private final GradeSystemRepository gradeSystemRepo;
 
-	public TickRepository(JdbcClient jdbcClient) {
+	public TickRepository(JdbcClient jdbcClient, GradeSystemRepository gradeSystemRepo) {
 		this.jdbcClient = jdbcClient;
+		this.gradeSystemRepo = gradeSystemRepo;
 	}
 
 	@Transactional(readOnly = true)
@@ -81,7 +83,7 @@ public class TickRepository {
 	}
 
 	@Transactional
-	public void setTick(Setup setup, Optional<Integer> authUserId, Tick t) {
+	public void setTick(Optional<Integer> authUserId, Tick t) {
 		int userId = authUserId.orElseThrow(() -> new IllegalArgumentException("Not logged in"));
 
 		jdbcClient.sql("DELETE FROM todo WHERE user_id=? AND problem_id=?")
@@ -98,15 +100,17 @@ public class TickRepository {
 					.update();
 			if (affected != 1) throw new IllegalStateException("Invalid tick=" + t);
 		} else if (t.id() == -1) {
+			var gradeId = gradeSystemRepo.getConverterForProblem(t.idProblem()).getIdGradeFromGrade(t.grade());
 			var keyHolder = new GeneratedKeyHolder();
 			jdbcClient.sql("INSERT INTO tick (problem_id, user_id, date, grade_id, comment, stars) VALUES (?, ?, ?, ?, ?, ?)")
-			.params(t.idProblem(), userId, dt, setup.gradeConverter().getIdGradeFromGrade(t.grade()), StringUtils.stripToNull(t.comment()), t.stars())
+			.params(t.idProblem(), userId, dt, gradeId, StringUtils.stripToNull(t.comment()), t.stars())
 			.update(keyHolder, "id");
 
 			upsertTickRepeats(keyHolder.getKey().intValue(), t.repeats());
 		} else if (t.id() > 0) {
+			int gradeId = gradeSystemRepo.getConverterForProblem(t.idProblem()).getIdGradeFromGrade(t.grade());
 			int affected = jdbcClient.sql("UPDATE tick SET date=?, grade_id=?, comment=?, stars=? WHERE id=? AND problem_id=? AND user_id=?")
-					.params(dt, setup.gradeConverter().getIdGradeFromGrade(t.grade()), StringUtils.stripToNull(t.comment()), t.stars(), t.id(), t.idProblem(), userId)
+					.params(dt, gradeId, StringUtils.stripToNull(t.comment()), t.stars(), t.id(), t.idProblem(), userId)
 					.update();
 			if (affected != 1) throw new IllegalStateException("Invalid tick=" + t);
 			upsertTickRepeats(t.id(), t.repeats());

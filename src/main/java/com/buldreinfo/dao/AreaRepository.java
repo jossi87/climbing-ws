@@ -30,12 +30,15 @@ import com.buldreinfo.util.StringUtils;
 @Repository
 public class AreaRepository {
 	private final ExternalLinksRepository externalLinksRepo;
+	private final GradeSystemRepository gradeSystemRepo;
 	private final JdbcClient jdbcClient;
 
 	public AreaRepository(JdbcClient jdbcClient,
-			ExternalLinksRepository externalLinksRepo) {
+			ExternalLinksRepository externalLinksRepo,
+			GradeSystemRepository gradeSystemRepo) {
 		this.jdbcClient = jdbcClient;
 		this.externalLinksRepo = externalLinksRepo;
+		this.gradeSystemRepo = gradeSystemRepo;
 	}
 
 	@Transactional(readOnly = true)
@@ -64,7 +67,8 @@ public class AreaRepository {
 				    SELECT ? region_id, ? auth_user_id, ? area_id
 				)
 				SELECT r.name region_name, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description,
-				       c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits
+				       c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits,
+				       MIN(a.grade_system_id) grade_system_id
 				FROM req
 				JOIN area a ON req.area_id=a.id
 				JOIN region r ON a.region_id=r.id
@@ -81,7 +85,7 @@ public class AreaRepository {
 				.query((rs, _) -> {
 					int cid = rs.getInt("coordinates_id");
 					var coords = cid == 0 ? null : new Coordinates(cid, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0);
-					return new Area(null, rs.getString("region_name"), reqId, false, rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getBoolean("for_developers"), rs.getString("access_info"), rs.getString("access_closed"), rs.getBoolean("no_dogs_allowed"), rs.getInt("sun_from_hour"), rs.getInt("sun_to_hour"), rs.getString("name"), rs.getString("description"), coords, new ArrayList<>(), new ArrayList<>(), partitionedFalse, partitionedTrue, externalLinksRepo.getExternalLinks(reqId, 0, 0), HitsFormatter.formatHits(rs.getLong("hits")));
+					return new Area(null, rs.getString("region_name"), reqId, false, rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getBoolean("for_developers"), rs.getString("access_info"), rs.getString("access_closed"), rs.getBoolean("no_dogs_allowed"), rs.getInt("sun_from_hour"), rs.getInt("sun_to_hour"), rs.getString("name"), rs.getString("description"), coords, new ArrayList<>(), new ArrayList<>(), partitionedFalse, partitionedTrue, externalLinksRepo.getExternalLinks(reqId, 0, 0), HitsFormatter.formatHits(rs.getLong("hits")), rs.getInt("grade_system_id"));
 				}).optional()
 				.orElse(null);
 	}
@@ -189,12 +193,12 @@ public class AreaRepository {
 	}
 
 	public Map<Integer, List<GradeCount>> getAreaSimplifiedGradeCounts(int areaId) {
+		/** An area always has one grade system; 0 only when the area itself is unknown (then no labels match). */
+		int gradeSystemId = gradeSystemRepo.getAreaGradeSystem(areaId).orElse(0);
+
 		var sqlStr = """
 				WITH target_systems AS (
-				  SELECT DISTINCT rgs.grade_system_id 
-				  FROM area a
-				  JOIN region_grade_system rgs ON a.region_id = rgs.region_id
-				  WHERE a.id = :areaId
+				  SELECT :gradeSystemId grade_system_id
 				),
 				all_labels AS (
 				  SELECT 
@@ -229,6 +233,7 @@ public class AreaRepository {
 
 		return jdbcClient.sql(sqlStr)
 				.param("areaId", areaId)
+				.param("gradeSystemId", gradeSystemId)
 				.query(rs -> {
 					Map<Integer, List<GradeCount>> map = new HashMap<>();
 					while (rs.next()) {
@@ -247,8 +252,11 @@ public class AreaRepository {
 	public Redirect setArea(Setup s, Optional<Integer> authUserId, Area a) {
 		if (authUserId.isEmpty()) throw new UnauthorizedException("Not logged in");
 		if (s.idRegion() <= 0) throw new ForbiddenException("Insufficient credentials");
-
 		final boolean isLockedAdmin = !a.lockedSuperadmin() && a.lockedAdmin();
+		/** A stored grade system is required (the column is NOT NULL); null means keep the one the area already has. */
+		final Integer gradeSystemId = a.gradeSystemId() > 0
+				? gradeSystemRepo.resolveAreaGradeSystemId(s.idRegion(), a.gradeSystemId())
+				: a.id() == 0 ? gradeSystemRepo.resolveAreaGradeSystemId(s.idRegion(), 0) : null;
 		boolean setPermissionRecursive = false;
 
 		int idArea;
@@ -259,14 +267,14 @@ public class AreaRepository {
 
 			jdbcClient.sql("""
 					UPDATE area SET name=?, description=?, coordinates_id=?, locked_admin=?, locked_superadmin=?, 
-					for_developers=?, access_info=?, access_closed=?, no_dogs_allowed=?, sun_from_hour=?, sun_to_hour=?, 
+					for_developers=?, access_info=?, access_closed=?, no_dogs_allowed=?, sun_from_hour=?, sun_to_hour=?, grade_system_id=COALESCE(?, grade_system_id), 
 					trash=CASE WHEN ? THEN NOW() ELSE NULL END, trash_by=? WHERE id=?
 					""")
 			.params(StringUtils.stripToNull(a.name()), StringUtils.stripToNull(a.comment()), 
 					a.coordinates() == null ? 0 : a.coordinates().id(), isLockedAdmin, a.lockedSuperadmin(), 
 							a.forDevelopers(), StringUtils.stripToNull(a.accessInfo()), 
 							StringUtils.stripToNull(a.accessClosed()), a.noDogsAllowed(), a.sunFromHour(), 
-							a.sunToHour(), a.trash(), a.trash() ? authUserId.get() : 0, a.id())
+							a.sunToHour(), gradeSystemId, a.trash(), a.trash() ? authUserId.get() : 0, a.id())
 			.update();
 
 			idArea = a.id();
@@ -299,13 +307,13 @@ public class AreaRepository {
 			var keyHolder = new GeneratedKeyHolder();
 			jdbcClient.sql("""
 					INSERT INTO area (region_id, name, description, coordinates_id, locked_admin, locked_superadmin, 
-					for_developers, access_info, access_closed, no_dogs_allowed, last_updated) 
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
+					for_developers, access_info, access_closed, no_dogs_allowed, grade_system_id, last_updated) 
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
 					""")
 			.params(s.idRegion(), StringUtils.stripToNull(a.name()), StringUtils.stripToNull(a.comment()), 
 					a.coordinates() == null ? 0 : a.coordinates().id(), isLockedAdmin, a.lockedSuperadmin(), 
 							a.forDevelopers(), StringUtils.stripToNull(a.accessInfo()), 
-							StringUtils.stripToNull(a.accessClosed()), a.noDogsAllowed())
+							StringUtils.stripToNull(a.accessClosed()), a.noDogsAllowed(), gradeSystemId)
 			.update(keyHolder, "id");
 			idArea = keyHolder.getKey().intValue();
 		}
