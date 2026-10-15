@@ -107,4 +107,16 @@ public class ProfilesController {
 		userRepo.setThemePreference(authUserId, themePreference);
 		return ResponseEntity.ok().build();
 	}
+
+	@Operation(summary = "Update language preference")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
+	@PostMapping(value = "/language")
+	public ResponseEntity<Void> postProfilesLanguage(@RequestParam(name = "languagePreference") String languagePreference) {
+		if (languagePreference == null || languagePreference.isBlank()) {
+			throw new ValidationFailedException("Invalid language preference. Must be a supported language code.");
+		}
+		var authUserId = requestContext.getAuthenticatedUserId();
+		userRepo.setLanguagePreference(authUserId, languagePreference);
+		return ResponseEntity.ok().build();
+	}
 }

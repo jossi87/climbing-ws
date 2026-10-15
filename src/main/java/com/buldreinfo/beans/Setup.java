@@ -6,7 +6,7 @@ import com.buldreinfo.model.CompassDirection;
 import com.buldreinfo.model.GradeSystem;
 import com.buldreinfo.model.LatLng;
 
-public record Setup(String domain, String url, int idRegion, boolean isBouldering, boolean isClimbing, boolean isIce, List<GradeSystem> gradeSystems, List<CompassDirection> compassDirections, String title, String description, LatLng defaultCenter, int defaultZoom) {
+public record Setup(String domain, String url, int idRegion, boolean isBouldering, boolean isClimbing, boolean isIce, List<GradeSystem> gradeSystems, List<CompassDirection> compassDirections, String title, String description, LatLng defaultCenter, int defaultZoom, String defaultLanguage) {
 	public static SetupBuilder newBuilder(String domain, boolean isBouldering, boolean isClimbing, boolean isIce) {
 		return new SetupBuilder(domain, isBouldering, isClimbing, isIce);
 	}
@@ -14,6 +14,7 @@ public record Setup(String domain, String url, int idRegion, boolean isBoulderin
 	public static class SetupBuilder {
 		private List<CompassDirection> compassDirections;
 		private LatLng defaultCenter;
+		private String defaultLanguage;
 		private int defaultZoom;
 		private String description;
 		private final String domain;
@@ -34,7 +35,7 @@ public record Setup(String domain, String url, int idRegion, boolean isBoulderin
 		}
 
 		public Setup build() {
-			return new Setup(domain, url, idRegion, isBouldering, isClimbing, isIce, gradeSystems, compassDirections, title, description, defaultCenter, defaultZoom);
+			return new Setup(domain, url, idRegion, isBouldering, isClimbing, isIce, gradeSystems, compassDirections, title, description, defaultCenter, defaultZoom, defaultLanguage);
 		}
 
 		public SetupBuilder withCompassDirections(List<CompassDirection> compassDirections) {
@@ -44,6 +45,11 @@ public record Setup(String domain, String url, int idRegion, boolean isBoulderin
 
 		public SetupBuilder withDefaultCenter(LatLng defaultCenter) {
 			this.defaultCenter = defaultCenter;
+			return this;
+		}
+
+		public SetupBuilder withDefaultLanguage(String defaultLanguage) {
+			this.defaultLanguage = defaultLanguage;
 			return this;
 		}
 

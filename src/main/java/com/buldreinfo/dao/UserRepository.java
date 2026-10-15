@@ -206,10 +206,11 @@ public class UserRepository {
 
 		return jdbcClient.sql("""
 				SELECT ur.admin_write, ur.superadmin_write,
-				       u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) authenticated_name, u.theme_preference,
+				       u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) authenticated_name, u.theme_preference, l.code language_preference,
 				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex
 				FROM user u
 				LEFT JOIN user_region ur ON (u.id=ur.user_id AND ur.region_id=?)
+				LEFT JOIN language l ON u.language_id=l.id
 				LEFT JOIN media m ON u.media_id=m.id
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				WHERE u.id=?
@@ -231,6 +232,7 @@ public class UserRepository {
 							rs.getInt("user_id"), 
 							rs.getString("authenticated_name"), 
 							rs.getString("theme_preference"), 
+							rs.getString("language_preference"), 
 							mediaIdentity
 							);
 				})
@@ -578,11 +580,12 @@ public class UserRepository {
 	public ProfileIdentity getProfileIdentity(Setup setup, int userId) {
 		List<UserActivityRegion> activityRegions = getActivityRegionsByUser(List.of(userId)).getOrDefault(userId, List.of());
 		var res = jdbcClient.sql("""
-				SELECT u.firstname, u.lastname, u.email_visible_to_all, u.theme_preference,
+				SELECT u.firstname, u.lastname, u.email_visible_to_all, u.theme_preference, l.code language_preference,
 				       m.id AS media_id, UNIX_TIMESTAMP(m.updated_at) AS media_version_stamp,
 				       mma.focus_x AS media_focus_x, mma.focus_y AS media_focus_y, mma.primary_color_hex AS media_primary_color_hex,
 				       e.emails, l.last_login
 				FROM user u
+				LEFT JOIN language l ON u.language_id = l.id
 				LEFT JOIN media m ON u.media_id = m.id
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				LEFT JOIN (SELECT user_id, GROUP_CONCAT(DISTINCT email ORDER BY email SEPARATOR ';') AS emails
@@ -608,6 +611,7 @@ public class UserRepository {
 							rs.getString("lastname"),
 							rs.getBoolean("email_visible_to_all"),
 							rs.getString("theme_preference"),
+							rs.getString("language_preference"),
 							mediaIdentity,
 							emails,
 							getUserRegion(userId, setup, activityRegions),
@@ -1063,7 +1067,8 @@ public class UserRepository {
 		jdbcClient.sql("""
 				UPDATE user 
 				SET firstname=?, lastname=?, email_visible_to_all=?, 
-				    theme_preference=COALESCE(theme_preference, ?) 
+				    theme_preference=COALESCE(theme_preference, ?), 
+				    language_id=COALESCE(language_id, (SELECT id FROM language WHERE code=?))
 				WHERE id=?
 				""")
 		.params(
@@ -1071,6 +1076,7 @@ public class UserRepository {
 				profile.lastname(), 
 				profile.emailVisibleToAll(), 
 				theme, 
+				profile.languagePreference(), 
 				authUserId.orElseThrow()
 				)
 		.update();
@@ -1085,6 +1091,21 @@ public class UserRepository {
 		jdbcClient.sql("UPDATE user SET theme_preference=? WHERE id=?")
 		.params(themePreference, authUserId.orElseThrow())
 		.update();
+	}
+
+	@Transactional
+	public void setLanguagePreference(Optional<Integer> authUserId, String languagePreference) {
+		if (languagePreference == null || languagePreference.isBlank()) {
+			throw new ValidationFailedException("languagePreference must be a supported language code");
+		}
+		var languageId = jdbcClient.sql("SELECT id FROM language WHERE code=?")
+				.param(languagePreference)
+				.query(Integer.class)
+				.optional()
+				.orElseThrow(() -> new ValidationFailedException("Unknown languagePreference=" + languagePreference));
+		jdbcClient.sql("UPDATE user SET language_id=? WHERE id=?")
+				.params(languageId, authUserId.orElseThrow())
+				.update();
 	}
 
 	@Transactional

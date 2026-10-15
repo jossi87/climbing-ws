@@ -44,7 +44,7 @@ CREATE TABLE `activity` (
   CONSTRAINT `problem_id_fk` FOREIGN KEY (`problem_id`) REFERENCES `problem` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `tick_repeat_id_fk` FOREIGN KEY (`tick_repeat_id`) REFERENCES `tick_repeat` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_id_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=1832194 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1832211 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -299,7 +299,7 @@ CREATE TABLE `grade_system` (
   `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -352,6 +352,22 @@ CREATE TABLE `instagram_scrape_log` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `language`
+--
+
+DROP TABLE IF EXISTS `language`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `language` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `code` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `language_code_uq` (`code`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `map`
 --
 
@@ -401,7 +417,7 @@ CREATE TABLE `media` (
   CONSTRAINT `media_deleted_user_id` FOREIGN KEY (`deleted_user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `media_photographer_user_id` FOREIGN KEY (`photographer_user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `media_uploader_user_id` FOREIGN KEY (`uploader_user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=44281 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=44285 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -482,7 +498,7 @@ CREATE TABLE `media_ml_label` (
   KEY `media_ml_label_media_id_idx` (`media_id`),
   KEY `idx_media_ml_label_desc_prefix` (`description`(15)),
   CONSTRAINT `media_ml_label_media_id` FOREIGN KEY (`media_id`) REFERENCES `media` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=234012 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=234052 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -504,7 +520,7 @@ CREATE TABLE `media_ml_object` (
   PRIMARY KEY (`id`),
   KEY `media_ml_object_media_id_idx` (`media_id`),
   CONSTRAINT `media_ml_object_media_id` FOREIGN KEY (`media_id`) REFERENCES `media` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=67580 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=67585 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -528,7 +544,7 @@ CREATE TABLE `media_problem` (
   KEY `idx_media_problem_reverse` (`media_id`,`sorting`),
   CONSTRAINT `media_problem_media_id` FOREIGN KEY (`media_id`) REFERENCES `media` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `media_problem_problem_id` FOREIGN KEY (`problem_id`) REFERENCES `problem` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=27142 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=27146 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -679,7 +695,7 @@ CREATE TABLE `problem_section` (
   KEY `problem_section_grade_id_idx` (`grade_id`),
   CONSTRAINT `problem_section_grade_id` FOREIGN KEY (`grade_id`) REFERENCES `grade` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `problem_subsection_problem_id` FOREIGN KEY (`problem_id`) REFERENCES `problem` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=25013 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=25025 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -700,7 +716,10 @@ CREATE TABLE `region` (
   `default_zoom` int DEFAULT NULL,
   `emails` varchar(4000) CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci DEFAULT NULL,
   `last_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
+  `language_id` int NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `region_language_id` (`language_id`),
+  CONSTRAINT `region_language_id` FOREIGN KEY (`language_id`) REFERENCES `language` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE=InnoDB AUTO_INCREMENT=26 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -880,7 +899,7 @@ CREATE TABLE `svg` (
   KEY `svg_problem_id_idx` (`problem_id`),
   CONSTRAINT `svg_media_id` FOREIGN KEY (`media_id`) REFERENCES `media` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `svg_problem_id` FOREIGN KEY (`problem_id`) REFERENCES `problem` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=16824 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=16826 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -945,7 +964,7 @@ CREATE TABLE `todo` (
   KEY `todo_fk2_idx` (`problem_id`),
   CONSTRAINT `todo_fk1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `todo_fk2` FOREIGN KEY (`problem_id`) REFERENCES `problem` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=23225 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=23228 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1041,10 +1060,13 @@ CREATE TABLE `user` (
   `email_visible_to_all` tinyint NOT NULL DEFAULT '0',
   `media_id` int DEFAULT NULL,
   `theme_preference` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci DEFAULT NULL,
+  `language_id` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `user_media_id_idx` (`media_id`),
+  KEY `user_language_id` (`language_id`),
+  CONSTRAINT `user_language_id` FOREIGN KEY (`language_id`) REFERENCES `language` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT,
   CONSTRAINT `user_media_id` FOREIGN KEY (`media_id`) REFERENCES `media` (`id`) ON DELETE SET NULL ON UPDATE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=13092 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13093 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1084,7 +1106,7 @@ CREATE TABLE `user_login` (
   KEY `idx_user_login_retention` (`when`),
   CONSTRAINT `user_login_region_id` FOREIGN KEY (`region_id`) REFERENCES `region` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_login_user_id` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=820932 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=820982 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1143,4 +1165,4 @@ CREATE TABLE `user_region` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-10-15  8:16:53
+-- Dump completed on 2026-10-15 11:10:59

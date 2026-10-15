@@ -12,11 +12,11 @@ import com.buldreinfo.dao.UserRepository;
 public record Meta(
 		String title,
 		boolean isAuthenticated, boolean isAdmin, boolean isSuperAdmin,
-		int userId, String authenticatedName, String themePreference, MediaIdentity mediaIdentity,
+		int userId, String authenticatedName, String themePreference, String languagePreference, MediaIdentity mediaIdentity,
 		List<GradeSystem> gradeSystems, List<Integer> faYears,
-		int defaultZoom, LatLng defaultCenter,
+		int defaultZoom, LatLng defaultCenter, String defaultLanguage,
 		boolean isBouldering, boolean isClimbing, boolean isIce, String url,
-		List<Type> types, List<Region> regions, List<Map> maps, List<CompassDirection> compassDirections
+		List<Type> types, List<Region> regions, List<Map> maps, List<CompassDirection> compassDirections, List<Language> languages
 		) {
 
 	public static Meta from(Setup setup, Optional<Integer> authUserId, UserRepository userRepo, RegionRepository regionRepo, MapRepository mapRepo) {
@@ -25,7 +25,8 @@ public record Meta(
 		var typesFuture = CompletableFuture.supplyAsync(() -> regionRepo.getTypes(setup.idRegion()));
 		var regionsFuture = CompletableFuture.supplyAsync(() -> regionRepo.getRegions(setup.idRegion()));
 		var mapsFuture = CompletableFuture.supplyAsync(() -> mapRepo.getMaps(setup.idRegion()));
-		CompletableFuture.allOf(authUserFuture, faYearsFuture, typesFuture, regionsFuture, mapsFuture).join();
+		var languagesFuture = CompletableFuture.supplyAsync(() -> regionRepo.getLanguages());
+		CompletableFuture.allOf(authUserFuture, faYearsFuture, typesFuture, regionsFuture, mapsFuture, languagesFuture).join();
 		try {
 			var authUser = Optional.ofNullable(authUserFuture.join());
 			return new Meta(
@@ -36,11 +37,13 @@ public record Meta(
 					authUser.map(AuthenticatedUser::userId).orElse(0),
 					authUser.map(AuthenticatedUser::authenticatedName).orElse(null),
 					authUser.map(AuthenticatedUser::themePreference).orElse(null),
+					authUser.map(AuthenticatedUser::languagePreference).orElse(null),
 					authUser.map(AuthenticatedUser::mediaIdentity).orElse(null),
 					setup.gradeSystems() == null ? List.of() : setup.gradeSystems(),
 					faYearsFuture.join(),
 					setup.defaultZoom(),
 					setup.defaultCenter(),
+					setup.defaultLanguage(),
 					setup.isBouldering(),
 					setup.isClimbing(),
 					setup.isIce(),
@@ -48,7 +51,8 @@ public record Meta(
 					typesFuture.join(),
 					regionsFuture.join(),
 					mapsFuture.join(),
-					setup.compassDirections()
+					setup.compassDirections(),
+					languagesFuture.join()
 					);
 		} catch (Exception e) {
 			throw new RuntimeException("Meta construction failed", e);

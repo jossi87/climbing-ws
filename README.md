@@ -18,7 +18,8 @@ Import the [latest database dump](https://github.com/jossi87/climbing-ws/blob/ma
 > CREATE DATABASE IF NOT EXISTS climbing;
 > USE climbing;
 > SET autocommit=0; SOURCE ./climbing-db-no-data.sql; COMMIT;
-> INSERT INTO region (id, name, title, description, url, latitude, longitude, default_zoom, emails) VALUES (1, 'Dev1', 'Title', 'Description', 'http://localhost', 58.72, 6.62, 8, null);
+> INSERT INTO language (id, code, name) VALUES (1, 'en', 'English');
+> INSERT INTO region (id, name, title, description, url, latitude, longitude, default_zoom, emails, language_id) VALUES (1, 'Dev1', 'Title', 'Description', 'http://localhost', 58.72, 6.62, 8, null, 1);
 > INSERT INTO discipline (id, name, is_bouldering, is_rope_climbing, is_ice_climbing) VALUES (1, 'Rope climbing', 0, 1, 0);
 > INSERT INTO type (id, discipline_id, type, subtype, is_bolted, trad_gear) VALUES (1, 1, 'Route', 'Sport', 1, 0);
 > INSERT INTO type (id, discipline_id, type, subtype, is_bolted, trad_gear) VALUES (2, 1, 'Route', 'Trad', 0, 1);
