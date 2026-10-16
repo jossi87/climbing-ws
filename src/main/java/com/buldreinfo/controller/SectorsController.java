@@ -91,7 +91,7 @@ public class SectorsController {
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
 		final Sector sector = sectorService.getSector(authUserId, false, setup, id);
-		final var gradeDistribution = hierarchyRepo.getGradeDistribution(authUserId, 0, id);
+		final var gradeDistribution = hierarchyRepo.getGradeDistribution(authUserId, 0, id, setup.idLanguage());
 		final Area area = areaService.getArea(setup, authUserId, sector.areaId());
 		String filename = FilenameUtil.generateFilename(sector.name(), StorageType.PDF);
 		StreamingResponseBody stream = output -> {

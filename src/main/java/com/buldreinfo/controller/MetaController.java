@@ -54,7 +54,8 @@ public class MetaController {
 	@Operation(summary = "Get grade distribution by Area Id or Sector Id")
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@GetMapping(value = "/grade/distribution", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Collection<GradeDistribution>> getGradeDistribution(@RequestParam(name = "idArea") int idArea,
+	public ResponseEntity<Collection<GradeDistribution>> getGradeDistribution(HttpServletRequest request,
+			@RequestParam(name = "idArea") int idArea,
 			@RequestParam(name = "idSector") int idSector) {
 		if (idArea < 0 || idSector < 0) {
 			throw new ValidationFailedException("IDs cannot be negative");
@@ -62,8 +63,9 @@ public class MetaController {
 		if (idArea == 0 && idSector == 0) {
 			throw new ValidationFailedException("Either idArea or idSector must be greater than 0");
 		}
+		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		return ResponseEntity.ok(hierarchyRepo.getGradeDistribution(authUserId, idArea, idSector));
+		return ResponseEntity.ok(hierarchyRepo.getGradeDistribution(authUserId, idArea, idSector, setup.idLanguage()));
 	}
 
 	@Operation(summary = "Get graph (number of boulders/routes grouped by grade)")

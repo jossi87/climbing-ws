@@ -16,7 +16,7 @@ public class MediaResourceTest extends BaseResourceTest {
 
 	@Test
 	public void testGetMedia() {
-		var r = tester.getMedia(BULDREINFO_MEDIA_ID_WITH_CHAPTERS);
+		var r = tester.getMedia(getRequest(Region.buldreinfo), BULDREINFO_MEDIA_ID_WITH_CHAPTERS);
 		assertEquals(OK, r.getStatusCode());
 		Media m = assertInstanceOf(Media.class, r.getBody());
 		assertFalse(m.problems().isEmpty());

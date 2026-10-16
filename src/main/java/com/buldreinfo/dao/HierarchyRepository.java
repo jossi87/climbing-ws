@@ -126,7 +126,7 @@ public class HierarchyRepository {
 				  GROUP BY r.id, r.name, g.label_major, ty.id
 				)
 				SELECT g.label_major grade, clr.hex_code color, x.region_id, x.region,
-				       ty2.id type_id, ty2.type, ty2.subtype, ty2.is_bolted, ty2.trad_gear,
+				       ty2.id type_id, COALESCE(tt2.type, ty2.type) type, COALESCE(tt2.subtype, ty2.subtype) subtype, ty2.is_bolted, ty2.trad_gear,
 				       CASE WHEN d2.is_bouldering=1 OR d2.is_ice_climbing=1 OR ty2.is_bolted=1 THEN 1 ELSE 0 END is_primary,
 				       COALESCE(x.num, 0) num
 				FROM req JOIN target_systems ts ON 1=1
@@ -134,12 +134,13 @@ public class HierarchyRepository {
 				JOIN grade_color clr ON g.grade_color_id = clr.id
 				LEFT JOIN x ON g.label_major = x.g_base
 				LEFT JOIN type ty2 ON ty2.id = x.type_id
+				LEFT JOIN type_translation tt2 ON tt2.type_id = ty2.id AND tt2.language_id = ?
 				LEFT JOIN discipline d2 ON ty2.discipline_id = d2.id
 				ORDER BY g.sort, x.region, x.type_id
 				""";
 		Map<String, GradeDistribution> res = new LinkedHashMap<>();
 		jdbcClient.sql(sql)
-		.params(authUserId.orElse(0), setup.idRegion())
+		.params(authUserId.orElse(0), setup.idRegion(), setup.idLanguage())
 		.query(rs -> {
 			var label = rs.getString("grade");
 			var color = rs.getString("color");
@@ -242,7 +243,7 @@ public class HierarchyRepository {
 	}
 
 	@Transactional(readOnly = true)
-	public Collection<GradeDistribution> getGradeDistribution(Optional<Integer> authUserId, int optionalAreaId, int optionalSectorId) {
+	public Collection<GradeDistribution> getGradeDistribution(Optional<Integer> authUserId, int optionalAreaId, int optionalSectorId, int idLanguage) {
 		int gradeSystemId = (optionalAreaId > 0 ? gradeSystemRepo.getAreaGradeSystem(optionalAreaId) : gradeSystemRepo.getSectorGradeSystem(optionalSectorId))
 				.orElseThrow(() -> new NoSuchElementException("Could not resolve grade system for idArea=" + optionalAreaId + ", idSector=" + optionalSectorId));
 		var sqlStr = """
@@ -266,7 +267,7 @@ public class HierarchyRepository {
 				  GROUP BY s.sorting, s.id, s.name, g.label_major, ty.id
 				)
 				SELECT g.label_major grade, clr.hex_code color, x.sector_id, x.sector,
-				       ty2.id type_id, ty2.type, ty2.subtype, ty2.is_bolted, ty2.trad_gear,
+				       ty2.id type_id, COALESCE(tt2.type, ty2.type) type, COALESCE(tt2.subtype, ty2.subtype) subtype, ty2.is_bolted, ty2.trad_gear,
 				       CASE WHEN d2.is_bouldering=1 OR d2.is_ice_climbing=1 OR ty2.is_bolted=1 THEN 1 ELSE 0 END is_primary,
 				       COALESCE(x.num, 0) num
 				FROM req
@@ -278,12 +279,13 @@ public class HierarchyRepository {
 				JOIN grade_color clr ON g.grade_color_id = clr.id
 				LEFT JOIN x ON g.label_major = x.g_base
 				LEFT JOIN type ty2 ON ty2.id = x.type_id
+				LEFT JOIN type_translation tt2 ON tt2.type_id = ty2.id AND tt2.language_id = ?
 				LEFT JOIN discipline d2 ON ty2.discipline_id = d2.id
 				ORDER BY g.sort, x.sorting, x.sector, x.type_id
 				""";
 		Map<String, GradeDistribution> res = new LinkedHashMap<>();
 		jdbcClient.sql(sqlStr)
-		.params(authUserId.orElse(0), optionalSectorId, optionalAreaId, gradeSystemId)
+		.params(authUserId.orElse(0), optionalSectorId, optionalAreaId, gradeSystemId, idLanguage)
 		.query(rs -> {
 			var label = rs.getString("grade");
 			var color = rs.getString("color");
@@ -740,10 +742,11 @@ public class HierarchyRepository {
 				    COALESCE(t.stars, 0) AS stars, 
 				    GREATEST(COALESCE(t.user_ticked, 0), COALESCE(fa.user_is_fa, 0)) AS ticked,
 				    CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END AS todo,
-				    ty.id AS type_id, ty.type, ty.subtype, ty.is_bolted, ty.trad_gear, 
+				    ty.id AS type_id, COALESCE(tt.type, ty.type) type, COALESCE(tt.subtype, ty.subtype) subtype, ty.is_bolted, ty.trad_gear, 
 				    (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p.pid) AS num_pitches 
 				FROM filtered_problems p
 				JOIN type ty ON p.type_id = ty.id
+				LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = ?
 				LEFT JOIN grade gf ON p.consensus_grade_id = gf.id
 				LEFT JOIN coordinates ac ON p.area_coordinates_id = ac.id
 				LEFT JOIN coordinates sc ON p.sector_parking_coordinates_id = sc.id
@@ -761,7 +764,7 @@ public class HierarchyRepository {
 		int[] numProblems = {0};
 
 		jdbcClient.sql(sqlStr)
-		.params(authUserId.orElse(0), setup.idRegion())
+		.params(authUserId.orElse(0), setup.idRegion(), setup.idLanguage())
 		.query(rs -> {
 			int regionId = rs.getInt("region_id");
 			var r = regionLookup.get(regionId);

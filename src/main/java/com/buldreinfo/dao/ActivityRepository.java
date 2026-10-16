@@ -236,11 +236,11 @@ public class ActivityRepository {
 				SELECT x.activity_timestamp, a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, 
 				       s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, 
 				       x.problem_id, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, p.name problem_name, 
-				       ty.subtype problem_subtype, ty.trad_gear problem_trad_gear, g.grade, GROUP_CONCAT(DISTINCT concat(x.id,'-',x.type) SEPARATOR ',') activities,
+				       COALESCE(tt.subtype, ty.subtype) problem_subtype, ty.trad_gear problem_trad_gear, g.grade, GROUP_CONCAT(DISTINCT concat(x.id,'-',x.type) SEPARATOR ',') activities,
 				       MIN(a.grade_system_id) grade_system_id 
 				FROM req CROSS JOIN x
 				JOIN problem p ON x.problem_id = p.id
-				JOIN type ty ON p.type_id = ty.id 
+				JOIN type ty ON p.type_id = ty.id LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = ? 
 				JOIN sector s ON p.sector_id = s.id 
 				JOIN area a ON s.area_id = a.id 
 				JOIN grade g ON p.consensus_grade_id = g.id
@@ -248,12 +248,12 @@ public class ActivityRepository {
 				WHERE a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
 				  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
 				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-				GROUP BY x.activity_timestamp, a.id, s.id, x.problem_id, p.name, ty.subtype, ty.trad_gear, g.grade
+				GROUP BY x.activity_timestamp, a.id, s.id, x.problem_id, p.name, COALESCE(tt.subtype, ty.subtype), ty.trad_gear, g.grade
 				ORDER BY x.activity_timestamp DESC, x.problem_id DESC
 				""";
 
 		List<Activity> res = jdbcClient.sql(sqlStr)
-				.params(authUserId.orElse(0), setup.idRegion(), showAllTime, !fa, !comments, !ticks, !media, lowerGradeWeight, lowerGradeSystemId, idArea, idSector, offset)
+				.params(authUserId.orElse(0), setup.idRegion(), showAllTime, !fa, !comments, !ticks, !media, lowerGradeWeight, lowerGradeSystemId, idArea, idSector, offset, setup.idLanguage())
 				.query((rs, _) -> {
 					var ts = rs.getObject("activity_timestamp", LocalDateTime.class);
 					var currentActivityIds = new HashSet<Integer>();

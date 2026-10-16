@@ -19,7 +19,7 @@ public class FrontpageService {
 		this.frontpageRepo = frontpageRepo;
 	}
 
-	@Cacheable(value = CacheConstants.FRONTPAGE_CACHE_NAME, key = "#setup.idRegion()", sync = true)
+	@Cacheable(value = CacheConstants.FRONTPAGE_CACHE_NAME, key = "#setup.idRegion() + ':' + #setup.idLanguage()", sync = true)
 	public Frontpage getAnonymousFrontpage(Setup setup) {
 		return getFrontpage(Optional.empty(), setup);
 	}

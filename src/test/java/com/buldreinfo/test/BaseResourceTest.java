@@ -54,7 +54,7 @@ public abstract class BaseResourceTest {
 
 	@BeforeAll
 	public void warmUp() {
-		regionRepo.getSetups();
+		regionRepo.getSetups(0);
 		logger.debug("Database pool and initial connection warmed up.");
 	}
 
@@ -73,7 +73,7 @@ public abstract class BaseResourceTest {
 
 	protected Setup getSetup(Region region) {
 		String domain = (region == Region.buldreinfo) ? "buldreinfo.com" : "brattelinjer.no";
-		return regionRepo.getSetups().stream()
+		return regionRepo.getSetups(0).stream()
 				.filter(s -> s.domain().equalsIgnoreCase(domain))
 				.findFirst()
 				.orElseThrow(() -> new IllegalStateException("Missing setup for domain=" + domain));

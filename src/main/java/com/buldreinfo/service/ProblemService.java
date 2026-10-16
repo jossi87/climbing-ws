@@ -65,9 +65,9 @@ public class ProblemService {
 		Problem p = problemRepo.getProblemBase(authUserId, setup, reqId,
 				linksFuture,
 				sectorId -> sectorRepo.getSectorOutline(sectorId),
-				sectorId -> sectorRepo.getSectorTrails(Collections.singleton(sectorId), trailIds -> mediaService.getMediaTrails(authUserId, trailIds)).get(sectorId),
+				sectorId -> sectorRepo.getSectorTrails(Collections.singleton(sectorId), trailIds -> mediaService.getMediaTrails(authUserId, trailIds, setup.idLanguage())).get(sectorId),
 				(sectorId, problemId) -> mediaService.getMediaProblem(setup, authUserId, sectorId, problemId, showHiddenMedia),
-				guestbookId -> mediaService.getMediaGuestbook(authUserId, guestbookId)
+				guestbookId -> mediaService.getMediaGuestbook(authUserId, guestbookId, setup.idLanguage())
 				);
 
 		if (p == null) {

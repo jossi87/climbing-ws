@@ -121,13 +121,18 @@ public class RegionRepository {
 	}
 
 	@Transactional(readOnly = true)
-	public List<Region> getRegions(int currIdRegion) {
+	public List<Region> getRegions(int currIdRegion, int idLanguage) {
 		List<Region> regions = jdbcClient.sql("""
-				SELECT r.id region_id, d.name discipline, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, r.name, r.url
-				FROM region r, region_type rt, type t, discipline d
-				WHERE r.id=rt.region_id AND rt.type_id=t.id AND t.discipline_id=d.id
-				GROUP BY r.id, d.name, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, r.name, r.url ORDER BY d.name, r.name
+				SELECT r.id region_id, COALESCE(dt.name, d.name) discipline, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, r.name, r.url
+				FROM region r
+				JOIN region_type rt ON r.id = rt.region_id
+				JOIN type t ON rt.type_id = t.id
+				JOIN discipline d ON t.discipline_id = d.id
+				LEFT JOIN discipline_translation dt ON dt.discipline_id = d.id AND dt.language_id = ?
+				GROUP BY r.id, COALESCE(dt.name, d.name), d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, r.name, r.url
+				ORDER BY COALESCE(dt.name, d.name), r.name
 				""")
+				.param(idLanguage)
 				.query((rs, _) -> new Region(
 						rs.getInt("region_id"),
 						rs.getString("discipline"), 
@@ -152,10 +157,10 @@ public class RegionRepository {
 		return regions;
 	}
 
-	@Cacheable(value = CacheConstants.REGION_CACHE_NAME, key = "'setups'")
+	@Cacheable(value = CacheConstants.REGION_CACHE_NAME, key = "'setups:' + #idLanguage")
 	@Transactional(readOnly = true)
-	public List<Setup> getSetups() {
-		var compassDirections = getCompassDirections();
+	public List<Setup> getSetups(int idLanguage) {
+		var compassDirections = getCompassDirections(idLanguage);
 		var gradeSystemsByRegion = gradeSystemRepo.getGradeSystemsByRegion();
 
 		return jdbcClient.sql("""
@@ -176,6 +181,7 @@ public class RegionRepository {
 						.withDefaultCenter(new LatLng(rs.getDouble("latitude"), rs.getDouble("longitude")))
 						.withDefaultZoom(rs.getInt("default_zoom"))
 						.withDefaultLanguage(rs.getString("default_language"))
+						.withIdLanguage(idLanguage)
 						.withCompassDirections(compassDirections)
 						.withGradeSystems(gradeSystemsByRegion.getOrDefault(rs.getInt("id"), List.of()))
 						.build())
@@ -183,9 +189,17 @@ public class RegionRepository {
 	}
 
 	@Transactional(readOnly = true)
-	public List<Type> getTypes(int regionId) {
-		return jdbcClient.sql("SELECT t.id, t.type, t.subtype, t.is_bolted, t.trad_gear FROM type t, region_type rt WHERE t.id=rt.type_id AND rt.region_id=? GROUP BY t.id, t.type, t.subtype, t.is_bolted, t.trad_gear ORDER BY t.id, t.type, t.subtype")
-				.param(regionId)
+	public List<Type> getTypes(int regionId, int idLanguage) {
+		return jdbcClient.sql("""
+				SELECT t.id, COALESCE(tt.type, t.type) type, COALESCE(tt.subtype, t.subtype) subtype, t.is_bolted, t.trad_gear
+				FROM type t
+				JOIN region_type rt ON t.id = rt.type_id
+				LEFT JOIN type_translation tt ON tt.type_id = t.id AND tt.language_id = ?
+				WHERE rt.region_id = ?
+				GROUP BY t.id, COALESCE(tt.type, t.type), COALESCE(tt.subtype, t.subtype), t.is_bolted, t.trad_gear
+				ORDER BY t.id, t.type, t.subtype
+				""")
+				.params(idLanguage, regionId)
 				.query((rs, _) -> new Type(rs.getInt("id"), rs.getString("type"), rs.getString("subtype"), rs.getBoolean("is_bolted"), rs.getBoolean("trad_gear")))
 				.list();
 	}
@@ -211,10 +225,28 @@ public class RegionRepository {
 				.list();
 	}
 
-	private List<CompassDirection> getCompassDirections() {
+	/**
+	 * Compass labels come from `compass_direction_translation` when the requested language has a row, canonical
+	 * (`compass_direction.direction`) otherwise. Only the label is localized; the ids are what orientation math uses.
+	 */
+	private List<CompassDirection> getCompassDirections(int idLanguage) {
+		Map<Integer, String> translations = getCompassDirectionTranslations(idLanguage);
 		return jdbcClient.sql("SELECT id, direction FROM compass_direction ORDER BY id")
-				.query((rs, _) -> new CompassDirection(rs.getInt("id"), rs.getString("direction")))
+				.query((rs, _) -> new CompassDirection(rs.getInt("id"), translations.getOrDefault(rs.getInt("id"), rs.getString("direction"))))
 				.list();
+	}
+
+	private Map<Integer, String> getCompassDirectionTranslations(int idLanguage) {
+		Map<Integer, String> res = new HashMap<>();
+		if (idLanguage == 0) {
+			return res;
+		}
+		jdbcClient.sql("SELECT compass_direction_id, direction FROM compass_direction_translation WHERE language_id=?")
+				.param(idLanguage)
+				.query(rs -> {
+					res.put(rs.getInt("compass_direction_id"), rs.getString("direction"));
+				});
+		return res;
 	}
 
 	private Map<Integer, List<Coordinates>> getRegionOutlines(Collection<Integer> idRegions) {

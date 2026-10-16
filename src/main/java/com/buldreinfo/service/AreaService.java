@@ -44,7 +44,7 @@ public class AreaService {
 
 	@Transactional(readOnly = true)
 	public Area getArea(Setup setup, Optional<Integer> authUserId, int reqId) {
-		var allMedia = mediaService.getMediaArea(authUserId, reqId, false);
+		var allMedia = mediaService.getMediaArea(authUserId, reqId, false, setup.idLanguage());
 		var partitioned = Optional.ofNullable(allMedia).orElse(List.of()).stream().collect(Collectors.partitioningBy(x -> x.areas().stream().anyMatch(MediaArea::trivia)));
 
 		Area a = areaRepo.getAreaBase(setup, authUserId, reqId, partitioned.get(false), partitioned.get(true));
@@ -65,7 +65,7 @@ public class AreaService {
 			try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 				var problemsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorProblems(setup, authUserId, reqId, 0), executor);
 				var outlinesFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorOutlines(sectorLookup.keySet()), executor);
-				var trailsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorTrails(sectorLookup.keySet(), trailIds -> mediaService.getMediaTrails(authUserId, trailIds)), executor);
+				var trailsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorTrails(sectorLookup.keySet(), trailIds -> mediaService.getMediaTrails(authUserId, trailIds, setup.idLanguage())), executor);
 				var simplifiedGradeCountsFuture = CompletableFuture.supplyAsync(() -> areaRepo.getAreaSimplifiedGradeCounts(reqId), executor);
 
 				problemsFuture.join().forEach((sid, problems) -> Optional.ofNullable(sectorLookup.get(sid)).ifPresent(s -> s.problems().addAll(problems)));

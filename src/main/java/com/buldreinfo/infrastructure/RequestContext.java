@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.filters.HitTrackingFilter;
+import com.buldreinfo.model.Language;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -44,9 +45,22 @@ public class RequestContext {
 		return (auth != null && auth.getPrincipal() instanceof Integer userId) ? Optional.of(userId) : Optional.empty();
 	}
 
+	public int getLanguageId(HttpServletRequest request) {
+		String code = request.getParameter("lang");
+		if (code == null) {
+			return 0;
+		}
+		String wanted = code.trim();
+		return regionRepo.getLanguages().stream()
+				.filter(l -> l.code().equalsIgnoreCase(wanted))
+				.map(Language::id)
+				.findFirst()
+				.orElse(0);
+	}
+
 	public Setup getSetup(HttpServletRequest request) {
 		String serverName = request.getServerName();
-		return regionRepo.getSetups().stream()
+		return regionRepo.getSetups(getLanguageId(request)).stream()
 				.filter(s -> s.domain().equalsIgnoreCase(serverName))
 				.findFirst()
 				.orElseThrow(() -> new NoSuchElementException("Invalid serverName=" + serverName));

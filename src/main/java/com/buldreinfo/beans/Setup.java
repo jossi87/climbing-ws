@@ -6,7 +6,7 @@ import com.buldreinfo.model.CompassDirection;
 import com.buldreinfo.model.GradeSystem;
 import com.buldreinfo.model.LatLng;
 
-public record Setup(String domain, String url, int idRegion, boolean isBouldering, boolean isClimbing, boolean isIce, List<GradeSystem> gradeSystems, List<CompassDirection> compassDirections, String title, String description, LatLng defaultCenter, int defaultZoom, String defaultLanguage) {
+public record Setup(String domain, String url, int idRegion, boolean isBouldering, boolean isClimbing, boolean isIce, List<GradeSystem> gradeSystems, List<CompassDirection> compassDirections, String title, String description, LatLng defaultCenter, int defaultZoom, String defaultLanguage, int idLanguage) {
 	public static SetupBuilder newBuilder(String domain, boolean isBouldering, boolean isClimbing, boolean isIce) {
 		return new SetupBuilder(domain, isBouldering, isClimbing, isIce);
 	}
@@ -19,6 +19,7 @@ public record Setup(String domain, String url, int idRegion, boolean isBoulderin
 		private String description;
 		private final String domain;
 		private List<GradeSystem> gradeSystems;
+		private int idLanguage;
 		private int idRegion;
 		private final boolean isBouldering;
 		private final boolean isClimbing;
@@ -35,7 +36,7 @@ public record Setup(String domain, String url, int idRegion, boolean isBoulderin
 		}
 
 		public Setup build() {
-			return new Setup(domain, url, idRegion, isBouldering, isClimbing, isIce, gradeSystems, compassDirections, title, description, defaultCenter, defaultZoom, defaultLanguage);
+			return new Setup(domain, url, idRegion, isBouldering, isClimbing, isIce, gradeSystems, compassDirections, title, description, defaultCenter, defaultZoom, defaultLanguage, idLanguage);
 		}
 
 		public SetupBuilder withCompassDirections(List<CompassDirection> compassDirections) {
@@ -65,6 +66,11 @@ public record Setup(String domain, String url, int idRegion, boolean isBoulderin
 
 		public SetupBuilder withGradeSystems(List<GradeSystem> gradeSystems) {
 			this.gradeSystems = gradeSystems;
+			return this;
+		}
+
+		public SetupBuilder withIdLanguage(int idLanguage) {
+			this.idLanguage = idLanguage;
 			return this;
 		}
 

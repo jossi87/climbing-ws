@@ -44,7 +44,7 @@ CREATE TABLE `activity` (
   CONSTRAINT `problem_id_fk` FOREIGN KEY (`problem_id`) REFERENCES `problem` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `tick_repeat_id_fk` FOREIGN KEY (`tick_repeat_id`) REFERENCES `tick_repeat` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_id_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=1832211 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1832215 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -101,6 +101,24 @@ CREATE TABLE `compass_direction` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `compass_direction_translation`
+--
+
+DROP TABLE IF EXISTS `compass_direction_translation`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `compass_direction_translation` (
+  `compass_direction_id` int NOT NULL,
+  `language_id` int NOT NULL,
+  `direction` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci NOT NULL,
+  PRIMARY KEY (`compass_direction_id`,`language_id`),
+  KEY `compass_direction_translation_language_id_idx` (`language_id`),
+  CONSTRAINT `compass_direction_translation_compass_direction_id` FOREIGN KEY (`compass_direction_id`) REFERENCES `compass_direction` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `compass_direction_translation_language_id` FOREIGN KEY (`language_id`) REFERENCES `language` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `coordinates`
 --
 
@@ -133,6 +151,24 @@ CREATE TABLE `discipline` (
   `is_ice_climbing` int NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `discipline_translation`
+--
+
+DROP TABLE IF EXISTS `discipline_translation`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `discipline_translation` (
+  `discipline_id` int NOT NULL,
+  `language_id` int NOT NULL,
+  `name` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci NOT NULL,
+  PRIMARY KEY (`discipline_id`,`language_id`),
+  KEY `discipline_translation_language_id_idx` (`language_id`),
+  CONSTRAINT `discipline_translation_discipline_id` FOREIGN KEY (`discipline_id`) REFERENCES `discipline` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `discipline_translation_language_id` FOREIGN KEY (`language_id`) REFERENCES `language` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -364,7 +400,7 @@ CREATE TABLE `language` (
   `name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `language_code_uq` (`code`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -899,7 +935,7 @@ CREATE TABLE `svg` (
   KEY `svg_problem_id_idx` (`problem_id`),
   CONSTRAINT `svg_media_id` FOREIGN KEY (`media_id`) REFERENCES `media` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `svg_problem_id` FOREIGN KEY (`problem_id`) REFERENCES `problem` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=16826 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=16827 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -964,7 +1000,7 @@ CREATE TABLE `todo` (
   KEY `todo_fk2_idx` (`problem_id`),
   CONSTRAINT `todo_fk1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `todo_fk2` FOREIGN KEY (`problem_id`) REFERENCES `problem` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=23228 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=23233 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1047,6 +1083,25 @@ CREATE TABLE `type` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `type_translation`
+--
+
+DROP TABLE IF EXISTS `type_translation`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `type_translation` (
+  `type_id` int NOT NULL,
+  `language_id` int NOT NULL,
+  `type` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci NOT NULL,
+  `subtype` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci NOT NULL,
+  PRIMARY KEY (`type_id`,`language_id`),
+  KEY `type_translation_language_id_idx` (`language_id`),
+  CONSTRAINT `type_translation_language_id` FOREIGN KEY (`language_id`) REFERENCES `language` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `type_translation_type_id` FOREIGN KEY (`type_id`) REFERENCES `type` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `user`
 --
 
@@ -1106,7 +1161,7 @@ CREATE TABLE `user_login` (
   KEY `idx_user_login_retention` (`when`),
   CONSTRAINT `user_login_region_id` FOREIGN KEY (`region_id`) REFERENCES `region` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_login_user_id` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=820982 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=821141 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1165,4 +1220,4 @@ CREATE TABLE `user_region` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-10-15 11:10:59
+-- Dump completed on 2026-10-16  8:22:30

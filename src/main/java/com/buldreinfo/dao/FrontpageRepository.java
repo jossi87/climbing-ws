@@ -56,7 +56,7 @@ public class FrontpageRepository {
 				)
 				SELECT 
 				    x.activity_timestamp, a.id AS area_id, a.name AS area_name,
-				    p.id AS problem_id, p.name AS problem_name, p.locked_admin AS problem_locked_admin, p.locked_superadmin AS problem_locked_superadmin, ty.subtype AS problem_subtype, ty.trad_gear AS problem_trad_gear,
+				    p.id AS problem_id, p.name AS problem_name, p.locked_admin AS problem_locked_admin, p.locked_superadmin AS problem_locked_superadmin, COALESCE(tt.subtype, ty.subtype) AS problem_subtype, ty.trad_gear AS problem_trad_gear,
 				    g.grade AS grade,
 				    IF(COUNT(u.id) > 0,
 				        JSON_ARRAYAGG(
@@ -77,6 +77,7 @@ public class FrontpageRepository {
 				    NULL) AS user_data
 				FROM x
 				JOIN problem p ON x.problem_id = p.id
+				LEFT JOIN type_translation tt ON tt.type_id = p.type_id AND tt.language_id = ?
 				JOIN type ty ON p.type_id = ty.id 
 				JOIN sector s ON p.sector_id = s.id 
 				JOIN area a ON s.area_id = a.id 
@@ -86,10 +87,10 @@ public class FrontpageRepository {
 				LEFT JOIN media m ON u.media_id = m.id
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				LEFT JOIN user_region ur ON (a.region_id = ur.region_id AND ur.user_id = (SELECT auth_user_id FROM req))
-				GROUP BY x.activity_timestamp, a.id, a.name, p.id, p.name, p.locked_admin, p.locked_superadmin, ty.subtype, g.grade
+				GROUP BY x.activity_timestamp, a.id, a.name, p.id, p.name, p.locked_admin, p.locked_superadmin, COALESCE(tt.subtype, ty.subtype), g.grade
 				ORDER BY x.activity_timestamp DESC, p.id DESC
 				""")
-				.params(authUserId.orElse(0), setup.idRegion())
+				.params(authUserId.orElse(0), setup.idRegion(), setup.idLanguage())
 				.query((rs, _) -> {
 					var ts = rs.getTimestamp("activity_timestamp").toLocalDateTime();
 					List<User> users = jsonHelper.parseArray(rs.getString("user_data"), User[].class);
@@ -193,11 +194,12 @@ public class FrontpageRepository {
 				    LIMIT 8
 				)
 				SELECT ra.activity_timestamp, ra.is_repeat, ra.tick_id, a.id AS area_id, a.name AS area_name,
-				       p.id AS problem_id, p.name AS problem_name, p.locked_admin AS problem_locked_admin, p.locked_superadmin AS problem_locked_superadmin, ty.subtype AS problem_subtype, ty.trad_gear AS problem_trad_gear,
+				       p.id AS problem_id, p.name AS problem_name, p.locked_admin AS problem_locked_admin, p.locked_superadmin AS problem_locked_superadmin, COALESCE(tt.subtype, ty.subtype) AS problem_subtype, ty.trad_gear AS problem_trad_gear,
 				       g.grade AS tick_grade, u.id AS user_id, TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) AS user_name,
 				       m.id AS media_id, UNIX_TIMESTAMP(m.updated_at) AS media_version_stamp, mma.focus_x AS media_focus_x, mma.focus_y AS media_focus_y, mma.primary_color_hex AS media_primary_color_hex
 				FROM recent_activity ra
 				JOIN problem p ON ra.problem_id = p.id
+				LEFT JOIN type_translation tt ON tt.type_id = p.type_id AND tt.language_id = ?
 				JOIN user u ON ra.user_id = u.id
 				LEFT JOIN grade g ON ra.grade_id = g.id
 				LEFT JOIN media m ON u.media_id = m.id
@@ -211,7 +213,7 @@ public class FrontpageRepository {
 				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				ORDER BY ra.activity_timestamp DESC, ra.tick_id DESC
 				""")
-				.params(authUserId.orElse(0), setup.idRegion())
+				.params(authUserId.orElse(0), setup.idRegion(), setup.idLanguage())
 				.query((rs, _) -> {
 					var ts = rs.getTimestamp("activity_timestamp").toLocalDateTime();
 					String tickGrade = rs.getString("tick_grade");

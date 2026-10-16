@@ -58,32 +58,32 @@ public class ProfilesController {
 	@Operation(summary = "Get profile ascents")
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@GetMapping(value = "/ascents", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<List<ProfileAscent>> getProfilesAscents(@RequestParam(name = "id") int id) {
+	public ResponseEntity<List<ProfileAscent>> getProfilesAscents(HttpServletRequest request, @RequestParam(name = "id") int id) {
 		if (id <= 0) throw new ValidationFailedException("Invalid user id=" + id);
 		userRepo.ensureUserExists(id);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		return ResponseEntity.ok(userRepo.getProfileAscents(authUserId, id));
+		return ResponseEntity.ok(userRepo.getProfileAscents(authUserId, id, requestContext.getLanguageId(request)));
 	}
 
 	@Operation(summary = "Get profile media by user id")
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@GetMapping(value = "/media", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<List<Media>> getProfilesMedia(@RequestParam(name = "id") int id,
+	public ResponseEntity<List<Media>> getProfilesMedia(HttpServletRequest request, @RequestParam(name = "id") int id,
 			@RequestParam(name = "captured", defaultValue = "false") boolean captured) {
 		if (id <= 0) throw new ValidationFailedException("Invalid user id=" + id);
 		userRepo.ensureUserExists(id);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		return ResponseEntity.ok(mediaRepo.getProfileMedia(authUserId, id, captured));
+		return ResponseEntity.ok(mediaRepo.getProfileMedia(authUserId, id, captured, requestContext.getLanguageId(request)));
 	}
 
 	@Operation(summary = "Get profile todo")
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@GetMapping(value = "/todo", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<ProfileTodo> getProfilesTodo(@RequestParam(name = "id") int id) {
+	public ResponseEntity<ProfileTodo> getProfilesTodo(HttpServletRequest request, @RequestParam(name = "id") int id) {
 		if (id <= 0) throw new ValidationFailedException("Invalid user id=" + id);
 		userRepo.ensureUserExists(id);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		return ResponseEntity.ok(userRepo.getProfileTodo(authUserId, id));
+		return ResponseEntity.ok(userRepo.getProfileTodo(authUserId, id, requestContext.getLanguageId(request)));
 	}
 
 	@Operation(summary = "Update profile identity")

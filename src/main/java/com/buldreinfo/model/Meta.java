@@ -22,8 +22,8 @@ public record Meta(
 	public static Meta from(Setup setup, Optional<Integer> authUserId, UserRepository userRepo, RegionRepository regionRepo, MapRepository mapRepo) {
 		var authUserFuture = CompletableFuture.supplyAsync(() -> userRepo.getAuthenticatedUser(setup, authUserId).orElse(null));
 		var faYearsFuture = CompletableFuture.supplyAsync(() -> regionRepo.getFaYears(setup.idRegion()));
-		var typesFuture = CompletableFuture.supplyAsync(() -> regionRepo.getTypes(setup.idRegion()));
-		var regionsFuture = CompletableFuture.supplyAsync(() -> regionRepo.getRegions(setup.idRegion()));
+		var typesFuture = CompletableFuture.supplyAsync(() -> regionRepo.getTypes(setup.idRegion(), setup.idLanguage()));
+		var regionsFuture = CompletableFuture.supplyAsync(() -> regionRepo.getRegions(setup.idRegion(), setup.idLanguage()));
 		var mapsFuture = CompletableFuture.supplyAsync(() -> mapRepo.getMaps(setup.idRegion()));
 		var languagesFuture = CompletableFuture.supplyAsync(() -> regionRepo.getLanguages());
 		CompletableFuture.allOf(authUserFuture, faYearsFuture, typesFuture, regionsFuture, mapsFuture, languagesFuture).join();

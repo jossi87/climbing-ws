@@ -49,7 +49,7 @@ public class DynamicCorsConfigurationSource implements CorsConfigurationSource {
 		origins.add(LOCAL_DEV_ORIGIN);
 		origins.add(LOCAL_SWAGGER_ORIGIN);
 		try {
-			regionRepo.getSetups().stream()
+			regionRepo.getSetups(0).stream()
 			.map(Setup::domain)
 			.map(domain -> "https://" + domain)
 			.forEach(origins::add);

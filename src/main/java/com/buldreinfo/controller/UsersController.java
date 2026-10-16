@@ -146,9 +146,9 @@ public class UsersController {
 	@Operation(summary = "Get ticks (public ascents) on logged in user as Excel file (xlsx)")
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@GetMapping(value = "/ticks", produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	public ResponseEntity<byte[]> getUsersTicks() {
+	public ResponseEntity<byte[]> getUsersTicks(HttpServletRequest request) {
 		var authUserId = requestContext.getAuthenticatedUserId();
-		byte[] bytes = userRepo.getUserTicks(authUserId);
+		byte[] bytes = userRepo.getUserTicks(authUserId, requestContext.getLanguageId(request));
 		return ResponseEntity.ok()
 				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(FilenameUtil.generateFilename("Buldreinfo_BratteLinjer", StorageType.XLSX)))
 				.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)

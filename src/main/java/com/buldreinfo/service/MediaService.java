@@ -137,7 +137,7 @@ public class MediaService {
 	@Transactional
 	public void refreshEmbedThumbnail(Optional<Integer> authUserId, int idMedia) {
 		ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(authUserId, idMedia);
-		var m = mediaRepo.getMedia(authUserId, idMedia);
+		var m = mediaRepo.getMedia(authUserId, idMedia, 0); // 0 = canonical labels; only title/tag metadata is read here
 		if (!m.isMovie() || m.embedUrl() == null || m.embedUrl().isBlank()) {
 			throw new IllegalArgumentException("Media is not an embedded video");
 		}
@@ -171,16 +171,16 @@ public class MediaService {
 		return mediaRepo.getHlsMovieIds();
 	}
 
-	public Media getMedia(Optional<Integer> authUserId, int id) {
-		return mediaRepo.getMedia(authUserId, id);
+	public Media getMedia(Optional<Integer> authUserId, int id, int idLanguage) {
+		return mediaRepo.getMedia(authUserId, id, idLanguage);
 	}
 
-	public List<Media> getMediaArea(Optional<Integer> authUserId, int id, boolean inherited) {
-		return mediaRepo.getMediaArea(authUserId, id, inherited);
+	public List<Media> getMediaArea(Optional<Integer> authUserId, int id, boolean inherited, int idLanguage) {
+		return mediaRepo.getMediaArea(authUserId, id, inherited, idLanguage);
 	}
 
-	public List<Media> getMediaGuestbook(Optional<Integer> authUserId, int guestbookId) {
-		return mediaRepo.getMediaGuestbook(authUserId, guestbookId);
+	public List<Media> getMediaGuestbook(Optional<Integer> authUserId, int guestbookId, int idLanguage) {
+		return mediaRepo.getMediaGuestbook(authUserId, guestbookId, idLanguage);
 	}
 
 	public List<MediaRepository.MediaPendingAnalysis> getMediaPendingAnalysis() {
@@ -188,7 +188,7 @@ public class MediaService {
 	}
 
 	public List<Media> getMediaProblem(Setup s, Optional<Integer> authUserId, int sectorId, int problemId, boolean showHiddenMedia) {
-		List<Media> media = mediaRepo.getMediaProblemCombined(authUserId, sectorId, problemId);
+		List<Media> media = mediaRepo.getMediaProblemCombined(authUserId, sectorId, problemId, s.idLanguage());
 		if (media != null && !media.isEmpty()) {
 			var mediaWithRequestedTopoLine = new HashSet<Media>();
 			for (var m : media) {
@@ -205,16 +205,16 @@ public class MediaService {
 		return media;
 	}
 
-	public List<Media> getMediaSectorThumbnails(Optional<Integer> authUserId, int idSector) {
-		return mediaRepo.getMediaSectorThumbnails(authUserId, idSector);
+	public List<Media> getMediaSectorThumbnails(Optional<Integer> authUserId, int idSector, int idLanguage) {
+		return mediaRepo.getMediaSectorThumbnails(authUserId, idSector, idLanguage);
 	}
 
-	public Map<Integer, List<Media>> getMediaTrails(Optional<Integer> authUserId, Collection<Integer> trailIds) {
-		return mediaRepo.getMediaTrails(authUserId, trailIds);
+	public Map<Integer, List<Media>> getMediaTrails(Optional<Integer> authUserId, Collection<Integer> trailIds, int idLanguage) {
+		return mediaRepo.getMediaTrails(authUserId, trailIds, idLanguage);
 	}
 
-	public List<Media> getProfileMedia(Optional<Integer> authUserId, int reqId, boolean captured) {
-		return mediaRepo.getProfileMedia(authUserId, reqId, captured);
+	public List<Media> getProfileMedia(Optional<Integer> authUserId, int reqId, boolean captured, int idLanguage) {
+		return mediaRepo.getProfileMedia(authUserId, reqId, captured, idLanguage);
 	}
 
 	public void logInstagramScrape(Optional<Integer> authUserId, String originalUrl, int slideCount) {
@@ -272,7 +272,7 @@ public class MediaService {
 
 		ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(authUserId, mediaId);
 
-		var originalMedia = getMedia(authUserId, mediaId);
+		var originalMedia = getMedia(authUserId, mediaId, 0); // 0 = canonical labels; only thumbnail metadata is compared here
 		var thumbnailChanged = originalMedia.thumbnailSeconds() != m.thumbnailSeconds();
 		int photographerId = m.photographer().id() > 0 ? m.photographer().id() : userRepo.getExistingOrInsertUser(m.photographer().name());
 
@@ -332,7 +332,7 @@ public class MediaService {
 	}
 
 	private void ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(Optional<Integer> authUserId, int idMedia) {
-		var m = mediaRepo.getMedia(authUserId, idMedia);
+		var m = mediaRepo.getMedia(authUserId, idMedia, 0); // 0 = canonical labels; only the uploader is read here
 		if (m.uploadedByMe()) return;
 
 		if (!mediaRepo.isMediaAuthorizedForUser(authUserId.orElseThrow(), idMedia)) {

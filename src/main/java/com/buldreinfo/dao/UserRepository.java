@@ -90,10 +90,6 @@ public class UserRepository {
 		return activityRegions.stream().map(UserActivityRegion::name).distinct().toList();
 	}
 
-	private static String profileAscentSubType(int numPitches, String subtype) {
-		return (numPitches > 1 ? "Multi-pitch " : "") + subtype;
-	}
-
 	private final JdbcClient jdbcClient;
 
 	public UserRepository(JdbcClient jdbcClient) {
@@ -332,14 +328,17 @@ public class UserRepository {
 	}
 
 	@Transactional(readOnly = true)
-	public List<ProfileAscent> getProfileAscents(Optional<Integer> authUserId, int reqId) {
+	public List<ProfileAscent> getProfileAscents(Optional<Integer> authUserId, int reqId, int idLanguage) {
 		List<ProfileAscent> res = new ArrayList<>();
 		Map<Integer, ProfileAscent> idProblemTickMap = new HashMap<>();
 
+		// `subtype` is the localized DB value (`COALESCE(tt.subtype, ty.subtype)`). Display-only decorations such as a
+		// "Multi-pitch" prefix must not be added here: the pitch count is already exposed as `numPitches`, and the
+		// client renders it through i18n, so an English prefix from the server would duplicate it and break localisation.
 		res.addAll(jdbcClient.sql("""
 				SELECT r.name region_name, a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
 				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
-				       t.id id_tick, 0 id_tick_repeat, ty.subtype, ty.trad_gear, d.name discipline, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, COUNT(DISTINCT ps.id) num_pitches,
+				       t.id id_tick, 0 id_tick_repeat, COALESCE(tt.subtype, ty.subtype) subtype, ty.trad_gear, COALESCE(dt.name, d.name) discipline, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, COUNT(DISTINCT ps.id) num_pitches,
 				       p.id id_problem, p.nr, p.locked_admin, p.locked_superadmin, p.name,
 				       CASE WHEN (t.id IS NOT NULL) THEN t.comment ELSE p.description END comment,
 				       DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%Y-%m-%d') date,
@@ -350,7 +349,7 @@ public class UserRepository {
 				       CASE WHEN t.id IS NOT NULL AND gt.id IS NULL THEN 1 ELSE 0 END no_personal_grade,
 				       MIN(a.grade_system_id) grade_system_id
 				FROM problem p
-				JOIN grade g ON p.grade_id=g.id JOIN type ty ON p.type_id=ty.id JOIN discipline d ON ty.discipline_id=d.id JOIN sector s ON p.sector_id=s.id
+				JOIN grade g ON p.grade_id=g.id JOIN type ty ON p.type_id=ty.id JOIN discipline d ON ty.discipline_id=d.id LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = ? LEFT JOIN discipline_translation dt ON dt.discipline_id = d.id AND dt.language_id = ? JOIN sector s ON p.sector_id=s.id
 				JOIN area a ON s.area_id=a.id JOIN region r ON a.region_id=r.id
 				LEFT JOIN problem_section ps ON p.id=ps.problem_id
 				LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
@@ -358,11 +357,11 @@ public class UserRepository {
 				LEFT JOIN grade gt ON t.grade_id=gt.id LEFT JOIN fa f ON (p.id=f.problem_id AND f.user_id=?)
 				WHERE (t.user_id IS NOT NULL OR f.user_id IS NOT NULL)
 				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-				GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, t.id, ty.subtype, ty.trad_gear, d.name, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, p.id, p.nr, p.locked_admin, p.locked_superadmin, p.name, p.description, p.fa_date, t.date, t.stars, g.grade, gt.grade
+				GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, t.id, ty.subtype, tt.subtype, ty.trad_gear, d.name, dt.name, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, p.id, p.nr, p.locked_admin, p.locked_superadmin, p.name, p.description, p.fa_date, t.date, t.stars, g.grade, gt.grade
 				""")
-				.params(authUserId.orElse(0), reqId, reqId)
+				.params(idLanguage, idLanguage, authUserId.orElse(0), reqId, reqId)
 				.query((rs, _) -> {
-					var tick = new ProfileAscent(rs.getString("region_name"), rs.getInt("area_id"), rs.getString("area_name"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getInt("sector_id"), rs.getString("sector_name"), rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), rs.getInt("id_tick"), rs.getInt("id_tick_repeat"), profileAscentSubType(rs.getInt("num_pitches"), rs.getString("subtype")), rs.getBoolean("trad_gear"), rs.getInt("num_pitches"), rs.getString("discipline"), rs.getBoolean("is_bouldering"), rs.getBoolean("is_rope_climbing"), rs.getBoolean("is_ice_climbing"), rs.getInt("id_problem"), rs.getInt("nr"), rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getString("name"), rs.getString("comment"), rs.getString("date"), rs.getString("date_hr"), rs.getDouble("stars"), rs.getBoolean("fa"), rs.getString("grade"), rs.getInt("grade_weight"), rs.getBoolean("no_personal_grade"), rs.getInt("grade_system_id"));
+					var tick = new ProfileAscent(rs.getString("region_name"), rs.getInt("area_id"), rs.getString("area_name"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getInt("sector_id"), rs.getString("sector_name"), rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), rs.getInt("id_tick"), rs.getInt("id_tick_repeat"), rs.getString("subtype"), rs.getBoolean("trad_gear"), rs.getInt("num_pitches"), rs.getString("discipline"), rs.getBoolean("is_bouldering"), rs.getBoolean("is_rope_climbing"), rs.getBoolean("is_ice_climbing"), rs.getInt("id_problem"), rs.getInt("nr"), rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getString("name"), rs.getString("comment"), rs.getString("date"), rs.getString("date_hr"), rs.getDouble("stars"), rs.getBoolean("fa"), rs.getString("grade"), rs.getInt("grade_weight"), rs.getBoolean("no_personal_grade"), rs.getInt("grade_system_id"));
 					idProblemTickMap.put(tick.getIdProblem(), tick);
 					return tick;
 				}).list());
@@ -370,18 +369,18 @@ public class UserRepository {
 		res.addAll(jdbcClient.sql("""
 				SELECT r.name region_name, a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
 				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
-				       t.id id_tick, tr.id id_tick_repeat, ty.subtype, ty.trad_gear, d.name discipline, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, COUNT(DISTINCT ps.id) num_pitches,
+				       t.id id_tick, tr.id id_tick_repeat, COALESCE(tt.subtype, ty.subtype) subtype, ty.trad_gear, COALESCE(dt.name, d.name) discipline, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, COUNT(DISTINCT ps.id) num_pitches,
 				       p.id id_problem, p.nr, p.locked_admin, p.locked_superadmin, p.name, tr.comment,
 				       DATE_FORMAT(tr.date,'%Y-%m-%d') date, DATE_FORMAT(tr.date,'%d/%m-%y') date_hr, t.stars, 0 fa, g.weight grade_weight, g.grade,
 				       MIN(a.grade_system_id) grade_system_id
-				FROM problem p JOIN type ty ON p.type_id=ty.id JOIN discipline d ON ty.discipline_id=d.id JOIN sector s ON p.sector_id=s.id JOIN area a ON s.area_id=a.id JOIN region r ON a.region_id=r.id
+				FROM problem p JOIN type ty ON p.type_id=ty.id JOIN discipline d ON ty.discipline_id=d.id JOIN sector s ON p.sector_id=s.id JOIN area a ON s.area_id=a.id JOIN region r ON a.region_id=r.id LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = ? LEFT JOIN discipline_translation dt ON dt.discipline_id = d.id AND dt.language_id = ?
 				JOIN tick t ON p.id=t.problem_id AND t.user_id=? LEFT JOIN grade g ON t.grade_id=g.id JOIN tick_repeat tr ON t.id=tr.tick_id
 				LEFT JOIN problem_section ps ON p.id=ps.problem_id LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
 				WHERE p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-				GROUP BY s.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, t.id, tr.id, ty.subtype, ty.trad_gear, d.name, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, p.id, p.nr, p.locked_admin, p.locked_superadmin, p.name, tr.comment, tr.date, t.stars, g.weight, g.grade
+				GROUP BY s.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, t.id, tr.id, ty.subtype, tt.subtype, ty.trad_gear, d.name, dt.name, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, p.id, p.nr, p.locked_admin, p.locked_superadmin, p.name, tr.comment, tr.date, t.stars, g.weight, g.grade
 				""")
-				.params(reqId, authUserId.orElse(0))
-				.query((rs, _) -> new ProfileAscent(rs.getString("region_name"), rs.getInt("area_id"), rs.getString("area_name"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getInt("sector_id"), rs.getString("sector_name"), rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), rs.getInt("id_tick"), rs.getInt("id_tick_repeat"), profileAscentSubType(rs.getInt("num_pitches"), rs.getString("subtype")), rs.getBoolean("trad_gear"), rs.getInt("num_pitches"), rs.getString("discipline"), rs.getBoolean("is_bouldering"), rs.getBoolean("is_rope_climbing"), rs.getBoolean("is_ice_climbing"), rs.getInt("id_problem"), rs.getInt("nr"), rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getString("name"), rs.getString("comment"), rs.getString("date"), rs.getString("date_hr"), rs.getDouble("stars"), rs.getBoolean("fa"), rs.getString("grade"), rs.getInt("grade_weight"), rs.getString("grade") == null, rs.getInt("grade_system_id")))
+				.params(idLanguage, idLanguage, reqId, authUserId.orElse(0))
+				.query((rs, _) -> new ProfileAscent(rs.getString("region_name"), rs.getInt("area_id"), rs.getString("area_name"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getInt("sector_id"), rs.getString("sector_name"), rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), rs.getInt("id_tick"), rs.getInt("id_tick_repeat"), rs.getString("subtype"), rs.getBoolean("trad_gear"), rs.getInt("num_pitches"), rs.getString("discipline"), rs.getBoolean("is_bouldering"), rs.getBoolean("is_rope_climbing"), rs.getBoolean("is_ice_climbing"), rs.getInt("id_problem"), rs.getInt("nr"), rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getString("name"), rs.getString("comment"), rs.getString("date"), rs.getString("date_hr"), rs.getDouble("stars"), rs.getBoolean("fa"), rs.getString("grade"), rs.getInt("grade_weight"), rs.getString("grade") == null, rs.getInt("grade_system_id")))
 				.list());
 
 		// Aid first ascents only exist for routes, but they belong to the same unified profile history, so they are
@@ -389,14 +388,14 @@ public class UserRepository {
 		jdbcClient.sql("""
 				SELECT r.name region_name, a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
 				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, COUNT(DISTINCT ps.id) num_pitches,
-				       p.id id_problem, p.nr, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description description, DATE_FORMAT(aid.aid_date,'%Y-%m-%d') date, DATE_FORMAT(aid.aid_date,'%d/%m-%y') date_hr, ty.subtype, ty.trad_gear, d.name discipline, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing
-				FROM problem p JOIN type ty ON p.type_id=ty.id JOIN discipline d ON ty.discipline_id=d.id JOIN sector s ON p.sector_id=s.id JOIN area a ON s.area_id=a.id JOIN region r ON a.region_id=r.id
+				       p.id id_problem, p.nr, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description description, DATE_FORMAT(aid.aid_date,'%Y-%m-%d') date, DATE_FORMAT(aid.aid_date,'%d/%m-%y') date_hr, COALESCE(tt.subtype, ty.subtype) subtype, ty.trad_gear, COALESCE(dt.name, d.name) discipline, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing
+				FROM problem p JOIN type ty ON p.type_id=ty.id JOIN discipline d ON ty.discipline_id=d.id JOIN sector s ON p.sector_id=s.id JOIN area a ON s.area_id=a.id JOIN region r ON a.region_id=r.id LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = ? LEFT JOIN discipline_translation dt ON dt.discipline_id = d.id AND dt.language_id = ?
 				JOIN fa_aid aid ON p.id=aid.problem_id JOIN fa_aid_user aid_u ON p.id=aid_u.problem_id AND aid_u.user_id=?
 				LEFT JOIN problem_section ps ON p.id=ps.problem_id LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
 				WHERE p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-				GROUP BY a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, p.id, p.nr, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description, aid.aid_date, ty.subtype, ty.trad_gear, d.name, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing
+				GROUP BY a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, p.id, p.nr, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description, aid.aid_date, ty.subtype, tt.subtype, ty.trad_gear, d.name, dt.name, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing
 				""")
-				.params(reqId, authUserId.orElse(0))
+				.params(idLanguage, idLanguage, reqId, authUserId.orElse(0))
 				.query(rs -> {
 					int pid = rs.getInt("id_problem");
 					var existing = idProblemTickMap.get(pid);
@@ -405,7 +404,9 @@ public class UserRepository {
 						if (existing.getDate() == null) existing.setDate(rs.getString("date"));
 						if (existing.getDateHr() == null) existing.setDateHr(rs.getString("date_hr"));
 					} else {
-						var tick = new ProfileAscent(rs.getString("region_name"), rs.getInt("area_id"), rs.getString("area_name"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getInt("sector_id"), rs.getString("sector_name"), rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), 0, 0, profileAscentSubType(rs.getInt("num_pitches"), rs.getString("subtype")), rs.getBoolean("trad_gear"), rs.getInt("num_pitches"), rs.getString("discipline"), rs.getBoolean("is_bouldering"), rs.getBoolean("is_rope_climbing"), rs.getBoolean("is_ice_climbing"), pid, rs.getInt("nr"), rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getString("name"), (rs.getString("description") != null && !rs.getString("description").isBlank() ? "First ascent (AID): " + rs.getString("description") : "First ascent (AID)"), rs.getString("date"), rs.getString("date_hr"), 0, true, "n/a", 0, false, 0);
+						// The "First ascent (AID)" label is display text composed as data here (English-only); localising it means
+						// exposing the flag/description on the API and building the string client-side.
+						var tick = new ProfileAscent(rs.getString("region_name"), rs.getInt("area_id"), rs.getString("area_name"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getInt("sector_id"), rs.getString("sector_name"), rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), 0, 0, rs.getString("subtype"), rs.getBoolean("trad_gear"), rs.getInt("num_pitches"), rs.getString("discipline"), rs.getBoolean("is_bouldering"), rs.getBoolean("is_rope_climbing"), rs.getBoolean("is_ice_climbing"), pid, rs.getInt("nr"), rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getString("name"), (rs.getString("description") != null && !rs.getString("description").isBlank() ? "First ascent (AID): " + rs.getString("description") : "First ascent (AID)"), rs.getString("date"), rs.getString("date_hr"), 0, true, "n/a", 0, false, 0);
 						idProblemTickMap.put(pid, tick);
 						res.add(tick);
 					}
@@ -503,6 +504,9 @@ public class UserRepository {
 				categorized_activity AS (
 				    SELECT 
 				        discipline_id, is_bouldering, is_ice_climbing, grade, color, weight, is_fa, is_tick,
+				-- Profile overview headings: still composed in English because the client renders them verbatim as
+				-- ProfileDiscipline.discipline. `category` (below) is the stable 0-4 code to localise them from; the
+				-- literals must stay untranslated here because they are also used for grouping.
 				        CASE 
 				            WHEN is_bouldering = 1 THEN 'Boulder problems'
 				            WHEN is_ice_climbing = 1 THEN 'Climbing routes (ice)'
@@ -670,7 +674,7 @@ public class UserRepository {
 	 * follow the normal locked-problem visibility rules (see the `ur` join).
 	 */
 	@Transactional(readOnly = true)
-	public ProfileTodo getProfileTodo(Optional<Integer> authUserId, int userId) {
+	public ProfileTodo getProfileTodo(Optional<Integer> authUserId, int userId, int idLanguage) {
 		ProfileTodo res = new ProfileTodo(new ArrayList<>());
 		Map<Integer, ProfileTodoArea> areaLookup = new HashMap<>();
 		Map<Integer, ProfileTodoSector> sectorLookup = new HashMap<>();
@@ -718,7 +722,7 @@ public class UserRepository {
 				SELECT a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
 				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
 				       t.id todo_id, p.id problem_id, p.nr problem_nr, p.name problem_name, g.grade problem_grade, g.weight problem_grade_weight, 
-				       p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, ty.subtype problem_subtype, ty.trad_gear problem_trad_gear, d.name discipline, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, COUNT(DISTINCT ps.id) num_pitches,
+				       p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, COALESCE(tt.subtype, ty.subtype) problem_subtype, ty.trad_gear problem_trad_gear, COALESCE(dt.name, d.name) discipline, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, COUNT(DISTINCT ps.id) num_pitches,
 				       COALESCE(pc.id, oc.id, sc.id, ac.id) coord_id,
 				       COALESCE(pc.latitude, oc.latitude, sc.latitude, ac.latitude) lat,
 				       COALESCE(pc.longitude, oc.longitude, sc.longitude, ac.longitude) lon,
@@ -730,7 +734,7 @@ public class UserRepository {
 				       MIN(a.grade_system_id) problem_grade_system_id
 				FROM req JOIN todo t ON t.user_id = req.user_id JOIN problem p ON t.problem_id = p.id
 				LEFT JOIN problem_section ps ON p.id = ps.problem_id
-				JOIN type ty ON p.type_id = ty.id JOIN discipline d ON ty.discipline_id = d.id
+				JOIN type ty ON p.type_id = ty.id JOIN discipline d ON ty.discipline_id = d.id LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = ? LEFT JOIN discipline_translation dt ON dt.discipline_id = d.id AND dt.language_id = ?
 				JOIN sector s ON p.sector_id = s.id JOIN area a ON s.area_id = a.id
 				JOIN grade g ON p.grade_id = g.id
 				LEFT JOIN coordinates ac ON a.coordinates_id = ac.id LEFT JOIN coordinates sc ON s.parking_coordinates_id = sc.id
@@ -740,7 +744,7 @@ public class UserRepository {
 				GROUP BY p.id, t.id
 				ORDER BY a.name, s.name, p.nr
 				""")
-		.params(userId, authUserId.orElse(0))
+		.params(userId, authUserId.orElse(0), idLanguage, idLanguage)
 		.query(mapper)
 		.list();
 
@@ -886,7 +890,7 @@ public class UserRepository {
 	}
 
 	@Transactional(readOnly = true)
-	public byte[] getUserTicks(Optional<Integer> authUserId) {
+	public byte[] getUserTicks(Optional<Integer> authUserId, int idLanguage) {
 		int userId = authUserId.orElseThrow();
 
 		try (var workbook = new ExcelWorkbook(); var os = new ByteArrayOutputStream()) {
@@ -916,7 +920,7 @@ public class UserRepository {
 
 			jdbcClient.sql("""
 					SELECT 
-					    ty.type, pt.subtype, r.url, a.name AS area_name, s.name AS sector_name, p.name, 
+					    COALESCE(tt.type, ty.type) AS type, COALESCE(tt.subtype, pt.subtype) AS subtype, r.url, a.name AS area_name, s.name AS sector_name, p.name, 
 					    IF(t.id IS NOT NULL, t.comment, p.description) AS comment,
 					    DATE_FORMAT(IF(t.date IS NULL AND f.user_id IS NOT NULL, p.fa_date, t.date), '%Y-%m-%d') AS date,
 					    t.stars, IF(f.user_id IS NOT NULL, 1, 0) AS fa, g.grade,
@@ -926,6 +930,7 @@ public class UserRepository {
 					JOIN area a ON s.area_id = a.id JOIN region r ON a.region_id = r.id
 					JOIN region_type rt ON r.id = rt.region_id AND rt.type_id = p.type_id
 					JOIN type ty ON rt.type_id = ty.id
+					LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = ?
 					LEFT JOIN problem_section ps ON p.id = ps.problem_id
 					LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = ?
 					LEFT JOIN tick t ON p.id = t.problem_id AND t.user_id = ?
@@ -933,15 +938,15 @@ public class UserRepository {
 					LEFT JOIN grade g ON g.id = IF(t.id IS NOT NULL, t.grade_id, p.grade_id)
 					WHERE (t.user_id IS NOT NULL OR f.user_id IS NOT NULL)
 					  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-					GROUP BY p.id, t.id, ty.type, pt.subtype, r.url, a.name, s.name, p.name, t.comment, p.description, t.date, p.fa_date, t.stars, f.user_id, g.grade
-					ORDER BY ty.type, a.name, s.name, p.name
+					GROUP BY p.id, t.id, COALESCE(tt.type, ty.type), COALESCE(tt.subtype, pt.subtype), r.url, a.name, s.name, p.name, t.comment, p.description, t.date, p.fa_date, t.stars, f.user_id, g.grade
+					ORDER BY COALESCE(tt.type, ty.type), a.name, s.name, p.name
 					""")
-			.params(userId, userId, userId)
+			.params(idLanguage, userId, userId, userId)
 			.query(handler);
 
 			jdbcClient.sql("""
 					SELECT 
-					    CONCAT(ty.type, ' (repeats)') AS type, pt.subtype, r.url, a.name AS area_name, s.name AS sector_name, p.name, 
+					    CONCAT(COALESCE(tt.type, ty.type), ' (repeats)') AS type, COALESCE(tt.subtype, pt.subtype) AS subtype, r.url, a.name AS area_name, s.name AS sector_name, p.name, 
 					    tr.comment, DATE_FORMAT(tr.date, '%Y-%m-%d') AS date, t.stars, 0 AS fa, g.grade,
 					    COUNT(DISTINCT ps.id) AS num_pitches
 					FROM problem p
@@ -949,16 +954,17 @@ public class UserRepository {
 					JOIN area a ON s.area_id = a.id JOIN region r ON a.region_id = r.id
 					JOIN region_type rt ON r.id = rt.region_id AND rt.type_id = p.type_id
 					JOIN type ty ON rt.type_id = ty.id
+					LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = ?
 					JOIN tick t ON p.id = t.problem_id AND t.user_id = ?
 					JOIN tick_repeat tr ON t.id = tr.tick_id
 					LEFT JOIN problem_section ps ON p.id = ps.problem_id
 					LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = ?
 					LEFT JOIN grade g ON g.id = t.grade_id
 					WHERE p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-					GROUP BY tr.id, p.id, ty.type, pt.subtype, r.url, a.name, s.name, p.name, tr.comment, tr.date, t.stars, g.grade
-					ORDER BY ty.type, a.name, s.name, p.name, tr.date
+					GROUP BY tr.id, p.id, COALESCE(tt.type, ty.type), COALESCE(tt.subtype, pt.subtype), r.url, a.name, s.name, p.name, tr.comment, tr.date, t.stars, g.grade
+					ORDER BY COALESCE(tt.type, ty.type), a.name, s.name, p.name, tr.date
 					""")
-			.params(userId, userId)
+			.params(idLanguage, userId, userId)
 			.query(handler);
 
 			jdbcClient.sql("""

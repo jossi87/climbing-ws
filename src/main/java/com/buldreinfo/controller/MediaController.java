@@ -107,10 +107,10 @@ public class MediaController {
 
 	@Operation(summary = "Get Media by id")
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Media> getMedia(@RequestParam(name = "idMedia") int idMedia) {
+	public ResponseEntity<Media> getMedia(HttpServletRequest request, @RequestParam(name = "idMedia") int idMedia) {
 		if (idMedia <= 0) throw new ValidationFailedException("Invalid idMedia=" + idMedia);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		return ResponseEntity.ok(mediaService.getMedia(authUserId, idMedia));
+		return ResponseEntity.ok(mediaService.getMedia(authUserId, idMedia, requestContext.getLanguageId(request)));
 	}
 
 	@Operation(summary = "Get media file by id")
@@ -182,7 +182,7 @@ public class MediaController {
 	@Operation(summary = "Add single image media item")
 	@PostMapping(value = "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
-	public ResponseEntity<Media> postMediaImage(@RequestPart("json") Media m, @RequestPart("file") MultipartFile file) {
+	public ResponseEntity<Media> postMediaImage(HttpServletRequest request, @RequestPart("json") Media m, @RequestPart("file") MultipartFile file) {
 		if (m == null) throw new ValidationFailedException("Media payload is required");
 		String originalFilename = file.getOriginalFilename();
 		StorageType storageType = StorageType.fromFilename(originalFilename)
@@ -195,13 +195,14 @@ public class MediaController {
 				throw new InternalServerErrorException("Failed to read uploaded file", e);
 			}
 		});
-		return ResponseEntity.ok(mediaService.getMedia(authUserId, newMediaId));
+		return ResponseEntity.ok(mediaService.getMedia(authUserId, newMediaId, requestContext.getLanguageId(request)));
 	}
 
 	@Operation(summary = "Commit verified Instagram media to application storage")
 	@PostMapping("/instagram-save")
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	public ResponseEntity<Media> postMediaInstagramSave(
+			HttpServletRequest request,
 			@RequestHeader("X-Selected-Cdn-Url") String selectedCdnUrl,
 			@RequestHeader("X-Selected-Is-Video") boolean isVideo,
 			@RequestHeader("X-Selected-Media-Index") int mediaIndex,
@@ -230,12 +231,12 @@ public class MediaController {
 				}
 			}, videoProcessingExecutor);
 
-			return ResponseEntity.ok(mediaService.getMedia(authUserId, id));
+			return ResponseEntity.ok(mediaService.getMedia(authUserId, id, requestContext.getLanguageId(request)));
 		}
 
 		byte[] imageData = fetchWithFallback(selectedCdnUrl, mediaPayload.embedUrl(), mediaIndex, authUserId);
 		int newId = mediaService.addMediaImage(authUserId, mediaPayload, StorageType.JPG, () -> new ByteArrayInputStream(imageData));
-		return ResponseEntity.ok(mediaService.getMedia(authUserId, newId));
+		return ResponseEntity.ok(mediaService.getMedia(authUserId, newId, requestContext.getLanguageId(request)));
 	}
 
 	@Operation(summary = "Scrape Instagram URL metadata for frontend preview box")
@@ -269,7 +270,7 @@ public class MediaController {
 	public ResponseEntity<Void> postMediaVideoComplete(@PathVariable(name = "id") int id) {
 		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		Media m = mediaService.getMedia(authUserId, id);
+		Media m = mediaService.getMedia(authUserId, id, 0); // 0 = canonical labels; the response is empty and only isMovie/uploadedByMe are checked
 		if (!m.isMovie()) throw new ValidationFailedException("Target is not a video");
 		if (!m.uploadedByMe()) throw new ForbiddenException("Permission denied");
 
@@ -292,7 +293,7 @@ public class MediaController {
 	@Operation(summary = "Add embedded external video (YouTube/Vimeo)")
 	@PostMapping("/video/embed")
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
-	public ResponseEntity<Media> postMediaVideoEmbed(@RequestBody Media media) {
+	public ResponseEntity<Media> postMediaVideoEmbed(HttpServletRequest request, @RequestBody Media media) {
 		if (media == null || media.embedUrl() == null || media.embedUrl().isBlank()) throw new ValidationFailedException("Embed URL is required");
 		String url = media.embedUrl().toLowerCase();
 		if (!url.contains("youtube.com") && !url.contains("youtu.be") && !url.contains("vimeo.com")) throw new ValidationFailedException("Unsupported provider");
@@ -320,7 +321,7 @@ public class MediaController {
 			logger.error("Async embed thumbnail failed for id=" + newId, ex);
 			return null;
 		});
-		return ResponseEntity.ok(mediaService.getMedia(authUserId, newId));
+		return ResponseEntity.ok(mediaService.getMedia(authUserId, newId, requestContext.getLanguageId(request)));
 	}
 
 	@Operation(summary = "Initiate video upload to get a presigned storage URL")

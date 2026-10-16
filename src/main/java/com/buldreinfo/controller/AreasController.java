@@ -109,7 +109,7 @@ public class AreasController {
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
 		Area area = areaService.getArea(setup, authUserId, id);
-		Collection<GradeDistribution> gradeDistribution = hierarchyRepo.getGradeDistribution(authUserId, area.id(), 0);
+		Collection<GradeDistribution> gradeDistribution = hierarchyRepo.getGradeDistribution(authUserId, area.id(), 0, setup.idLanguage());
 		List<Sector> sectors = area.sectors().stream()
 				.map(s -> sectorService.getSector(authUserId, false, setup, s.id()))
 				.toList();

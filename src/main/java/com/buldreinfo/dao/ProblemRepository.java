@@ -167,7 +167,7 @@ public class ProblemRepository {
 		               COALESCE(sc_data.num_ticks, 0) num_ticks, sc_data.stars,
 		               IF(EXISTS(SELECT 1 FROM tick WHERE problem_id = req.problem_id AND user_id = req.auth_user_id) OR
 		                  EXISTS(SELECT 1 FROM fa WHERE problem_id = req.problem_id AND user_id = req.auth_user_id), 1, 0) AS ticked, 
-		               ty.id type_id, ty.type, ty.subtype, ty.is_bolted, ty.trad_gear,
+		               ty.id type_id, COALESCE(tt.type, ty.type) type, COALESCE(tt.subtype, ty.subtype) subtype, ty.is_bolted, ty.trad_gear,
 		               p.trivia, p.starting_altitude, p.aspect, p.descent,
 		               sd.sections_json AS compiled_sections,
 		               MIN(a.grade_system_id) grade_system_id
@@ -176,7 +176,7 @@ public class ProblemRepository {
 		        LEFT JOIN stars_count sc_data ON p.id = sc_data.pid
 		        LEFT JOIN fa_data fad ON p.id = fad.problem_id
 		        LEFT JOIN section_data sd ON p.id = sd.problem_id
-		        JOIN type ty ON p.type_id = ty.id
+		        JOIN type ty ON p.type_id = ty.id LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = ?
 		        JOIN sector s ON p.sector_id = s.id
 		        JOIN area a ON s.area_id = a.id
 		        JOIN region r ON a.region_id = r.id
@@ -190,9 +190,9 @@ public class ProblemRepository {
 		        WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
 		          AND (r.id = req.region_id OR ur.user_id IS NOT NULL)
 		          AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-		        GROUP BY p.id
+		        GROUP BY p.id, COALESCE(tt.type, ty.type), COALESCE(tt.subtype, ty.subtype)
 		        """)
-		        .params(authUserId.orElse(0), setup.idRegion(), reqId)
+		        .params(authUserId.orElse(0), setup.idRegion(), reqId, setup.idLanguage())
 		        .query((rs, _) -> {
 		                int sectorId = rs.getInt("sector_id");
 		                String rock = rs.getString("rock");

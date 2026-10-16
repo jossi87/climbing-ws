@@ -126,7 +126,7 @@ public class MediaRepository {
 	}
 
 	@Transactional(readOnly = true)
-	public Media getMedia(Optional<Integer> authUserId, int id) {
+	public Media getMedia(Optional<Integer> authUserId, int id, int idLanguage) {
 		var sql = """
 				WITH req AS (
 				    SELECT ? auth_user_id, ? media_id
@@ -204,7 +204,7 @@ public class MediaRepository {
 				               'problemName', p3.name,
 				               'problemGrade', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN g3.grade ELSE COALESCE(g_sect3.grade, g3.grade) END,
 				               'problemGradeColor', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN clr3.hex_code ELSE COALESCE(clr_sect3.hex_code, clr3.hex_code) END,
-				               'problemSubtype', ty3.subtype,
+				               'problemSubtype', COALESCE(tt3.subtype, ty3.subtype),
 				               'problemTradGear', ty3.trad_gear,
 				               'nr', p3.nr,
 				               'pitch', COALESCE(ps3.nr, 0),
@@ -228,6 +228,7 @@ public class MediaRepository {
 				           JOIN grade g3 ON p3.consensus_grade_id = g3.id
 				           JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
 				           JOIN type ty3 ON p3.type_id = ty3.id JOIN discipline d3 ON ty3.discipline_id = d3.id
+				           LEFT JOIN type_translation tt3 ON tt3.type_id = ty3.id AND tt3.language_id = ?
 				           JOIN sector sec3 ON p3.sector_id = sec3.id
 				           JOIN area a5 ON sec3.area_id = a5.id
 				           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
@@ -244,14 +245,14 @@ public class MediaRepository {
 				LEFT JOIN user p ON m.photographer_user_id = p.id
 				""";
 		return jdbcClient.sql(sql)
-				.params(authUserId.orElse(0), id)
+				.params(authUserId.orElse(0), id, idLanguage)
 				.query((rs, _) -> Media.fromResultSet(jsonHelper, rs, authUserId))
 				.optional()
 				.orElseThrow(() -> new NoSuchElementException("Could not find media with id=" + id));
 	}
 
 	@Transactional(readOnly = true)
-	public List<Media> getMediaArea(Optional<Integer> authUserId, int id, boolean inherited) {
+	public List<Media> getMediaArea(Optional<Integer> authUserId, int id, boolean inherited, int idLanguage) {
 		var sql = """
 				WITH req AS (
 				    SELECT ? auth_user_id, ? area_id
@@ -328,7 +329,7 @@ public class MediaRepository {
 				               'problemName', p3.name,
 				               'problemGrade', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN g3.grade ELSE COALESCE(g_sect3.grade, g3.grade) END,
 				               'problemGradeColor', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN clr3.hex_code ELSE COALESCE(clr_sect3.hex_code, clr3.hex_code) END,
-				               'problemSubtype', ty3.subtype,
+				               'problemSubtype', COALESCE(tt3.subtype, ty3.subtype),
 				               'problemTradGear', ty3.trad_gear,
 				               'nr', p3.nr,
 				               'pitch', COALESCE(ps3.nr, 0),
@@ -352,6 +353,7 @@ public class MediaRepository {
 				           JOIN grade g3 ON p3.consensus_grade_id = g3.id
 				           JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
 				           JOIN type ty3 ON p3.type_id = ty3.id JOIN discipline d3 ON ty3.discipline_id = d3.id
+				           LEFT JOIN type_translation tt3 ON tt3.type_id = ty3.id AND tt3.language_id = ?
 				           JOIN sector sec3 ON p3.sector_id = sec3.id
 				           JOIN area a5 ON sec3.area_id = a5.id
 				           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
@@ -373,7 +375,7 @@ public class MediaRepository {
 				ORDER BY m.is_movie, m.embed_url, -ma.sorting DESC, m.id
 				""";
 		return jdbcClient.sql(sql)
-				.params(authUserId.orElse(0), id)
+				.params(authUserId.orElse(0), id, idLanguage)
 				.query((rs, _) -> {
 					if (inherited && rs.getBoolean("trivia")) {
 						return null;
@@ -437,7 +439,7 @@ public class MediaRepository {
 
 
 	@Transactional(readOnly = true)
-	public List<Media> getMediaGuestbook(Optional<Integer> authUserId, int guestbookId) {
+	public List<Media> getMediaGuestbook(Optional<Integer> authUserId, int guestbookId, int idLanguage) {
 		var sql = """
 				WITH req AS (
 				    SELECT ? auth_user_id, ? guestbook_id
@@ -515,7 +517,7 @@ public class MediaRepository {
 				               'problemName', p3.name,
 				               'problemGrade', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN g3.grade ELSE COALESCE(g_sect3.grade, g3.grade) END,
 				               'problemGradeColor', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN clr3.hex_code ELSE COALESCE(clr_sect3.hex_code, clr3.hex_code) END,
-				               'problemSubtype', ty3.subtype,
+				               'problemSubtype', COALESCE(tt3.subtype, ty3.subtype),
 				               'problemTradGear', ty3.trad_gear,
 				               'nr', p3.nr,
 				               'pitch', COALESCE(ps3.nr, 0),
@@ -539,6 +541,7 @@ public class MediaRepository {
 				           JOIN grade g3 ON p3.consensus_grade_id = g3.id
 				           JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
 				           JOIN type ty3 ON p3.type_id = ty3.id JOIN discipline d3 ON ty3.discipline_id = d3.id
+				           LEFT JOIN type_translation tt3 ON tt3.type_id = ty3.id AND tt3.language_id = ?
 				           JOIN sector sec3 ON p3.sector_id = sec3.id
 				           JOIN area a5 ON sec3.area_id = a5.id
 				           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
@@ -562,7 +565,7 @@ public class MediaRepository {
 				ORDER BY m.is_movie, m.embed_url, m.id
 				""";
 		return jdbcClient.sql(sql)
-				.params(authUserId.orElse(0), guestbookId)
+				.params(authUserId.orElse(0), guestbookId, idLanguage)
 				.query((rs, _) -> Media.fromResultSet(jsonHelper, rs, authUserId))
 				.list();
 	}
@@ -599,7 +602,7 @@ public class MediaRepository {
 	}
 
 	@Transactional(readOnly = true)
-	public List<Media> getMediaProblemCombined(Optional<Integer> authUserId, int sectorId, int problemId) {
+	public List<Media> getMediaProblemCombined(Optional<Integer> authUserId, int sectorId, int problemId, int idLanguage) {
 		var sql = """
 				WITH req AS (
 				    SELECT ? auth_user_id, ? sector_id, ? problem_id
@@ -677,7 +680,7 @@ public class MediaRepository {
 				               'problemName', p3.name,
 				               'problemGrade', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN g3.grade ELSE COALESCE(g_sect3.grade, g3.grade) END,
 				               'problemGradeColor', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN clr3.hex_code ELSE COALESCE(clr_sect3.hex_code, clr3.hex_code) END,
-				               'problemSubtype', ty3.subtype,
+				               'problemSubtype', COALESCE(tt3.subtype, ty3.subtype),
 				               'problemTradGear', ty3.trad_gear,
 				               'nr', p3.nr,
 				               'pitch', COALESCE(ps3.nr, 0),
@@ -701,6 +704,7 @@ public class MediaRepository {
 				           JOIN grade g3 ON p3.consensus_grade_id = g3.id
 				           JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
 				           JOIN type ty3 ON p3.type_id = ty3.id JOIN discipline d3 ON ty3.discipline_id = d3.id
+				           LEFT JOIN type_translation tt3 ON tt3.type_id = ty3.id AND tt3.language_id = ?
 				           JOIN sector sec3 ON p3.sector_id = sec3.id
 				           JOIN area a5 ON sec3.area_id = a5.id
 				           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
@@ -721,7 +725,7 @@ public class MediaRepository {
 				ORDER BY CASE WHEN ms.media_id IS NOT NULL THEN 0 ELSE 1 END, -ms.sorting DESC, m.is_movie, m.embed_url, IFNULL(mp.pitch,0), -mp.sorting DESC, m.id
 				""";
 		var res = jdbcClient.sql(sql)
-				.params(authUserId.orElse(0), sectorId, problemId)
+				.params(authUserId.orElse(0), sectorId, problemId, idLanguage)
 				.query((rs, _) -> {
 					var embedUrl = rs.getString("embed_url");
 					long millis = rs.getLong("milliseconds");
@@ -741,7 +745,7 @@ public class MediaRepository {
 	}
 
 	@Transactional(readOnly = true)
-	public List<Media> getMediaSectorThumbnails(Optional<Integer> authUserId, int idSector) {
+	public List<Media> getMediaSectorThumbnails(Optional<Integer> authUserId, int idSector, int idLanguage) {
 		var sql = """
 				WITH req AS (
 				    SELECT ? auth_user_id, ? sector_id
@@ -785,7 +789,7 @@ public class MediaRepository {
 				               'problemName', p3.name,
 				               'problemGrade', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN g3.grade ELSE COALESCE(g_sect3.grade, g3.grade) END,
 				               'problemGradeColor', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN clr3.hex_code ELSE COALESCE(clr_sect3.hex_code, clr3.hex_code) END,
-				               'problemSubtype', ty3.subtype,
+				               'problemSubtype', COALESCE(tt3.subtype, ty3.subtype),
 				               'problemTradGear', ty3.trad_gear,
 				               'nr', p3.nr,
 				               'pitch', COALESCE(ps3.nr, 0),
@@ -809,6 +813,7 @@ public class MediaRepository {
 				           JOIN grade g3 ON p3.consensus_grade_id = g3.id
 				           JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
 				           JOIN type ty3 ON p3.type_id = ty3.id JOIN discipline d3 ON ty3.discipline_id = d3.id
+				           LEFT JOIN type_translation tt3 ON tt3.type_id = ty3.id AND tt3.language_id = ?
 				           JOIN sector sec3 ON p3.sector_id = sec3.id
 				           JOIN area a5 ON sec3.area_id = a5.id
 				           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
@@ -830,7 +835,7 @@ public class MediaRepository {
 				ORDER BY m.is_movie, m.embed_url, -ms.sorting DESC, m.id
 				""";
 		return jdbcClient.sql(sql)
-				.params(authUserId.orElse(0), idSector)
+				.params(authUserId.orElse(0), idSector, idLanguage)
 				.query((rs, _) -> {
 					var m = Media.fromResultSet(jsonHelper, rs, authUserId);
 					return new Media(
@@ -843,7 +848,7 @@ public class MediaRepository {
 	}
 
 	@Transactional(readOnly = true)
-	public Map<Integer, List<Media>> getMediaTrails(Optional<Integer> authUserId, Collection<Integer> trailIds) {
+	public Map<Integer, List<Media>> getMediaTrails(Optional<Integer> authUserId, Collection<Integer> trailIds, int idLanguage) {
 		var res = new HashMap<Integer, List<Media>>();
 
 		if (trailIds.isEmpty()) {
@@ -924,7 +929,7 @@ public class MediaRepository {
 				               'problemName', p3.name,
 				               'problemGrade', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN g3.grade ELSE COALESCE(g_sect3.grade, g3.grade) END,
 				               'problemGradeColor', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN clr3.hex_code ELSE COALESCE(clr_sect3.hex_code, clr3.hex_code) END,
-				               'problemSubtype', ty3.subtype,
+				               'problemSubtype', COALESCE(tt3.subtype, ty3.subtype),
 				               'problemTradGear', ty3.trad_gear,
 				               'nr', p3.nr,
 				               'pitch', COALESCE(ps3.nr, 0),
@@ -948,6 +953,7 @@ public class MediaRepository {
 				           JOIN grade g3 ON p3.consensus_grade_id = g3.id
 				           JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
 				           JOIN type ty3 ON p3.type_id = ty3.id JOIN discipline d3 ON ty3.discipline_id = d3.id
+				           LEFT JOIN type_translation tt3 ON tt3.type_id = ty3.id AND tt3.language_id = :idLanguage
 				           JOIN sector sec3 ON p3.sector_id = sec3.id
 				           JOIN area a5 ON sec3.area_id = a5.id
 				           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
@@ -968,6 +974,7 @@ public class MediaRepository {
 				""")
 		.param("authUserId", authUserId.orElse(0))
 		.param("trailIds", trailIds)
+		.param("idLanguage", idLanguage)
 		.query((rs) -> {
 			var trailId = rs.getInt("trail_id");
 			res.computeIfAbsent(trailId, _ -> new ArrayList<>()).add(Media.fromResultSet(jsonHelper, rs, authUserId));
@@ -984,7 +991,7 @@ public class MediaRepository {
 	}
 
 	@Transactional(readOnly = true)
-	public List<Media> getProfileMedia(Optional<Integer> authUserId, int reqId, boolean captured) {
+	public List<Media> getProfileMedia(Optional<Integer> authUserId, int reqId, boolean captured, int idLanguage) {
 		var sql = """
 				WITH req AS (
 				    SELECT ? target_user_id, ? auth_user_id, ? is_captured
@@ -1063,7 +1070,7 @@ public class MediaRepository {
 				               'problemName', p3.name,
 				               'problemGrade', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN g3.grade ELSE COALESCE(g_sect3.grade, g3.grade) END,
 				               'problemGradeColor', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN clr3.hex_code ELSE COALESCE(clr_sect3.hex_code, clr3.hex_code) END,
-				               'problemSubtype', ty3.subtype,
+				               'problemSubtype', COALESCE(tt3.subtype, ty3.subtype),
 				               'problemTradGear', ty3.trad_gear,
 				               'nr', p3.nr,
 				               'pitch', COALESCE(ps3.nr, 0),
@@ -1087,6 +1094,7 @@ public class MediaRepository {
 				           JOIN grade g3 ON p3.consensus_grade_id = g3.id
 				           JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
 				           JOIN type ty3 ON p3.type_id = ty3.id JOIN discipline d3 ON ty3.discipline_id = d3.id
+				           LEFT JOIN type_translation tt3 ON tt3.type_id = ty3.id AND tt3.language_id = ?
 				           JOIN sector sec3 ON p3.sector_id = sec3.id
 				           JOIN area a5 ON sec3.area_id = a5.id
 				           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
@@ -1137,7 +1145,7 @@ public class MediaRepository {
 				""";
 
 		return jdbcClient.sql(sql)
-				.params(reqId, authUserId.orElse(0), captured)
+				.params(reqId, authUserId.orElse(0), captured, idLanguage)
 				.query((rs, _) -> Media.fromResultSet(jsonHelper, rs, authUserId))
 				.list();
 	}

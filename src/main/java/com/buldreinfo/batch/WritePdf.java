@@ -33,7 +33,7 @@ public class WritePdf {
 		var hierarchyRepo = context.getBean(HierarchyRepository.class);
 		var regionRepo = context.getBean(RegionRepository.class);
 
-		var setup = regionRepo.getSetups().stream()
+		var setup = regionRepo.getSetups(0).stream()
 				.filter(x -> x.idRegion() == 4)
 				.findAny()
 				.orElseThrow();
@@ -46,7 +46,7 @@ public class WritePdf {
 			generator.writeProblem(setup, area, sector, problem);
 		}
 		var area2 = areaService.getArea(setup, authUserId, 2754);
-		var gradeDist = hierarchyRepo.getGradeDistribution(authUserId, area2.id(), 0);
+		var gradeDist = hierarchyRepo.getGradeDistribution(authUserId, area2.id(), 0, setup.idLanguage());
 		var sectors = new ArrayList<Sector>();
 		for (var areaSector : area2.sectors()) {
 			sectors.add(sectorService.getSector(authUserId, false, setup, areaSector.id()));
