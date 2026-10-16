@@ -204,7 +204,7 @@ public class ActivityRepository {
 				WITH req AS (
 				  SELECT ? auth_user_id, ? region_id, ? show_all_time,
 				         ? hide_fa, ? hide_guestbook, ? hide_ticks, ? hide_media, ? min_grade_weight, ? filter_grade_system_id,
-				         ? filter_area_id, ? filter_sector_id
+				         ? filter_area_id, ? filter_sector_id, ? language_id
 				),
 				x AS (
 				  SELECT a1.id, a1.type, a1.activity_timestamp, a1.problem_id 
@@ -240,7 +240,7 @@ public class ActivityRepository {
 				       MIN(a.grade_system_id) grade_system_id 
 				FROM req CROSS JOIN x
 				JOIN problem p ON x.problem_id = p.id
-				JOIN type ty ON p.type_id = ty.id LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = ? 
+				JOIN type ty ON p.type_id = ty.id LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = req.language_id 
 				JOIN sector s ON p.sector_id = s.id 
 				JOIN area a ON s.area_id = a.id 
 				JOIN grade g ON p.consensus_grade_id = g.id
@@ -253,7 +253,7 @@ public class ActivityRepository {
 				""";
 
 		List<Activity> res = jdbcClient.sql(sqlStr)
-				.params(authUserId.orElse(0), setup.idRegion(), showAllTime, !fa, !comments, !ticks, !media, lowerGradeWeight, lowerGradeSystemId, idArea, idSector, offset, setup.idLanguage())
+				.params(authUserId.orElse(0), setup.idRegion(), showAllTime, !fa, !comments, !ticks, !media, lowerGradeWeight, lowerGradeSystemId, idArea, idSector, setup.idLanguage(), offset)
 				.query((rs, _) -> {
 					var ts = rs.getObject("activity_timestamp", LocalDateTime.class);
 					var currentActivityIds = new HashSet<Integer>();

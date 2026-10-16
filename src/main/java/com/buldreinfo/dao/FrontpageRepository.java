@@ -34,7 +34,7 @@ public class FrontpageRepository {
 	public List<FrontpageFirstAscent> getFrontpageFirstAscents(Optional<Integer> authUserId, Setup setup) {
 		return jdbcClient.sql("""
 				WITH req AS (
-				    SELECT ? AS auth_user_id, ? AS region_id
+				    SELECT ? AS auth_user_id, ? AS region_id, ? AS language_id
 				),
 				x AS (
 				    SELECT p1.id AS problem_id, p1.fa_date AS activity_timestamp
@@ -77,7 +77,7 @@ public class FrontpageRepository {
 				    NULL) AS user_data
 				FROM x
 				JOIN problem p ON x.problem_id = p.id
-				LEFT JOIN type_translation tt ON tt.type_id = p.type_id AND tt.language_id = ?
+				LEFT JOIN type_translation tt ON tt.type_id = p.type_id AND tt.language_id = (SELECT language_id FROM req)
 				JOIN type ty ON p.type_id = ty.id 
 				JOIN sector s ON p.sector_id = s.id 
 				JOIN area a ON s.area_id = a.id 
@@ -168,7 +168,7 @@ public class FrontpageRepository {
 	public List<FrontpageRecentAscent> getFrontpageNewestAscents(Optional<Integer> authUserId, Setup setup) {
 		return jdbcClient.sql("""
 				WITH req AS (
-				    SELECT ? AS auth_user_id, ? AS region_id
+				    SELECT ? AS auth_user_id, ? AS region_id, ? AS language_id
 				),
 				recent_activity AS (
 				    SELECT t.id AS tick_id, t.problem_id, t.user_id, t.grade_id, t.date AS tick_date, tr.date AS repeat_date,
@@ -199,7 +199,7 @@ public class FrontpageRepository {
 				       m.id AS media_id, UNIX_TIMESTAMP(m.updated_at) AS media_version_stamp, mma.focus_x AS media_focus_x, mma.focus_y AS media_focus_y, mma.primary_color_hex AS media_primary_color_hex
 				FROM recent_activity ra
 				JOIN problem p ON ra.problem_id = p.id
-				LEFT JOIN type_translation tt ON tt.type_id = p.type_id AND tt.language_id = ?
+				LEFT JOIN type_translation tt ON tt.type_id = p.type_id AND tt.language_id = (SELECT language_id FROM req)
 				JOIN user u ON ra.user_id = u.id
 				LEFT JOIN grade g ON ra.grade_id = g.id
 				LEFT JOIN media m ON u.media_id = m.id

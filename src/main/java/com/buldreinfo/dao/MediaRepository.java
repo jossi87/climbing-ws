@@ -129,7 +129,7 @@ public class MediaRepository {
 	public Media getMedia(Optional<Integer> authUserId, int id, int idLanguage) {
 		var sql = """
 				WITH req AS (
-				    SELECT ? auth_user_id, ? media_id
+				    SELECT ? auth_user_id, ? media_id, ? language_id
 				)
 				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
 				       m.description, m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds,
@@ -228,7 +228,7 @@ public class MediaRepository {
 				           JOIN grade g3 ON p3.consensus_grade_id = g3.id
 				           JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
 				           JOIN type ty3 ON p3.type_id = ty3.id JOIN discipline d3 ON ty3.discipline_id = d3.id
-				           LEFT JOIN type_translation tt3 ON tt3.type_id = ty3.id AND tt3.language_id = ?
+				           LEFT JOIN type_translation tt3 ON tt3.type_id = ty3.id AND tt3.language_id = req.language_id
 				           JOIN sector sec3 ON p3.sector_id = sec3.id
 				           JOIN area a5 ON sec3.area_id = a5.id
 				           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
@@ -255,7 +255,7 @@ public class MediaRepository {
 	public List<Media> getMediaArea(Optional<Integer> authUserId, int id, boolean inherited, int idLanguage) {
 		var sql = """
 				WITH req AS (
-				    SELECT ? auth_user_id, ? area_id
+				    SELECT ? auth_user_id, ? area_id, ? language_id
 				)
 				SELECT a.name as area_name, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, UNIX_TIMESTAMP(m.updated_at) version_stamp, m.description, ma.trivia, m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds,
 				       m.date_created, m.date_taken, 
@@ -353,7 +353,7 @@ public class MediaRepository {
 				           JOIN grade g3 ON p3.consensus_grade_id = g3.id
 				           JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
 				           JOIN type ty3 ON p3.type_id = ty3.id JOIN discipline d3 ON ty3.discipline_id = d3.id
-				           LEFT JOIN type_translation tt3 ON tt3.type_id = ty3.id AND tt3.language_id = ?
+				           LEFT JOIN type_translation tt3 ON tt3.type_id = ty3.id AND tt3.language_id = req.language_id
 				           JOIN sector sec3 ON p3.sector_id = sec3.id
 				           JOIN area a5 ON sec3.area_id = a5.id
 				           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
@@ -442,7 +442,7 @@ public class MediaRepository {
 	public List<Media> getMediaGuestbook(Optional<Integer> authUserId, int guestbookId, int idLanguage) {
 		var sql = """
 				WITH req AS (
-				    SELECT ? auth_user_id, ? guestbook_id
+				    SELECT ? auth_user_id, ? guestbook_id, ? language_id
 				)
 				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
 				       m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds,
@@ -541,7 +541,7 @@ public class MediaRepository {
 				           JOIN grade g3 ON p3.consensus_grade_id = g3.id
 				           JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
 				           JOIN type ty3 ON p3.type_id = ty3.id JOIN discipline d3 ON ty3.discipline_id = d3.id
-				           LEFT JOIN type_translation tt3 ON tt3.type_id = ty3.id AND tt3.language_id = ?
+				           LEFT JOIN type_translation tt3 ON tt3.type_id = ty3.id AND tt3.language_id = req.language_id
 				           JOIN sector sec3 ON p3.sector_id = sec3.id
 				           JOIN area a5 ON sec3.area_id = a5.id
 				           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
@@ -605,7 +605,7 @@ public class MediaRepository {
 	public List<Media> getMediaProblemCombined(Optional<Integer> authUserId, int sectorId, int problemId, int idLanguage) {
 		var sql = """
 				WITH req AS (
-				    SELECT ? auth_user_id, ? sector_id, ? problem_id
+				    SELECT ? auth_user_id, ? sector_id, ? problem_id, ? language_id
 				)
 				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
 				       m.description, m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds,
@@ -704,7 +704,7 @@ public class MediaRepository {
 				           JOIN grade g3 ON p3.consensus_grade_id = g3.id
 				           JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
 				           JOIN type ty3 ON p3.type_id = ty3.id JOIN discipline d3 ON ty3.discipline_id = d3.id
-				           LEFT JOIN type_translation tt3 ON tt3.type_id = ty3.id AND tt3.language_id = ?
+				           LEFT JOIN type_translation tt3 ON tt3.type_id = ty3.id AND tt3.language_id = req.language_id
 				           JOIN sector sec3 ON p3.sector_id = sec3.id
 				           JOIN area a5 ON sec3.area_id = a5.id
 				           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
@@ -748,7 +748,7 @@ public class MediaRepository {
 	public List<Media> getMediaSectorThumbnails(Optional<Integer> authUserId, int idSector, int idLanguage) {
 		var sql = """
 				WITH req AS (
-				    SELECT ? auth_user_id, ? sector_id
+				    SELECT ? auth_user_id, ? sector_id, ? language_id
 				)
 				SELECT m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, UNIX_TIMESTAMP(m.updated_at) version_stamp,
 				       ms.trivia, m.description, m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds,
@@ -813,7 +813,7 @@ public class MediaRepository {
 				           JOIN grade g3 ON p3.consensus_grade_id = g3.id
 				           JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
 				           JOIN type ty3 ON p3.type_id = ty3.id JOIN discipline d3 ON ty3.discipline_id = d3.id
-				           LEFT JOIN type_translation tt3 ON tt3.type_id = ty3.id AND tt3.language_id = ?
+				           LEFT JOIN type_translation tt3 ON tt3.type_id = ty3.id AND tt3.language_id = req.language_id
 				           JOIN sector sec3 ON p3.sector_id = sec3.id
 				           JOIN area a5 ON sec3.area_id = a5.id
 				           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
@@ -994,7 +994,7 @@ public class MediaRepository {
 	public List<Media> getProfileMedia(Optional<Integer> authUserId, int reqId, boolean captured, int idLanguage) {
 		var sql = """
 				WITH req AS (
-				    SELECT ? target_user_id, ? auth_user_id, ? is_captured
+				    SELECT ? target_user_id, ? auth_user_id, ? is_captured, ? language_id
 				)
 				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
 				       m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds,
@@ -1094,7 +1094,7 @@ public class MediaRepository {
 				           JOIN grade g3 ON p3.consensus_grade_id = g3.id
 				           JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
 				           JOIN type ty3 ON p3.type_id = ty3.id JOIN discipline d3 ON ty3.discipline_id = d3.id
-				           LEFT JOIN type_translation tt3 ON tt3.type_id = ty3.id AND tt3.language_id = ?
+				           LEFT JOIN type_translation tt3 ON tt3.type_id = ty3.id AND tt3.language_id = req.language_id
 				           JOIN sector sec3 ON p3.sector_id = sec3.id
 				           JOIN area a5 ON sec3.area_id = a5.id
 				           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch

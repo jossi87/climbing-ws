@@ -718,7 +718,7 @@ public class UserRepository {
 		};
 
 		jdbcClient.sql("""
-				WITH req AS (SELECT ? user_id, ? auth_user_id)
+				WITH req AS (SELECT ? user_id, ? auth_user_id, ? language_id)
 				SELECT a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
 				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
 				       t.id todo_id, p.id problem_id, p.nr problem_nr, p.name problem_name, g.grade problem_grade, g.weight problem_grade_weight, 
@@ -734,7 +734,7 @@ public class UserRepository {
 				       MIN(a.grade_system_id) problem_grade_system_id
 				FROM req JOIN todo t ON t.user_id = req.user_id JOIN problem p ON t.problem_id = p.id
 				LEFT JOIN problem_section ps ON p.id = ps.problem_id
-				JOIN type ty ON p.type_id = ty.id JOIN discipline d ON ty.discipline_id = d.id LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = ? LEFT JOIN discipline_translation dt ON dt.discipline_id = d.id AND dt.language_id = ?
+				JOIN type ty ON p.type_id = ty.id JOIN discipline d ON ty.discipline_id = d.id LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = req.language_id LEFT JOIN discipline_translation dt ON dt.discipline_id = d.id AND dt.language_id = req.language_id
 				JOIN sector s ON p.sector_id = s.id JOIN area a ON s.area_id = a.id
 				JOIN grade g ON p.grade_id = g.id
 				LEFT JOIN coordinates ac ON a.coordinates_id = ac.id LEFT JOIN coordinates sc ON s.parking_coordinates_id = sc.id
@@ -744,7 +744,7 @@ public class UserRepository {
 				GROUP BY p.id, t.id
 				ORDER BY a.name, s.name, p.nr
 				""")
-		.params(userId, authUserId.orElse(0), idLanguage, idLanguage)
+		.params(userId, authUserId.orElse(0), idLanguage)
 		.query(mapper)
 		.list();
 

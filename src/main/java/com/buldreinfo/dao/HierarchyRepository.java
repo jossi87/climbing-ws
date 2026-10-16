@@ -104,7 +104,7 @@ public class HierarchyRepository {
 	@Transactional(readOnly = true)
 	public Collection<GradeDistribution> getContentGraph(Optional<Integer> authUserId, Setup setup) {
 		String sql = """
-				WITH req AS (SELECT ? auth_user_id, ? region_id),
+				WITH req AS (SELECT ? auth_user_id, ? region_id, ? language_id),
 				target_systems AS (
 				  SELECT DISTINCT rgs.grade_system_id FROM req 
 				  JOIN region_grade_system rgs ON req.region_id = rgs.region_id
@@ -134,7 +134,7 @@ public class HierarchyRepository {
 				JOIN grade_color clr ON g.grade_color_id = clr.id
 				LEFT JOIN x ON g.label_major = x.g_base
 				LEFT JOIN type ty2 ON ty2.id = x.type_id
-				LEFT JOIN type_translation tt2 ON tt2.type_id = ty2.id AND tt2.language_id = ?
+				LEFT JOIN type_translation tt2 ON tt2.type_id = ty2.id AND tt2.language_id = req.language_id
 				LEFT JOIN discipline d2 ON ty2.discipline_id = d2.id
 				ORDER BY g.sort, x.region, x.type_id
 				""";
@@ -248,7 +248,7 @@ public class HierarchyRepository {
 				.orElseThrow(() -> new NoSuchElementException("Could not resolve grade system for idArea=" + optionalAreaId + ", idSector=" + optionalSectorId));
 		var sqlStr = """
 				WITH req AS (
-				  SELECT ? auth_user_id, ? sector_id, ? area_id
+				  SELECT ? auth_user_id, ? sector_id, ? area_id, ? language_id
 				),
 				target_systems AS (
 				  SELECT ? grade_system_id
@@ -279,13 +279,13 @@ public class HierarchyRepository {
 				JOIN grade_color clr ON g.grade_color_id = clr.id
 				LEFT JOIN x ON g.label_major = x.g_base
 				LEFT JOIN type ty2 ON ty2.id = x.type_id
-				LEFT JOIN type_translation tt2 ON tt2.type_id = ty2.id AND tt2.language_id = ?
+				LEFT JOIN type_translation tt2 ON tt2.type_id = ty2.id AND tt2.language_id = req.language_id
 				LEFT JOIN discipline d2 ON ty2.discipline_id = d2.id
 				ORDER BY g.sort, x.sorting, x.sector, x.type_id
 				""";
 		Map<String, GradeDistribution> res = new LinkedHashMap<>();
 		jdbcClient.sql(sqlStr)
-		.params(authUserId.orElse(0), optionalSectorId, optionalAreaId, gradeSystemId, idLanguage)
+		.params(authUserId.orElse(0), optionalSectorId, optionalAreaId, idLanguage, gradeSystemId)
 		.query(rs -> {
 			var label = rs.getString("grade");
 			var color = rs.getString("color");
@@ -667,7 +667,7 @@ public class HierarchyRepository {
 	public Toc getToc(Optional<Integer> authUserId, Setup setup) {
 		var sqlStr = """
 				WITH req AS (
-				    SELECT ? auth_user_id, ? region_id
+				    SELECT ? auth_user_id, ? region_id, ? language_id
 				),
 				filtered_problems AS (
 				    SELECT p.id AS pid, p.sector_id, p.consensus_grade_id, p.type_id, p.coordinates_id,
@@ -746,7 +746,7 @@ public class HierarchyRepository {
 				    (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p.pid) AS num_pitches 
 				FROM filtered_problems p
 				JOIN type ty ON p.type_id = ty.id
-				LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = ?
+				LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = (SELECT language_id FROM req)
 				LEFT JOIN grade gf ON p.consensus_grade_id = gf.id
 				LEFT JOIN coordinates ac ON p.area_coordinates_id = ac.id
 				LEFT JOIN coordinates sc ON p.sector_parking_coordinates_id = sc.id

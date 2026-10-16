@@ -101,7 +101,7 @@ public class ProblemRepository {
 				.orElse(false);
 
 		Problem p = jdbcClient.sql("""
-		        WITH req AS (SELECT ? AS auth_user_id, ? AS region_id, ? AS problem_id),
+		        WITH req AS (SELECT ? AS auth_user_id, ? AS region_id, ? AS problem_id, ? AS language_id),
 		        stars_count AS (
 		            SELECT p_sub.id AS pid, COUNT(DISTINCT t_sub.id) AS num_ticks,
 		                   ROUND(ROUND(AVG(NULLIF(t_sub.stars, -1)) * 2) / 2, 1) AS stars
@@ -176,7 +176,7 @@ public class ProblemRepository {
 		        LEFT JOIN stars_count sc_data ON p.id = sc_data.pid
 		        LEFT JOIN fa_data fad ON p.id = fad.problem_id
 		        LEFT JOIN section_data sd ON p.id = sd.problem_id
-		        JOIN type ty ON p.type_id = ty.id LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = ?
+		        JOIN type ty ON p.type_id = ty.id LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = req.language_id
 		        JOIN sector s ON p.sector_id = s.id
 		        JOIN area a ON s.area_id = a.id
 		        JOIN region r ON a.region_id = r.id

@@ -189,7 +189,7 @@ public class SectorRepository {
 
 		var sql = """
 				WITH req AS (
-				    SELECT ? auth_user_id, ? area_id, ? sector_id, ? include_fa_aid
+				    SELECT ? auth_user_id, ? area_id, ? sector_id, ? include_fa_aid, ? language_id
 				),
 				filtered_problems AS (
 				    SELECT p.*, a.grade_system_id
@@ -221,7 +221,7 @@ public class SectorRepository {
 				SELECT p.sector_id, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, fa_aid.fa_aid_names, fa_aid.fa_aid_date, fa.fa_names, YEAR(p.fa_date) AS ffa_year, ty.id AS type_id, COALESCE(tt.type, ty.type) type, COALESCE(tt.subtype, ty.subtype) subtype, ty.is_bolted, ty.trad_gear, g.weight, g.grade, COALESCE(t.total_ticks, 0) AS total_ticks, COALESCE(t.avg_stars, 0) AS stars, GREATEST(COALESCE(t.user_ticked, 0), COALESCE(fa.user_is_fa, 0)) AS ticked, CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END AS todo, gb.danger, p.length_meter, co.id AS coordinates_id, co.latitude, co.longitude, co.elevation, co.elevation_source, (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p.id) AS num_pitches, COALESCE(m.num_images, 0) AS num_images, COALESCE(m.num_movies, 0) AS num_movies, CASE WHEN EXISTS (SELECT 1 FROM svg WHERE svg.problem_id = p.id) THEN 1 ELSE 0 END AS has_topo, p.grade_system_id
 				FROM filtered_problems p
 				JOIN grade g ON p.consensus_grade_id = g.id
-				JOIN type ty ON p.type_id = ty.id LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = ?
+				JOIN type ty ON p.type_id = ty.id LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = (SELECT language_id FROM req)
 				LEFT JOIN coordinates co ON p.coordinates_id = co.id
 				LEFT JOIN fa_agg fa ON p.id = fa.problem_id
 				LEFT JOIN fa_aid_agg fa_aid ON p.id = fa_aid.problem_id
