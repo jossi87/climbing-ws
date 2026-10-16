@@ -728,7 +728,7 @@ public class UserRepository {
 				       COALESCE(pc.longitude, oc.longitude, sc.longitude, ac.longitude) lon,
 				       COALESCE(pc.elevation, oc.elevation, sc.elevation, ac.elevation) ele,
 				       COALESCE(pc.elevation_source, oc.elevation_source, sc.elevation_source, ac.elevation_source) ele_src,
-				       (SELECT GROUP_CONCAT(CONCAT(u_other.id, ':', u_other.firstname, ' ', COALESCE(u_other.lastname, '')) SEPARATOR '|')
+				       (SELECT GROUP_CONCAT(CONCAT(u_other.id, ':', u_other.firstname, ' ', COALESCE(u_other.lastname, '')) ORDER BY u_other.firstname, u_other.lastname SEPARATOR '|')
 				        FROM todo t_other JOIN user u_other ON t_other.user_id = u_other.id CROSS JOIN req
 				        WHERE t_other.problem_id = p.id AND t_other.user_id != req.user_id) AS partners_raw,
 				       MIN(a.grade_system_id) problem_grade_system_id
