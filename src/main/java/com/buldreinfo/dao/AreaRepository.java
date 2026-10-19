@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.exception.ForbiddenException;
 import com.buldreinfo.exception.UnauthorizedException;
+import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.helpers.HitsFormatter;
 import com.buldreinfo.model.Area;
 import com.buldreinfo.model.Area.AreaSector;
@@ -263,6 +264,15 @@ public class AreaRepository {
 		if (a.id() > 0) {
 			ensureAdminWriteArea(authUserId, a.id());
 			var currArea = getAreaBase(s, authUserId, a.id(), List.of(), List.of());
+			/**
+			 * Problems store their grade (and consensus grade) as a grade id belonging to the area's current system, so
+			 * switching the system once problems exist would leave those grades interpreted in the wrong system. The UI
+			 * disables the selector in this situation; this repeats the rule for any other caller.
+			 */
+			if (a.gradeSystemId() > 0 && a.gradeSystemId() != currArea.gradeSystemId() && areaHasProblems(a.id())) {
+				throw new ValidationFailedException("Grade system cannot be changed for area id=" + a.id()
+						+ " because it already has problems");
+			}
 			setPermissionRecursive = currArea.lockedAdmin() != isLockedAdmin || currArea.lockedSuperadmin() != a.lockedSuperadmin();
 
 			jdbcClient.sql("""
@@ -320,5 +330,20 @@ public class AreaRepository {
 
 		externalLinksRepo.upsertExternalLinks(a.externalLinks(), idArea, 0, 0);
 		return a.trash() ? Redirect.fromRoot() : Redirect.fromIdArea(idArea);
+	}
+
+	/** Trashed problems are ignored: they are not part of the area's visible, graded content. */
+	@Transactional(readOnly = true)
+	public boolean areaHasProblems(int areaId) {
+		return jdbcClient.sql("""
+				SELECT EXISTS(
+					SELECT 1 FROM problem p
+					JOIN sector s ON p.sector_id=s.id
+					WHERE s.area_id=? AND p.trash IS NULL
+				)
+				""")
+				.param(areaId)
+				.query(Boolean.class)
+				.single();
 	}
 }
