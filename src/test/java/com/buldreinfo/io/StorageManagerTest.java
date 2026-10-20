@@ -18,7 +18,7 @@ import com.buldreinfo.infrastructure.CacheConstants;
  */
 public class StorageManagerTest {
 	private static final AppConfig APP_CONFIG = new AppConfig(
-			"test-access-key", "test-secret-key", "test-apify-token", null, "test-google-key", "test-vegvesen-auth");
+			"test-access-key", "test-secret-key", "test-apify-token", null, "test-google-key", "test-vegvesen-auth", "test-windy-api-key");
 
 	@Test
 	public void buildsStorageClientsAndPresignsUploadUrl() {

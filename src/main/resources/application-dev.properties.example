@@ -6,6 +6,7 @@ buldreinfo.db.username=root
 buldreinfo.db.password=YOUR_PASSWORD
 buldreinfo.google-apikey=WhateverYouWant
 buldreinfo.vegvesen-auth=WhateverYouWant
+buldreinfo.windy-api-key=WhateverYouWant
 buldreinfo.akamai-access-key=WhateverYouWant
 buldreinfo.akamai-secret-key=WhateverYouWant
 buldreinfo.apify-api-token=WhateverYouWant

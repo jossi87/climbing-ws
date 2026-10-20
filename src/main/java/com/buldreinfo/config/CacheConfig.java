@@ -38,6 +38,14 @@ public class CacheConfig {
 				.maximumSize(100)
 				.build());
 
+		// Windy image URLs are tokenized and expire (10 minutes on the free tier), so keep this cache short-lived.
+		cacheManager.registerCustomCache(CacheConstants.WINDY_WEBCAM_CACHE_NAME,
+				Caffeine.newBuilder()
+				.recordStats()
+				.expireAfterWrite(5, TimeUnit.MINUTES)
+				.maximumSize(10)
+				.build());
+
 		return cacheManager;
 	}
 }

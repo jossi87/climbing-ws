@@ -164,18 +164,19 @@ public class RegionRepository {
 		var regionGradeSystemIds = gradeSystemRepo.getRegionGradeSystemIdsByRegion();
 
 		return jdbcClient.sql("""
-				SELECT r.id, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom, l.code default_language,
+				SELECT r.id, r.country_code, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom, l.code default_language,
 				       MAX(d.is_bouldering) is_bouldering, MAX(d.is_rope_climbing) is_rope_climbing, MAX(d.is_ice_climbing) is_ice_climbing
 				FROM region r
 				JOIN language l ON r.language_id = l.id
 				JOIN region_type rt ON r.id = rt.region_id
 				JOIN type t ON rt.type_id = t.id
 				JOIN discipline d ON t.discipline_id = d.id
-				GROUP BY r.id, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom, l.code
+				GROUP BY r.id, r.country_code, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom, l.code
 				ORDER BY r.id
 				""")
 				.query((rs, _) -> Setup.newBuilder(rs.getString("url").replace("https://", "").replace("http://", ""), rs.getBoolean("is_bouldering"), rs.getBoolean("is_rope_climbing"), rs.getBoolean("is_ice_climbing"))
 						.withIdRegion(rs.getInt("id"))
+						.withCountryCode(rs.getString("country_code"))
 						.withTitle(rs.getString("title"))
 						.withDescription(rs.getString("description"))
 						.withDefaultCenter(new LatLng(rs.getDouble("latitude"), rs.getDouble("longitude")))

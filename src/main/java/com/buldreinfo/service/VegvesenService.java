@@ -22,11 +22,10 @@ import org.springframework.stereotype.Service;
 
 import com.buldreinfo.config.AppConfig;
 import com.buldreinfo.infrastructure.CacheConstants;
+import com.buldreinfo.model.Webcam;
 
 @Service
 public class VegvesenService {
-	public record Webcam(String id, String lastUpdated, String name, String urlStillImage, String urlYr, String urlOther, double lat, double lng) {}
-
 	private static class WebcamBuilder {
 		String id, lastUpdated, name, urlStillImage, urlYr;
 		double lat, lng;

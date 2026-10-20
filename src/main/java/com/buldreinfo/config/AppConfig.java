@@ -11,7 +11,8 @@ public record AppConfig(
 		@NotBlank String apifyApiToken,
 		DatabaseConfig db,
 		@NotBlank String googleApikey,
-		@NotBlank String vegvesenAuth
+		@NotBlank String vegvesenAuth,
+		@NotBlank String windyApiKey
 		) {
 	public record DatabaseConfig(
 			@NotBlank String database,

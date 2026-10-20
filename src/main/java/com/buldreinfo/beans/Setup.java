@@ -5,13 +5,14 @@ import java.util.List;
 import com.buldreinfo.model.CompassDirection;
 import com.buldreinfo.model.LatLng;
 
-public record Setup(String domain, String url, int idRegion, boolean isBouldering, boolean isClimbing, boolean isIce, List<Integer> regionGradeSystemIds, List<CompassDirection> compassDirections, String title, String description, LatLng defaultCenter, int defaultZoom, String defaultLanguage, int idLanguage) {
+public record Setup(String domain, String url, int idRegion, String countryCode, boolean isBouldering, boolean isClimbing, boolean isIce, List<Integer> regionGradeSystemIds, List<CompassDirection> compassDirections, String title, String description, LatLng defaultCenter, int defaultZoom, String defaultLanguage, int idLanguage) {
 	public static SetupBuilder newBuilder(String domain, boolean isBouldering, boolean isClimbing, boolean isIce) {
 		return new SetupBuilder(domain, isBouldering, isClimbing, isIce);
 	}
 
 	public static class SetupBuilder {
 		private List<CompassDirection> compassDirections;
+		private String countryCode = "NO";
 		private LatLng defaultCenter;
 		private String defaultLanguage;
 		private int defaultZoom;
@@ -35,11 +36,16 @@ public record Setup(String domain, String url, int idRegion, boolean isBoulderin
 		}
 
 		public Setup build() {
-			return new Setup(domain, url, idRegion, isBouldering, isClimbing, isIce, regionGradeSystemIds, compassDirections, title, description, defaultCenter, defaultZoom, defaultLanguage, idLanguage);
+			return new Setup(domain, url, idRegion, countryCode, isBouldering, isClimbing, isIce, regionGradeSystemIds, compassDirections, title, description, defaultCenter, defaultZoom, defaultLanguage, idLanguage);
 		}
 
 		public SetupBuilder withCompassDirections(List<CompassDirection> compassDirections) {
 			this.compassDirections = compassDirections;
+			return this;
+		}
+
+		public SetupBuilder withCountryCode(String countryCode) {
+			this.countryCode = countryCode;
 			return this;
 		}
 

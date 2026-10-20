@@ -8,5 +8,6 @@ public final class CacheConstants {
 	public static final String HIT_COOLDOWN_CACHE_NAME = "hit-cooldown-cache";
 	public static final String REGION_CACHE_NAME = "regions";
 	public static final String WEBCAM_CACHE_NAME = "webcams";
+	public static final String WINDY_WEBCAM_CACHE_NAME = "windy-webcams";
 	private CacheConstants() {}
 }

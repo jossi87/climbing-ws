@@ -16,8 +16,8 @@ public class WebcamsResourceTest extends BaseResourceTest {
 	@Autowired private WebcamsController tester;
 
 	@Test
-	public void testGetFrontpage() {
-		var r = tester.getCameras();
+	public void testGetWebcams() {
+		var r = tester.getCameras(getRequest(Region.brattelinjer));
 		assertEquals(OK, r.getStatusCode());
 		Collection<?> cameras = assertInstanceOf(Collection.class, r.getBody());
 		assertFalse(cameras.isEmpty());
