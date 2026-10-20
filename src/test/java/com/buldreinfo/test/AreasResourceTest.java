@@ -17,12 +17,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.buldreinfo.controller.AreasController;
+import com.buldreinfo.dao.GradeSystemRepository;
 import com.buldreinfo.model.Area;
 import com.buldreinfo.service.AreaService;
 
 public class AreasResourceTest extends BaseResourceTest {
-	@Autowired private AreasController tester;
 	@Autowired private AreaService areaService;
+	@Autowired private GradeSystemRepository gradeSystemRepo;
+	@Autowired private AreasController tester;
 
 	@Test
 	public void testGetArea() {
@@ -31,6 +33,8 @@ public class AreasResourceTest extends BaseResourceTest {
 		Area a = assertInstanceOf(Area.class, r.getBody());
 		assertFalse(a.name() == null || a.name().isBlank());
 		assertNull(a.redirectUrl());
+		assertEquals(getSetup(Region.buldreinfo).idRegion(), a.regionId());
+		assertEquals(gradeSystemRepo.getRegionGradeSystemIds(a.regionId()), a.regionGradeSystemIds());
 	}
 
 	@Test

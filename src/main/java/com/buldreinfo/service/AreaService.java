@@ -14,7 +14,11 @@ import org.springframework.transaction.annotation.Transactional;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.dao.HierarchyRepository;
+import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.SectorRepository;
+import com.buldreinfo.exception.ForbiddenException;
+import com.buldreinfo.exception.UnauthorizedException;
+import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.helpers.SectorSort;
 import com.buldreinfo.model.Area;
 import com.buldreinfo.model.Area.AreaSectorOrder;
@@ -28,17 +32,20 @@ public class AreaService {
 	private final GeoService geoService;
 	private final HierarchyRepository hierarchyRepo;
 	private final MediaService mediaService;
+	private final RegionRepository regionRepo;
 	private final SectorRepository sectorRepo;
 
 	public AreaService(AreaRepository areaRepo,
 			GeoService geoService,
 			HierarchyRepository hierarchyRepo,
 			MediaService mediaService,
+			RegionRepository regionRepo,
 			SectorRepository sectorRepo) {
 		this.areaRepo = areaRepo;
 		this.geoService = geoService;
 		this.hierarchyRepo = hierarchyRepo;
 		this.mediaService = mediaService;
+		this.regionRepo = regionRepo;
 		this.sectorRepo = sectorRepo;
 	}
 
@@ -53,7 +60,7 @@ public class AreaService {
 			try {
 				var res = hierarchyRepo.getCanonicalUrl(setup, reqId, 0, 0);
 				if (res.redirectUrl() != null && !res.redirectUrl().isEmpty()) {
-					return new Area(res.redirectUrl(), null, -1, false, false, false, false, null, null, false, 0, 0, null, null, null, null, null, null, null, null, null, 0);
+					return new Area(res.redirectUrl(), null, 0, List.of(), -1, false, false, false, false, null, null, false, 0, 0, null, null, null, null, null, null, null, null, null, 0);
 				}
 			} catch (Exception _) {}
 			throw new NoSuchElementException("Could not find area with id=" + reqId);
@@ -106,14 +113,19 @@ public class AreaService {
 
 	@Transactional
 	public Redirect setArea(Setup s, Optional<Integer> authUserId, Area a) {
-		if (a.coordinates() != null) {
-			if (a.coordinates().latitude() == 0 || a.coordinates().longitude() == 0) {
-				a = a.withCoordinates(null);
-			} else {
-				var result = geoService.resolveCoordinates(List.of(a.coordinates()));
-				a = a.withCoordinates(result.getFirst());
-			}
+		if (authUserId.isEmpty()) throw new UnauthorizedException("Not logged in");
+		if (s.idRegion() <= 0) throw new ForbiddenException("Insufficient credentials");
+		if (a.id() > 0) {
+			areaRepo.ensureAdminWriteArea(authUserId, a.id());
+		} else {
+			regionRepo.ensureAdminWriteRegion(s, authUserId);
 		}
+
+		if (a.coordinates() == null || a.coordinates().latitude() == 0 || a.coordinates().longitude() == 0) {
+			throw new ValidationFailedException("Area coordinates are required");
+		}
+		var result = geoService.resolveCoordinates(List.of(a.coordinates()));
+		a = a.withCoordinates(result.getFirst());
 		return areaRepo.setArea(s, authUserId, a);
 	}
 }

@@ -20,11 +20,6 @@ import com.buldreinfo.model.GradeSystem;
 
 @Repository
 public class GradeSystemRepository {
-	/**
-	 * Every area has exactly one grade system: area.grade_system_id is NOT NULL and is constrained to be declared for
-	 * the area's region (FK area_region_grade_system). The system is picked when the area is saved (see
-	 * resolveAreaGradeSystemId) and afterwards it is simply a column, so reads never derive it from the region.
-	 */
 	private final JdbcClient jdbcClient;
 
 	public GradeSystemRepository(JdbcClient jdbcClient) {
@@ -58,7 +53,6 @@ public class GradeSystemRepository {
 				.optional();
 	}
 
-	/** The grade systems a region declares, in a stable order. */
 	@Transactional(readOnly = true)
 	public List<Integer> getRegionGradeSystemIds(int regionId) {
 		return jdbcClient.sql("SELECT grade_system_id FROM region_grade_system WHERE region_id=? ORDER BY grade_system_id")
@@ -67,10 +61,6 @@ public class GradeSystemRepository {
 				.list();
 	}
 
-	/**
-	 * The grade system to store on an area: the requested one (which its region must declare), or the region's single
-	 * system when the caller did not pick one. Throws when a region with several systems is left for the caller to decide.
-	 */
 	@Transactional(readOnly = true)
 	public int resolveAreaGradeSystemId(int regionId, int requestedGradeSystemId) {
 		var declared = getRegionGradeSystemIds(regionId);
@@ -87,10 +77,6 @@ public class GradeSystemRepository {
 				+ " grade systems, so every area must pick one.");
 	}
 
-	/**
-	 * The complete grade catalogue, shared by every region. Cached because Meta needs all systems to resolve
-	 * cross-region content, and grade definitions only change through a data deployment.
-	 */
 	@Cacheable(value = CacheConstants.REGION_CACHE_NAME, key = "'grade-systems'", sync = true)
 	@Transactional(readOnly = true)
 	public List<GradeSystem> getGradeSystems() {

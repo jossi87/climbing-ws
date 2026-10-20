@@ -748,7 +748,7 @@ public class HierarchyRepository {
 				JOIN type ty ON p.type_id = ty.id
 				LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = (SELECT language_id FROM req)
 				LEFT JOIN grade gf ON p.consensus_grade_id = gf.id
-				LEFT JOIN coordinates ac ON p.area_coordinates_id = ac.id
+				JOIN coordinates ac ON p.area_coordinates_id = ac.id
 				LEFT JOIN coordinates sc ON p.sector_parking_coordinates_id = sc.id
 				LEFT JOIN coordinates c ON p.coordinates_id = c.id
 				LEFT JOIN tick_agg t ON p.pid = t.problem_id
@@ -778,8 +778,7 @@ public class HierarchyRepository {
 			if (a == null) {
 				var areaUrl = rs.getString("area_url");
 				var areaName = rs.getString("area_name");
-				int areaidCoordinates = rs.getInt("area_coordinates_id");
-				var areaCoordinates = areaidCoordinates == 0 ? null : new Coordinates(areaidCoordinates, rs.getDouble("area_latitude"), rs.getDouble("area_longitude"), rs.getDouble("area_elevation"), rs.getString("area_elevation_source"), 0.0);
+				var areaCoordinates = new Coordinates(rs.getInt("area_coordinates_id"), rs.getDouble("area_latitude"), rs.getDouble("area_longitude"), rs.getDouble("area_elevation"), rs.getString("area_elevation_source"), 0.0);
 				var areaLockedAdmin = rs.getBoolean("area_locked_admin");
 				var areaLockedSuperadmin = rs.getBoolean("area_locked_superadmin");
 				int areaSunFromHour = rs.getInt("area_sun_from_hour");

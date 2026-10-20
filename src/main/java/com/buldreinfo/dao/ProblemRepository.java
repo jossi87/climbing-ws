@@ -185,7 +185,7 @@ public class ProblemRepository {
 		        LEFT JOIN grade go ON p.grade_id = go.id
 		        LEFT JOIN coordinates sc ON s.parking_coordinates_id = sc.id
 		        LEFT JOIN coordinates c ON p.coordinates_id = c.id
-		        LEFT JOIN coordinates ac ON a.coordinates_id = ac.id
+		        JOIN coordinates ac ON a.coordinates_id = ac.id
 		        LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.auth_user_id
 		        WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
 		          AND (r.id = req.region_id OR ur.user_id IS NOT NULL)
@@ -200,8 +200,7 @@ public class ProblemRepository {
 		                var trails = trailsResolver.apply(sectorId);
 		                var neighbours = getProblemNeighbours(authUserId, sectorId, reqId, rock);
 		                int areaId = rs.getInt("area_id");
-		                int areaCoordinatesId = rs.getInt("area_coordinates_id");
-		                var areaCoordinates = areaCoordinatesId == 0 ? null : new Coordinates(areaCoordinatesId, rs.getDouble("area_coordinates_latitude"), rs.getDouble("area_coordinates_longitude"), rs.getDouble("area_coordinates_elevation"), rs.getString("area_coordinates_elevation_source"), 0.0);
+		                var areaCoordinates = new Coordinates(rs.getInt("area_coordinates_id"), rs.getDouble("area_coordinates_latitude"), rs.getDouble("area_coordinates_longitude"), rs.getDouble("area_coordinates_elevation"), rs.getString("area_coordinates_elevation_source"), 0.0);
 		                int parkingId = rs.getInt("sector_parking_coordinates_id");
 		                var parking = parkingId == 0 ? null : new Coordinates(parkingId, rs.getDouble("sector_parking_latitude"), rs.getDouble("sector_parking_longitude"), rs.getDouble("sector_parking_elevation"), rs.getString("sector_parking_elevation_source"), 0.0);
 		                var wallDirCalc = setup.getCompassDirection(rs.getInt("sector_compass_direction_id_calculated"));
@@ -291,7 +290,6 @@ public class ProblemRepository {
 		int idProblem = p.id();
 
 		if (idProblem > 0) {
-			ensureAdminWriteProblem(authUserId, idProblem);
 			jdbcClient.sql("""
 					UPDATE problem p
 					JOIN sector s ON p.sector_id=s.id

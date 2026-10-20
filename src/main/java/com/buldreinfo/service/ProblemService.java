@@ -91,6 +91,12 @@ public class ProblemService {
 	public Redirect setProblem(Optional<Integer> authUserId, Setup s, Problem p) {
 		if (authUserId.isEmpty()) throw new UnauthorizedException("User not logged in");
 
+		if (p.id() > 0) {
+			problemRepo.ensureAdminWriteProblem(authUserId, p.id());
+		} else {
+			sectorRepo.ensureAdminWriteSector(authUserId, p.sectorId());
+		}
+
 		var dt = (p.faDate() == null || p.faDate().isEmpty()) ? null : LocalDate.parse(p.faDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 		var isLockedAdmin = p.lockedSuperadmin() ? false : p.lockedAdmin();
 
@@ -109,11 +115,8 @@ public class ProblemService {
 		var coordinatesId = p.coordinates() == null || p.coordinates().id() == 0 ? null : p.coordinates().id();
 
 		int nr = p.nr();
-		if (p.id() <= 0) {
-			sectorRepo.ensureAdminWriteSector(authUserId, p.sectorId());
-			if (nr == 0) {
-				nr = sectorRepo.getNextProblemNr(p.sectorId());
-			}
+		if (p.id() <= 0 && nr == 0) {
+			nr = sectorRepo.getNextProblemNr(p.sectorId());
 		}
 
 		int idProblem = problemRepo.setProblemDb(authUserId, s, p, isLockedAdmin, dt, gradeId, gradeConverter, coordinatesId, nr,

@@ -92,7 +92,7 @@ public class SectorRepository {
 				JOIN region r ON a.region_id=r.id
 				JOIN region_type rt ON r.id=rt.region_id
 				LEFT JOIN coordinates c ON s.parking_coordinates_id=c.id
-				LEFT JOIN coordinates ac ON a.coordinates_id=ac.id
+				JOIN coordinates ac ON a.coordinates_id=ac.id
 				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=auth_user_id
 				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
 				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL)
@@ -103,8 +103,7 @@ public class SectorRepository {
 				.query((rs, _) -> {
 					int cid = rs.getInt("coordinates_id");
 					var parking = cid == 0 ? null : new Coordinates(cid, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0);
-					int areaCoordinatesId = rs.getInt("area_coordinates_id");
-					var areaCoordinates = areaCoordinatesId == 0 ? null : new Coordinates(areaCoordinatesId, rs.getDouble("area_coordinates_latitude"), rs.getDouble("area_coordinates_longitude"), rs.getDouble("area_coordinates_elevation"), rs.getString("area_coordinates_elevation_source"), 0.0);
+					var areaCoordinates = new Coordinates(rs.getInt("area_coordinates_id"), rs.getDouble("area_coordinates_latitude"), rs.getDouble("area_coordinates_longitude"), rs.getDouble("area_coordinates_elevation"), rs.getString("area_coordinates_elevation_source"), 0.0);
 					var mediaRes = mediaSupplier.get();
 					var partitioned = Optional.ofNullable(mediaRes).orElse(List.of()).stream().collect(Collectors.partitioningBy(x -> x.sectors().stream().anyMatch(MediaSector::trivia)));
 					return new Sector(null, orderByGrade, rs.getInt("area_id"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getString("area_access_info"), rs.getString("area_access_closed"), rs.getBoolean("area_no_dogs_allowed"), rs.getInt("area_sun_from_hour"), rs.getInt("area_sun_to_hour"), rs.getString("area_name"), areaCoordinates, reqId, false, rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getString("name"), rs.getString("description"), rs.getString("access_info"), rs.getString("access_closed"), rs.getInt("sun_from_hour"), rs.getInt("sun_to_hour"), parking, outlineSupplier.get(), setup.getCompassDirection(rs.getInt("compass_direction_id_calculated")), setup.getCompassDirection(rs.getInt("compass_direction_id_manual")), trailsSupplier.get().get(reqId), partitioned.get(false), partitioned.get(true), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), linksSupplier.get(), HitsFormatter.formatHits(rs.getLong("hits")), rs.getInt("grade_system_id"));

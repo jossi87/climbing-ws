@@ -19,7 +19,6 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.config.OpenApiConfig;
 import com.buldreinfo.dao.HierarchyRepository;
-import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.exception.InternalServerErrorException;
 import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.infrastructure.RequestContext;
@@ -49,7 +48,6 @@ public class AreasController {
 	private final ApplicationEventPublisher eventPublisher;
 	private final HierarchyRepository hierarchyRepo;
 	private final LeafletPrintService leafletPrintService;
-	private final RegionRepository regionRepo;
 	private final RequestContext requestContext;
 	private final SectorService sectorService;
 	private final StorageManager storage;
@@ -59,7 +57,6 @@ public class AreasController {
 			RequestContext requestContext,
 			StorageManager storage,
 			LeafletPrintService leafletPrintService,
-			RegionRepository regionRepo,
 			AreaService areaService,
 			SectorService sectorService,
 			HierarchyRepository hierarchyRepo) {
@@ -68,7 +65,6 @@ public class AreasController {
 		this.storage = storage;
 		this.leafletPrintService = leafletPrintService;
 		this.areaService = areaService;
-		this.regionRepo = regionRepo;
 		this.sectorService = sectorService;
 		this.hierarchyRepo = hierarchyRepo;
 	}
@@ -137,7 +133,6 @@ public class AreasController {
 		}
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		regionRepo.ensureAdminWriteRegion(setup, authUserId);
 		var res = areaService.setArea(setup, authUserId, a);
 		return ResponseEntity.ok(res);
 	}

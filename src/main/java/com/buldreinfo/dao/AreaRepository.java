@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -44,6 +45,7 @@ public class AreaRepository {
 
 	@Transactional(readOnly = true)
 	public void ensureAdminWriteArea(Optional<Integer> authUserId, int areaId) {
+		int userId = authUserId.orElseThrow(() -> new UnauthorizedException("Not logged in"));
 		boolean ok = jdbcClient.sql("""
 				SELECT ur.admin_write, ur.superadmin_write
 				FROM area a
@@ -51,7 +53,7 @@ public class AreaRepository {
 				WHERE a.id=?
 				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
 				""")
-				.params(authUserId.orElseThrow(), areaId)
+				.params(userId, areaId)
 				.query((rs, _) -> rs.getBoolean("admin_write") || rs.getBoolean("superadmin_write"))
 				.optional()
 				.orElse(false);
@@ -67,26 +69,25 @@ public class AreaRepository {
 				WITH req AS (
 				    SELECT ? region_id, ? auth_user_id, ? area_id
 				)
-				SELECT r.name region_name, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description,
+				SELECT r.name region_name, a.region_id, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description,
 				       c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits,
 				       MIN(a.grade_system_id) grade_system_id
 				FROM req
 				JOIN area a ON req.area_id=a.id
 				JOIN region r ON a.region_id=r.id
 				JOIN region_type rt ON r.id=rt.region_id
-				LEFT JOIN coordinates c ON a.coordinates_id=c.id
+				JOIN coordinates c ON a.coordinates_id=c.id
 				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=req.auth_user_id
 				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
 				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL)
 				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
-				GROUP BY r.name, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.name, a.sun_from_hour, a.sun_to_hour, a.description,
+				GROUP BY r.name, a.region_id, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.name, a.sun_from_hour, a.sun_to_hour, a.description,
 				         c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits
 				""")
 				.params(setup.idRegion(), authUserId.orElse(0), reqId)
 				.query((rs, _) -> {
-					int cid = rs.getInt("coordinates_id");
-					var coords = cid == 0 ? null : new Coordinates(cid, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0);
-					return new Area(null, rs.getString("region_name"), reqId, false, rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getBoolean("for_developers"), rs.getString("access_info"), rs.getString("access_closed"), rs.getBoolean("no_dogs_allowed"), rs.getInt("sun_from_hour"), rs.getInt("sun_to_hour"), rs.getString("name"), rs.getString("description"), coords, new ArrayList<>(), new ArrayList<>(), partitionedFalse, partitionedTrue, externalLinksRepo.getExternalLinks(reqId, 0, 0), HitsFormatter.formatHits(rs.getLong("hits")), rs.getInt("grade_system_id"));
+					var coords = new Coordinates(rs.getInt("coordinates_id"), rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0);
+					return new Area(null, rs.getString("region_name"), rs.getInt("region_id"), gradeSystemRepo.getRegionGradeSystemIds(rs.getInt("region_id")), reqId, false, rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getBoolean("for_developers"), rs.getString("access_info"), rs.getString("access_closed"), rs.getBoolean("no_dogs_allowed"), rs.getInt("sun_from_hour"), rs.getInt("sun_to_hour"), rs.getString("name"), rs.getString("description"), coords, new ArrayList<>(), new ArrayList<>(), partitionedFalse, partitionedTrue, externalLinksRepo.getExternalLinks(reqId, 0, 0), HitsFormatter.formatHits(rs.getLong("hits")), rs.getInt("grade_system_id"));
 				}).optional()
 				.orElse(null);
 	}
@@ -103,7 +104,7 @@ public class AreaRepository {
 				CROSS JOIN area a
 				JOIN region r ON a.region_id=r.id
 				JOIN region_type rt ON r.id=rt.region_id
-				LEFT JOIN coordinates c ON a.coordinates_id=c.id
+				JOIN coordinates c ON a.coordinates_id=c.id
 				LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=req.auth_user_id)
 				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
 				  AND (a.region_id=req.region_id OR ur.user_id IS NOT NULL)
@@ -114,8 +115,7 @@ public class AreaRepository {
 		return jdbcClient.sql(sqlStr)
 				.params(authUserId.orElse(0), reqIdRegion)
 				.query((rs, _) -> {
-					int cid = rs.getInt("coordinates_id");
-					var coords = cid == 0 ? null : new Coordinates(cid, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0);
+					var coords = new Coordinates(rs.getInt("coordinates_id"), rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0);
 					return new AreaBasic(rs.getString("region_name"), rs.getInt("id"),
 							rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getBoolean("for_developers"), 
 							rs.getString("name"), coords);
@@ -251,24 +251,16 @@ public class AreaRepository {
 
 	@Transactional
 	public Redirect setArea(Setup s, Optional<Integer> authUserId, Area a) {
-		if (authUserId.isEmpty()) throw new UnauthorizedException("Not logged in");
-		if (s.idRegion() <= 0) throw new ForbiddenException("Insufficient credentials");
 		final boolean isLockedAdmin = !a.lockedSuperadmin() && a.lockedAdmin();
-		/** A stored grade system is required (the column is NOT NULL); null means keep the one the area already has. */
-		final Integer gradeSystemId = a.gradeSystemId() > 0
-				? gradeSystemRepo.resolveAreaGradeSystemId(s.idRegion(), a.gradeSystemId())
-				: a.id() == 0 ? gradeSystemRepo.resolveAreaGradeSystemId(s.idRegion(), 0) : null;
 		boolean setPermissionRecursive = false;
 
 		int idArea;
 		if (a.id() > 0) {
-			ensureAdminWriteArea(authUserId, a.id());
 			var currArea = getAreaBase(s, authUserId, a.id(), List.of(), List.of());
-			/**
-			 * Problems store their grade (and consensus grade) as a grade id belonging to the area's current system, so
-			 * switching the system once problems exist would leave those grades interpreted in the wrong system. The UI
-			 * disables the selector in this situation; this repeats the rule for any other caller.
-			 */
+			if (currArea == null) throw new NoSuchElementException("Could not find area with id=" + a.id());
+			final Integer gradeSystemId = a.gradeSystemId() > 0
+					? gradeSystemRepo.resolveAreaGradeSystemId(currArea.regionId(), a.gradeSystemId())
+					: null;
 			if (a.gradeSystemId() > 0 && a.gradeSystemId() != currArea.gradeSystemId() && areaHasProblems(a.id())) {
 				throw new ValidationFailedException("Grade system cannot be changed for area id=" + a.id()
 						+ " because it already has problems");
@@ -281,7 +273,7 @@ public class AreaRepository {
 					trash=CASE WHEN ? THEN NOW() ELSE NULL END, trash_by=? WHERE id=?
 					""")
 			.params(StringUtils.stripToNull(a.name()), StringUtils.stripToNull(a.comment()), 
-					a.coordinates() == null ? 0 : a.coordinates().id(), isLockedAdmin, a.lockedSuperadmin(), 
+					a.coordinates().id(), isLockedAdmin, a.lockedSuperadmin(), 
 							a.forDevelopers(), StringUtils.stripToNull(a.accessInfo()), 
 							StringUtils.stripToNull(a.accessClosed()), a.noDogsAllowed(), a.sunFromHour(), 
 							a.sunToHour(), gradeSystemId, a.trash(), a.trash() ? authUserId.get() : 0, a.id())
@@ -314,6 +306,7 @@ public class AreaRepository {
 				.update();
 			}
 		} else {
+			final Integer gradeSystemId = gradeSystemRepo.resolveAreaGradeSystemId(s.idRegion(), a.gradeSystemId());
 			var keyHolder = new GeneratedKeyHolder();
 			jdbcClient.sql("""
 					INSERT INTO area (region_id, name, description, coordinates_id, locked_admin, locked_superadmin, 
@@ -321,7 +314,7 @@ public class AreaRepository {
 					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
 					""")
 			.params(s.idRegion(), StringUtils.stripToNull(a.name()), StringUtils.stripToNull(a.comment()), 
-					a.coordinates() == null ? 0 : a.coordinates().id(), isLockedAdmin, a.lockedSuperadmin(), 
+					a.coordinates().id(), isLockedAdmin, a.lockedSuperadmin(), 
 							a.forDevelopers(), StringUtils.stripToNull(a.accessInfo()), 
 							StringUtils.stripToNull(a.accessClosed()), a.noDogsAllowed(), gradeSystemId)
 			.update(keyHolder, "id");
@@ -332,7 +325,6 @@ public class AreaRepository {
 		return a.trash() ? Redirect.fromRoot() : Redirect.fromIdArea(idArea);
 	}
 
-	/** Trashed problems are ignored: they are not part of the area's visible, graded content. */
 	@Transactional(readOnly = true)
 	public boolean areaHasProblems(int areaId) {
 		return jdbcClient.sql("""

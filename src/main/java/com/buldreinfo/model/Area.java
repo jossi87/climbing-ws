@@ -5,7 +5,7 @@ import java.util.List;
 
 import com.buldreinfo.model.Sector.SectorProblem;
 
-public record Area(String redirectUrl, String regionName, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers,
+public record Area(String redirectUrl, String regionName, int regionId, List<Integer> regionGradeSystemIds, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers,
 		String accessInfo, String accessClosed, boolean noDogsAllowed, int sunFromHour, int sunToHour, String name, String comment,
 		Coordinates coordinates, List<AreaSector> sectors, List<AreaSectorOrder> sectorOrder,
 		List<Media> media, List<Media> triviaMedia, List<ExternalLink> externalLinks, String pageViews, int gradeSystemId
@@ -25,6 +25,6 @@ public record Area(String redirectUrl, String regionName, int id, boolean trash,
 	public record AreaSectorOrder(int id, String name, int sorting) {}
 
 	public Area withCoordinates(Coordinates newCoordinates) {
-		return new Area(redirectUrl, regionName, id, trash, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, newCoordinates, sectors, sectorOrder, media, triviaMedia, externalLinks, pageViews, gradeSystemId);
+		return new Area(redirectUrl, regionName, regionId, regionGradeSystemIds, id, trash, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, newCoordinates, sectors, sectorOrder, media, triviaMedia, externalLinks, pageViews, gradeSystemId);
 	}
 }

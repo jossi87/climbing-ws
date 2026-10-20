@@ -15,7 +15,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -698,10 +697,7 @@ public class UserRepository {
 				} catch (SQLException e) { throw new RuntimeException(e); }
 			});
 
-			int coordId = rs.getInt("coord_id");
-			Coordinates coords = (!rs.wasNull() && coordId > 0) 
-					? new Coordinates(coordId, rs.getDouble("lat"), rs.getDouble("lon"), rs.getDouble("ele"), rs.getString("ele_src"), 0.0)
-							: null;
+			Coordinates coords = new Coordinates(rs.getInt("coord_id"), rs.getDouble("lat"), rs.getDouble("lon"), rs.getDouble("ele"), rs.getString("ele_src"), 0.0);
 
 			List<User> partners = new ArrayList<>();
 			String raw = rs.getString("partners_raw");
@@ -737,7 +733,7 @@ public class UserRepository {
 				JOIN type ty ON p.type_id = ty.id JOIN discipline d ON ty.discipline_id = d.id LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = req.language_id LEFT JOIN discipline_translation dt ON dt.discipline_id = d.id AND dt.language_id = req.language_id
 				JOIN sector s ON p.sector_id = s.id JOIN area a ON s.area_id = a.id
 				JOIN grade g ON p.grade_id = g.id
-				LEFT JOIN coordinates ac ON a.coordinates_id = ac.id LEFT JOIN coordinates sc ON s.parking_coordinates_id = sc.id
+				JOIN coordinates ac ON a.coordinates_id = ac.id LEFT JOIN coordinates sc ON s.parking_coordinates_id = sc.id
 				LEFT JOIN coordinates pc ON p.coordinates_id = pc.id LEFT JOIN sector_outline so ON s.id = so.sector_id AND so.sorting = 1
 				LEFT JOIN coordinates oc ON so.coordinates_id = oc.id LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.auth_user_id
 				WHERE p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
@@ -1224,7 +1220,7 @@ public class UserRepository {
 				FROM problem p 
 				JOIN sector s ON p.sector_id=s.id 
 				JOIN area a ON s.area_id=a.id 
-				LEFT JOIN coordinates ac ON a.coordinates_id=ac.id 
+				JOIN coordinates ac ON a.coordinates_id=ac.id 
 				LEFT JOIN coordinates sc ON s.parking_coordinates_id=sc.id 
 				LEFT JOIN coordinates pc ON p.coordinates_id=pc.id 
 				LEFT JOIN sector_outline so ON s.id=so.sector_id AND so.sorting=1 
@@ -1234,22 +1230,15 @@ public class UserRepository {
 
 		Map<Integer, Coordinates> res = jdbcClient.sql(sql)
 				.param("problemIds", idProblems)
-				.query((rs, _) -> {
-					int idCoordinates = rs.getInt("coordinates_id");
-					return (idCoordinates > 0) 
-							? Map.entry(rs.getInt("id_problem"), new Coordinates(
-									idCoordinates, 
-									rs.getDouble("latitude"), 
-									rs.getDouble("longitude"), 
-									rs.getDouble("elevation"), 
-									rs.getString("elevation_source"),
-									0.0
-									)) 
-									: null;
-				})
+				.query((rs, _) -> Map.entry(rs.getInt("id_problem"), new Coordinates(
+						rs.getInt("coordinates_id"),
+						rs.getDouble("latitude"),
+						rs.getDouble("longitude"),
+						rs.getDouble("elevation"),
+						rs.getString("elevation_source"),
+						0.0)))
 				.list()
 				.stream()
-				.filter(Objects::nonNull)
 				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
 		return res;
