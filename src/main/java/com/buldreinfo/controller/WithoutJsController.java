@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.dao.FrontpageRepository;
+import com.buldreinfo.dao.GradeSystemRepository;
 import com.buldreinfo.dao.MapRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
@@ -43,6 +44,7 @@ public class WithoutJsController {
 	private final RequestContext requestContext;
 	private final AreaService areaService;
 	private final FrontpageRepository frontpageRepo;
+	private final GradeSystemRepository gradeSystemRepo;
 	private final ProblemService problemService;
 	private final MapRepository mapRepo;
 	private final RegionRepository regionRepo;
@@ -52,6 +54,7 @@ public class WithoutJsController {
 	public WithoutJsController(RequestContext requestContext,
 			AreaService areaService,
 			FrontpageRepository frontpageRepo,
+			GradeSystemRepository gradeSystemRepo,
 			ProblemService problemService,
 			MapRepository mapRepo,
 			RegionRepository regionRepo,
@@ -60,6 +63,7 @@ public class WithoutJsController {
 		this.requestContext = requestContext;
 		this.areaService = areaService;
 		this.frontpageRepo = frontpageRepo;
+		this.gradeSystemRepo = gradeSystemRepo;
 		this.problemService = problemService;
 		this.regionRepo = regionRepo;
 		this.mapRepo = mapRepo;
@@ -71,7 +75,7 @@ public class WithoutJsController {
 	@GetMapping(produces = MediaType.TEXT_HTML_VALUE)
 	public ResponseEntity<String> getWithoutJs(HttpServletRequest request) {
 		var setup = requestContext.getSetup(request);
-		var meta = Meta.from(setup, Optional.empty(), userRepo, regionRepo, mapRepo);
+		var meta = Meta.from(setup, Optional.empty(), userRepo, regionRepo, mapRepo, gradeSystemRepo);
 		var stats = frontpageRepo.getFrontpageStats(Optional.empty(), setup);
 		var randomMedia = frontpageRepo.getFrontpageRandomMedia(setup).stream().findAny().orElse(null);
 

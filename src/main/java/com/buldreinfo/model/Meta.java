@@ -5,6 +5,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import com.buldreinfo.beans.Setup;
+import com.buldreinfo.dao.GradeSystemRepository;
 import com.buldreinfo.dao.MapRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
@@ -13,22 +14,25 @@ public record Meta(
 		String title,
 		boolean isAuthenticated, boolean isAdmin, boolean isSuperAdmin,
 		int userId, String authenticatedName, String themePreference, String languagePreference, MediaIdentity mediaIdentity,
-		List<GradeSystem> gradeSystems, List<Integer> faYears,
+		List<GradeSystem> allGradeSystems, List<Integer> regionGradeSystemIds, List<Integer> faYears,
 		int defaultZoom, LatLng defaultCenter, String defaultLanguage,
 		boolean isBouldering, boolean isClimbing, boolean isIce, String url,
 		List<Type> types, List<Region> regions, List<Map> maps, List<CompassDirection> compassDirections, List<Language> languages
 		) {
 
-	public static Meta from(Setup setup, Optional<Integer> authUserId, UserRepository userRepo, RegionRepository regionRepo, MapRepository mapRepo) {
+	public static Meta from(Setup setup, Optional<Integer> authUserId, UserRepository userRepo, RegionRepository regionRepo, MapRepository mapRepo, GradeSystemRepository gradeSystemRepo) {
 		var authUserFuture = CompletableFuture.supplyAsync(() -> userRepo.getAuthenticatedUser(setup, authUserId).orElse(null));
 		var faYearsFuture = CompletableFuture.supplyAsync(() -> regionRepo.getFaYears(setup.idRegion()));
 		var typesFuture = CompletableFuture.supplyAsync(() -> regionRepo.getTypes(setup.idRegion(), setup.idLanguage()));
 		var regionsFuture = CompletableFuture.supplyAsync(() -> regionRepo.getRegions(setup.idRegion(), setup.idLanguage()));
 		var mapsFuture = CompletableFuture.supplyAsync(() -> mapRepo.getMaps(setup.idRegion()));
 		var languagesFuture = CompletableFuture.supplyAsync(() -> regionRepo.getLanguages());
-		CompletableFuture.allOf(authUserFuture, faYearsFuture, typesFuture, regionsFuture, mapsFuture, languagesFuture).join();
+		var allGradeSystemsFuture = CompletableFuture.supplyAsync(() -> gradeSystemRepo.getGradeSystems());
+		CompletableFuture.allOf(authUserFuture, faYearsFuture, typesFuture, regionsFuture, mapsFuture, languagesFuture,
+				allGradeSystemsFuture).join();
 		try {
 			var authUser = Optional.ofNullable(authUserFuture.join());
+			var regionGradeSystemIds = setup.regionGradeSystemIds();
 			return new Meta(
 					setup.title(),
 					authUser.map(AuthenticatedUser::isAuthenticated).orElse(false),
@@ -39,7 +43,8 @@ public record Meta(
 					authUser.map(AuthenticatedUser::themePreference).orElse(null),
 					authUser.map(AuthenticatedUser::languagePreference).orElse(null),
 					authUser.map(AuthenticatedUser::mediaIdentity).orElse(null),
-					setup.gradeSystems() == null ? List.of() : setup.gradeSystems(),
+					allGradeSystemsFuture.join(),
+					regionGradeSystemIds,
 					faYearsFuture.join(),
 					setup.defaultZoom(),
 					setup.defaultCenter(),

@@ -7,12 +7,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.helpers.GradeConverter;
+import com.buldreinfo.infrastructure.CacheConstants;
 import com.buldreinfo.model.Grade;
 import com.buldreinfo.model.GradeSystem;
 
@@ -85,6 +87,11 @@ public class GradeSystemRepository {
 				+ " grade systems, so every area must pick one.");
 	}
 
+	/**
+	 * The complete grade catalogue, shared by every region. Cached because Meta needs all systems to resolve
+	 * cross-region content, and grade definitions only change through a data deployment.
+	 */
+	@Cacheable(value = CacheConstants.REGION_CACHE_NAME, key = "'grade-systems'", sync = true)
 	@Transactional(readOnly = true)
 	public List<GradeSystem> getGradeSystems() {
 		Map<Integer, List<Grade>> gradesBySystem = new HashMap<>();
@@ -107,20 +114,14 @@ public class GradeSystemRepository {
 		return new ArrayList<>(systems.values());
 	}
 
+	/** The grade systems each region declares, in a stable order. */
 	@Transactional(readOnly = true)
-	public Map<Integer, List<GradeSystem>> getGradeSystemsByRegion() {
-		Map<Integer, GradeSystem> systems = new HashMap<>();
-		for (var gs : getGradeSystems()) {
-			systems.put(gs.id(), gs);
-		}
-
-		Map<Integer, List<GradeSystem>> res = new LinkedHashMap<>();
+	public Map<Integer, List<Integer>> getRegionGradeSystemIdsByRegion() {
+		Map<Integer, List<Integer>> res = new LinkedHashMap<>();
 		jdbcClient.sql("SELECT region_id, grade_system_id FROM region_grade_system ORDER BY region_id, grade_system_id")
 				.query(rs -> {
-					var gs = systems.get(rs.getInt("grade_system_id"));
-					if (gs != null) {
-						res.computeIfAbsent(rs.getInt("region_id"), _ -> new ArrayList<>()).add(gs);
-					}
+					res.computeIfAbsent(rs.getInt("region_id"), _ -> new ArrayList<>())
+							.add(rs.getInt("grade_system_id"));
 				});
 		return res;
 	}

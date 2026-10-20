@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.config.OpenApiConfig;
+import com.buldreinfo.dao.GradeSystemRepository;
 import com.buldreinfo.dao.HierarchyRepository;
 import com.buldreinfo.dao.MapRepository;
 import com.buldreinfo.dao.RegionRepository;
@@ -42,13 +43,15 @@ public class MetaController {
 	private final UserRepository userRepo;
 	private final MapRepository mapRepo;
 	private final RegionRepository regionRepo;
+	private final GradeSystemRepository gradeSystemRepo;
 
-	public MetaController(RequestContext requestContext, HierarchyRepository hierarchyRepo, RegionRepository regionRepo, UserRepository userRepo, MapRepository mapRepo) {
+	public MetaController(RequestContext requestContext, HierarchyRepository hierarchyRepo, RegionRepository regionRepo, UserRepository userRepo, MapRepository mapRepo, GradeSystemRepository gradeSystemRepo) {
 		this.requestContext = requestContext;
 		this.hierarchyRepo = hierarchyRepo;
 		this.userRepo = userRepo;
 		this.regionRepo = regionRepo;
 		this.mapRepo = mapRepo;
+		this.gradeSystemRepo = gradeSystemRepo;
 	}
 
 	@Operation(summary = "Get grade distribution by Area Id or Sector Id")
@@ -83,7 +86,7 @@ public class MetaController {
 	public ResponseEntity<Meta> getMeta(HttpServletRequest request) {
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		return ResponseEntity.ok(Meta.from(setup, authUserId, userRepo, regionRepo, mapRepo));
+		return ResponseEntity.ok(Meta.from(setup, authUserId, userRepo, regionRepo, mapRepo, gradeSystemRepo));
 	}
 
 	@Operation(summary = "Get robots.txt")

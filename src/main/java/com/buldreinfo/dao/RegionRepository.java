@@ -161,7 +161,7 @@ public class RegionRepository {
 	@Transactional(readOnly = true)
 	public List<Setup> getSetups(int idLanguage) {
 		var compassDirections = getCompassDirections(idLanguage);
-		var gradeSystemsByRegion = gradeSystemRepo.getGradeSystemsByRegion();
+		var regionGradeSystemIds = gradeSystemRepo.getRegionGradeSystemIdsByRegion();
 
 		return jdbcClient.sql("""
 				SELECT r.id, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom, l.code default_language,
@@ -183,7 +183,7 @@ public class RegionRepository {
 						.withDefaultLanguage(rs.getString("default_language"))
 						.withIdLanguage(idLanguage)
 						.withCompassDirections(compassDirections)
-						.withGradeSystems(gradeSystemsByRegion.getOrDefault(rs.getInt("id"), List.of()))
+						.withRegionGradeSystemIds(regionGradeSystemIds.getOrDefault(rs.getInt("id"), List.of()))
 						.build())
 				.list();
 	}
