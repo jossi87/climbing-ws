@@ -61,6 +61,8 @@ public class ActivityController {
 	/**
 	 * Parse `gradeSystemId:weight` pairs into a map keyed by grade system. Later pairs for the same system win.
 	 * Every threshold must be strictly positive; `0` means “no filter” and is represented by omitting the pair.
+	 * A single comma-separated value is accepted in addition to repeated parameters, so the contract does not depend
+	 * on how a client (or an intermediate proxy) chooses to serialise the list.
 	 */
 	private static Map<Integer, Integer> parseGradeFilters(List<String> gradeFilters) {
 		Map<Integer, Integer> res = new LinkedHashMap<>();
@@ -68,28 +70,34 @@ public class ActivityController {
 			return res;
 		}
 		for (var gradeFilter : gradeFilters) {
-			if (gradeFilter == null || gradeFilter.isBlank()) {
+			if (gradeFilter == null) {
 				continue;
 			}
-			var parts = gradeFilter.split(":", -1);
-			if (parts.length != 2) {
-				throw new ValidationFailedException("gradeFilters must be formatted as gradeSystemId:weight");
+			for (var rawPair : gradeFilter.split(",")) {
+				var pair = rawPair.trim();
+				if (pair.isEmpty()) {
+					continue;
+				}
+				var parts = pair.split(":", -1);
+				if (parts.length != 2) {
+					throw new ValidationFailedException("gradeFilters must be formatted as gradeSystemId:weight");
+				}
+				int gradeSystemId;
+				int weight;
+				try {
+					gradeSystemId = Integer.parseInt(parts[0].trim());
+					weight = Integer.parseInt(parts[1].trim());
+				} catch (NumberFormatException _) {
+					throw new ValidationFailedException("gradeFilters must be formatted as gradeSystemId:weight");
+				}
+				if (gradeSystemId <= 0) {
+					throw new ValidationFailedException("gradeFilters gradeSystemId must be positive");
+				}
+				if (weight <= 0) {
+					throw new ValidationFailedException("gradeFilters weight must be positive");
+				}
+				res.put(gradeSystemId, weight);
 			}
-			int gradeSystemId;
-			int weight;
-			try {
-				gradeSystemId = Integer.parseInt(parts[0].trim());
-				weight = Integer.parseInt(parts[1].trim());
-			} catch (NumberFormatException e) {
-				throw new ValidationFailedException("gradeFilters must be formatted as gradeSystemId:weight");
-			}
-			if (gradeSystemId <= 0) {
-				throw new ValidationFailedException("gradeFilters gradeSystemId must be positive");
-			}
-			if (weight <= 0) {
-				throw new ValidationFailedException("gradeFilters weight must be positive");
-			}
-			res.put(gradeSystemId, weight);
 		}
 		return res;
 	}

@@ -266,7 +266,7 @@ public class ActivityRepository {
 				ORDER BY x.activity_timestamp DESC, x.problem_id DESC
 				""".formatted(gradeFilterRows);
 
-		var params = new ArrayList<Object>();
+		var params = new ArrayList<>();
 		params.add(authUserId.orElse(0));
 		params.add(setup.idRegion());
 		params.add(showAllTime);
