@@ -109,8 +109,11 @@ public class HierarchyRepository {
 				  SELECT DISTINCT rgs.grade_system_id FROM req 
 				  JOIN region_grade_system rgs ON req.region_id = rgs.region_id
 				),
+				  -- Counts are keyed by grade label *and* system: a label is not unique across systems ('3', '4', ...
+				  -- appear in several systems, and every system has 'n/a'), so joining on the label alone would
+				  -- report the same problems under each target system that uses that label and double the bucket.
 				x AS (
-				  SELECT g.label_major g_base, r.id region_id, r.name region, ty.id type_id, COUNT(DISTINCT p.id) num
+				  SELECT g.label_major g_base, g.grade_system_id g_system, r.id region_id, r.name region, ty.id type_id, COUNT(DISTINCT p.id) num
 				  FROM req JOIN region r ON 1=1
 				  JOIN region_type rt ON r.id = rt.region_id
 				  JOIN area a ON r.id = a.region_id
@@ -123,7 +126,7 @@ public class HierarchyRepository {
 				  WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
 				    AND (a.region_id = req.region_id OR ur.user_id IS NOT NULL)
 				    AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-				  GROUP BY r.id, r.name, g.label_major, ty.id
+				  GROUP BY r.id, r.name, g.label_major, g.grade_system_id, ty.id
 				)
 				SELECT g.label_major grade, clr.hex_code color, x.region_id, x.region,
 				       ty2.id type_id, COALESCE(tt2.type, ty2.type) type, COALESCE(tt2.subtype, ty2.subtype) subtype, ty2.is_bolted, ty2.trad_gear,
@@ -132,7 +135,7 @@ public class HierarchyRepository {
 				FROM req JOIN target_systems ts ON 1=1
 				JOIN (SELECT label_major, grade_system_id, grade_color_id, MIN(weight) sort FROM grade GROUP BY label_major, grade_system_id, grade_color_id) g ON g.grade_system_id = ts.grade_system_id
 				JOIN grade_color clr ON g.grade_color_id = clr.id
-				LEFT JOIN x ON g.label_major = x.g_base
+				LEFT JOIN x ON g.label_major = x.g_base AND g.grade_system_id = x.g_system
 				LEFT JOIN type ty2 ON ty2.id = x.type_id
 				LEFT JOIN type_translation tt2 ON tt2.type_id = ty2.id AND tt2.language_id = req.language_id
 				LEFT JOIN discipline d2 ON ty2.discipline_id = d2.id

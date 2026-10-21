@@ -203,6 +203,8 @@ public class ActivityRepository {
 
 		// One independent threshold per grade system. `(0, 0)` is a no-op row so the CTE is always present, and a
 		// threshold only matches grades from its own system: filtering Saxon grades never hides Uiaa-graded problems.
+		// The compared grade is the one the feed shows (the consensus grade), so the filter never hides a row that
+		// is displayed as easy enough.
 		var gradeFilterRows = new StringBuilder("SELECT 0 grade_system_id, 0 min_grade_weight");
 		var gradeFilterParams = new ArrayList<Integer>();
 		if (gradeFilters != null) {
@@ -241,7 +243,7 @@ public class ActivityRepository {
 				    AND NOT EXISTS (
 				          SELECT 1 FROM grade g1
 				          JOIN grade_filter gf ON gf.grade_system_id = g1.grade_system_id
-				          WHERE g1.id = p1.grade_id AND g1.weight < gf.min_grade_weight)
+				          WHERE g1.id = p1.consensus_grade_id AND g1.weight < gf.min_grade_weight)
 				    AND (req.filter_area_id = 0 OR s1.area_id = req.filter_area_id)
 				    AND (req.filter_sector_id = 0 OR s1.id = req.filter_sector_id)
 				  ORDER BY a1.activity_timestamp DESC, a1.problem_id DESC

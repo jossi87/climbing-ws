@@ -35,6 +35,8 @@ public class AreasResourceTest extends BaseResourceTest {
 		assertNull(a.redirectUrl());
 		assertEquals(getSetup(Region.buldreinfo).idRegion(), a.regionId());
 		assertEquals(gradeSystemRepo.getRegionGradeSystemIds(a.regionId()), a.regionGradeSystemIds());
+		assertTrue(a.gradeSystemId() > 0);
+		assertTrue(a.regionGradeSystemIds().contains(a.gradeSystemId()));
 	}
 
 	@Test

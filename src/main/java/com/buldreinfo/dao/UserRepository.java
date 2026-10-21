@@ -530,8 +530,9 @@ public class UserRepository {
 				        ELSE ELT(c.chart_kind + 1, 1, 5, 4, 2, 3)
 				    END,
 				    -- Then the most active chart, then by type and system, then single-pitch before multi-pitch, then
-				    -- hardest grade first (`weight` is the cross-system difficulty order; ungraded ticks have none and land
-				    -- last). Every chart key column is in the ORDER BY, which is what lets the caller fold the rows.
+				    -- hardest grade first. A chart is always one grade system (`grade_system_id` is part of the chart key), so
+				    -- `weight` only orders grades inside that system; ungraded ticks have none and land last. Every chart
+				    -- key column is in the ORDER BY, which is what lets the caller fold the rows.
 				    SUM(c.num_fa + c.num_tick) OVER (PARTITION BY c.type, c.chart_is_bolted, c.is_bouldering, c.is_ice_climbing,
 				        c.grade_system_id, c.multi_pitch) DESC,
 				    c.type, c.chart_is_bolted DESC, c.is_bouldering, c.is_ice_climbing, gs.name, c.grade_system_id,

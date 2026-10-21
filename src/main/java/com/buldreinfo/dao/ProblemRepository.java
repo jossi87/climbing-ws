@@ -361,11 +361,6 @@ public class ProblemRepository {
 		return idProblem;
 	}
 
-	/**
-	 * Recomputes {@code problem.consensus_grade_id} from the personal grades of its ticks (plus its own grade while no
-	 * FA graded it), by averaging their weights inside the problem's own grade system: weights of different systems are
-	 * unrelated, so only a system's own grades are candidates. Without a matching weight the problem keeps its grade.
-	 */
 	@Transactional
 	public void updateProblemConsensusGrade(int problemId) {
 		var gradeSystemId = gradeSystemRepo.getProblemGradeSystem(problemId).orElse(0);
@@ -377,12 +372,12 @@ public class ProblemRepository {
 				        SELECT gt.weight as w
 				        FROM tick t
 				        JOIN grade gt ON t.grade_id = gt.id
-				        WHERE t.problem_id = ? AND gt.grade != 'n/a'
+				        WHERE t.problem_id = ? AND gt.grade != 'n/a' AND gt.grade_system_id = ?
 				        UNION ALL
 				        SELECT g.weight as w
 				        FROM problem p_inner
 				        JOIN grade g ON p_inner.grade_id = g.id
-				        WHERE p_inner.id = ? AND g.grade != 'n/a'
+				        WHERE p_inner.id = ? AND g.grade != 'n/a' AND g.grade_system_id = ?
 				        AND NOT EXISTS (
 				            SELECT 1 FROM tick t_check
 				            JOIN fa f_check ON t_check.user_id = f_check.user_id
@@ -396,7 +391,7 @@ public class ProblemRepository {
 				SET p.consensus_grade_id = COALESCE(g_final.id, p.grade_id)
 				WHERE p.id = ?
 				""")
-		.params(problemId, problemId, gradeSystemId, problemId)
+		.params(problemId, gradeSystemId, problemId, gradeSystemId, gradeSystemId, problemId)
 		.update();
 	}
 
