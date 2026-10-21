@@ -14,7 +14,8 @@ public record Meta(
 		String title,
 		boolean isAuthenticated, boolean isAdmin, boolean isSuperAdmin,
 		int userId, String authenticatedName, String themePreference, String languagePreference, MediaIdentity mediaIdentity,
-		List<GradeSystem> allGradeSystems, List<Integer> regionGradeSystemIds, List<Integer> faYears,
+		List<GradeSystem> allGradeSystems, List<Integer> regionGradeSystemIds, List<Integer> activityGradeSystemIds,
+		List<Integer> faYears,
 		int defaultZoom, LatLng defaultCenter, String defaultLanguage,
 		boolean isBouldering, boolean isClimbing, boolean isIce, String url,
 		List<Type> types, List<Region> regions, List<Map> maps, List<CompassDirection> compassDirections, List<Language> languages
@@ -28,8 +29,10 @@ public record Meta(
 		var mapsFuture = CompletableFuture.supplyAsync(() -> mapRepo.getMaps(setup.idRegion()));
 		var languagesFuture = CompletableFuture.supplyAsync(() -> regionRepo.getLanguages());
 		var allGradeSystemsFuture = CompletableFuture.supplyAsync(() -> gradeSystemRepo.getGradeSystems());
+		var activityGradeSystemIdsFuture = CompletableFuture.supplyAsync(
+				() -> gradeSystemRepo.getActivityGradeSystemIds(setup.idRegion(), authUserId.orElse(0)));
 		CompletableFuture.allOf(authUserFuture, faYearsFuture, typesFuture, regionsFuture, mapsFuture, languagesFuture,
-				allGradeSystemsFuture).join();
+				allGradeSystemsFuture, activityGradeSystemIdsFuture).join();
 		try {
 			var authUser = Optional.ofNullable(authUserFuture.join());
 			var regionGradeSystemIds = setup.regionGradeSystemIds();
@@ -45,6 +48,7 @@ public record Meta(
 					authUser.map(AuthenticatedUser::mediaIdentity).orElse(null),
 					allGradeSystemsFuture.join(),
 					regionGradeSystemIds,
+					activityGradeSystemIdsFuture.join(),
 					faYearsFuture.join(),
 					setup.defaultZoom(),
 					setup.defaultCenter(),

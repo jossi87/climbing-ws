@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.http.HttpStatus.OK;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -32,11 +34,27 @@ public class MetaResourceTest extends BaseResourceTest {
 				"allGradeSystems contains duplicate ids");
 		assertTrue(allSystemIds.containsAll(meta.regionGradeSystemIds()),
 				"regionGradeSystemIds contains a system missing from allGradeSystems");
+		assertEquals(declaredSystemIds, meta.activityGradeSystemIds());
+		assertTrue(allSystemIds.containsAll(meta.activityGradeSystemIds()),
+				"activityGradeSystemIds contains a system missing from allGradeSystems");
 		for (var system : meta.allGradeSystems()) {
 			assertFalse(system.grades().isEmpty(), "No grades for grade system " + system.name());
 			for (var grade : system.grades()) {
 				assertFalse(grade.grade() == null || grade.grade().isBlank());
 			}
+		}
+	}
+
+	@Test
+	public void testActivityGradeSystemsIncludeActiveRegion() {
+		var setup = getSetup(Region.brattelinjer);
+		var declaredSystemIds = gradeSystemRepo.getRegionGradeSystemIds(setup.idRegion());
+		for (var userId : List.of(USER_ID_NORMAL, USER_ID_SUPERADMIN)) {
+			var systemIds = gradeSystemRepo.getActivityGradeSystemIds(setup.idRegion(), userId);
+			assertTrue(systemIds.containsAll(declaredSystemIds),
+					"The feed domain must always contain the active region's systems (user " + userId + ")");
+			assertEquals(systemIds.size(), systemIds.stream().distinct().count(),
+					"The feed domain must not repeat a system shared by several regions (user " + userId + ")");
 		}
 	}
 

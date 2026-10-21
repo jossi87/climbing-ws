@@ -62,6 +62,24 @@ public class GradeSystemRepository {
 	}
 
 	@Transactional(readOnly = true)
+	public List<Integer> getActivityGradeSystemIds(int regionId, int authUserId) {
+		return jdbcClient.sql("""
+				SELECT rgs.grade_system_id
+				FROM region r
+				JOIN region_type rt ON r.id = rt.region_id
+				JOIN region_grade_system rgs ON rgs.region_id = r.id
+				LEFT JOIN user_region ur ON (r.id = ur.region_id AND ur.user_id = ?)
+				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = ?)
+				  AND (r.id = ? OR ur.user_id IS NOT NULL)
+				GROUP BY rgs.grade_system_id
+				ORDER BY MAX(CASE WHEN r.id = ? THEN 1 ELSE 0 END) DESC, rgs.grade_system_id
+				""")
+				.params(authUserId, regionId, regionId, regionId)
+				.query(Integer.class)
+				.list();
+	}
+
+	@Transactional(readOnly = true)
 	public int resolveAreaGradeSystemId(int regionId, int requestedGradeSystemId) {
 		var declared = getRegionGradeSystemIds(regionId);
 		if (requestedGradeSystemId > 0) {
