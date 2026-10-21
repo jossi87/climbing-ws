@@ -428,12 +428,12 @@ public class UserRepository {
 	}
 
 	@Transactional(readOnly = true)
-	public List<ProfileDiscipline> getProfileDisciplines(int userId, int idLanguage) {
-		record Row(String type, Boolean isBolted, boolean isBouldering, int gradeSystemId, String gradeSystem,
-				boolean multiPitch, ProfileDisciplineGradeDistribution distribution) {}
+	public List<ProfileDiscipline> getProfileDisciplines(Setup setup, int userId, int idLanguage) {
+		record Row(String type, Boolean isBolted, boolean isBouldering, boolean isIceClimbing, int gradeSystemId,
+				String gradeSystem, boolean multiPitch, ProfileDisciplineGradeDistribution distribution) {}
 		var res = jdbcClient.sql("""
 				WITH req AS (
-				    SELECT ? user_id, ? language_id
+				    SELECT ? user_id, ? language_id, ? req_is_bouldering, ? req_is_climbing, ? req_is_ice
 				),
 				-- 2+ problem_section rows is multi-pitch everywhere else in the app, so the charts use the same rule.
 				pitch_counts AS (
@@ -457,7 +457,7 @@ public class UserRepository {
 				),
 				raw_activity AS (
 				    SELECT
-				        COALESCE(tt.type, ty.type) type, ty.is_bolted, d.is_bouldering, a.grade_system_id,
+				        COALESCE(tt.type, ty.type) type, ty.is_bolted, d.is_bouldering, d.is_ice_climbing, a.grade_system_id,
 				        (COALESCE(pc.total_pitches, 0) > 1) AS multi_pitch,
 				        COALESCE(g.grade, 'No personal grade') grade, COALESCE(clr.hex_code, '#CCCCCC') color, g.weight,
 				        act.is_fa, act.is_tick
@@ -478,30 +478,58 @@ public class UserRepository {
 				        -- A multi-pitch chart spans both bolting styles, so it carries none instead of picking one
 				        -- arbitrary value out of the group.
 				        CASE WHEN multi_pitch THEN NULL ELSE is_bolted END chart_is_bolted,
-				        is_bouldering, grade_system_id, multi_pitch, grade, color, weight,
+				        is_bouldering, is_ice_climbing, grade_system_id, multi_pitch, grade, color, weight,
 				        SUM(is_fa) num_fa, SUM(is_tick) num_tick
 				    FROM raw_activity
-				    GROUP BY type, chart_is_bolted, is_bouldering, grade_system_id, multi_pitch, grade, color, weight
+				    GROUP BY type, chart_is_bolted, is_bouldering, is_ice_climbing, grade_system_id, multi_pitch, grade, color,
+				        weight
+				),
+				charts AS (
+				    SELECT
+				        g.type, g.chart_is_bolted, g.is_bouldering, g.is_ice_climbing, g.grade_system_id, g.multi_pitch,
+				        g.grade, g.color, g.weight, g.num_fa, g.num_tick,
+				        -- Site-independent chart kind, mirroring the discipline the card belongs to: 0 boulder,
+				        -- 1 ice, 2 multi-pitch, 3 single-pitch sport, 4 single-pitch traditional (first branch wins).
+				        CASE
+				            WHEN g.is_bouldering = 1 THEN 0
+				            WHEN g.is_ice_climbing = 1 THEN 1
+				            WHEN g.multi_pitch THEN 2
+				            WHEN g.chart_is_bolted = 1 THEN 3
+				            ELSE 4
+				        END chart_kind
+				    FROM grouped_activity g
 				)
 				SELECT
-				    g.type, g.chart_is_bolted is_bolted, g.is_bouldering, g.grade_system_id,
-				    gs.name grade_system, g.multi_pitch, g.grade, g.color, g.num_fa, g.num_tick
-				FROM grouped_activity g
-				JOIN grade_system gs ON gs.id = g.grade_system_id
-				-- Most active chart first, then by type and system, then single-pitch before multi-pitch, then hardest
-				-- grade first (`weight` is the cross-system difficulty order; ungraded ticks have none and land last).
-				-- Every chart key column is in the ORDER BY, which is what lets the caller fold the rows.
+				    c.type, c.chart_is_bolted is_bolted, c.is_bouldering, c.is_ice_climbing, c.grade_system_id,
+				    gs.name grade_system, c.multi_pitch, c.grade, c.color, c.num_fa, c.num_tick
+				FROM charts c
+				JOIN grade_system gs ON gs.id = c.grade_system_id
+				JOIN req ON TRUE
+				-- The site's own disciplines first: the profile is opened from a crag page, so a visitor who came in from
+				-- a bouldering site wants the boulder chart on top (likewise rope and ice). Each permutation is the
+				-- priority of the five chart kinds, so the remaining kinds still land in a sensible order (boulder, sport,
+				-- traditional, multi-pitch, ice). Sites can cover more than one discipline; the first match wins.
 				ORDER BY
-				    SUM(g.num_fa + g.num_tick) OVER (PARTITION BY g.type, g.chart_is_bolted, g.grade_system_id) DESC,
-				    g.type, g.chart_is_bolted DESC, gs.name, g.grade_system_id,
-				    g.multi_pitch,
-				    g.weight DESC
+				    CASE
+				        WHEN req.req_is_bouldering = 1 THEN ELT(c.chart_kind + 1, 1, 5, 4, 2, 3)
+				        WHEN req.req_is_climbing = 1 THEN ELT(c.chart_kind + 1, 5, 4, 3, 1, 2)
+				        WHEN req.req_is_ice = 1 THEN ELT(c.chart_kind + 1, 5, 1, 4, 2, 3)
+				        ELSE ELT(c.chart_kind + 1, 1, 5, 4, 2, 3)
+				    END,
+				    -- Then the most active chart, then by type and system, then single-pitch before multi-pitch, then
+				    -- hardest grade first (`weight` is the cross-system difficulty order; ungraded ticks have none and land
+				    -- last). Every chart key column is in the ORDER BY, which is what lets the caller fold the rows.
+				    SUM(c.num_fa + c.num_tick) OVER (PARTITION BY c.type, c.chart_is_bolted, c.is_bouldering, c.is_ice_climbing,
+				        c.grade_system_id, c.multi_pitch) DESC,
+				    c.type, c.chart_is_bolted DESC, c.is_bouldering, c.is_ice_climbing, gs.name, c.grade_system_id,
+				    c.multi_pitch,
+				    c.weight DESC
 				""")
-				.params(userId, idLanguage)
+				.params(userId, idLanguage, setup.isBouldering(), setup.isClimbing(), setup.isIce())
 				.query((rs, _) -> new Row(rs.getString("type"),
 						rs.getObject("is_bolted") == null ? null : rs.getBoolean("is_bolted"),
-						rs.getBoolean("is_bouldering"), rs.getInt("grade_system_id"), rs.getString("grade_system"),
-						rs.getBoolean("multi_pitch"),
+						rs.getBoolean("is_bouldering"), rs.getBoolean("is_ice_climbing"), rs.getInt("grade_system_id"),
+						rs.getString("grade_system"), rs.getBoolean("multi_pitch"),
 						new ProfileDisciplineGradeDistribution(rs.getString("grade"), rs.getString("color"), rs.getInt("num_fa"), rs.getInt("num_tick"))))
 				.list();
 
@@ -510,11 +538,13 @@ public class UserRepository {
 		Row current = null;
 		for (Row row : res) {
 			if (distributions == null || !Objects.equals(current.type(), row.type())
-					|| !Objects.equals(current.isBolted(), row.isBolted()) || current.gradeSystemId() != row.gradeSystemId()
+					|| !Objects.equals(current.isBolted(), row.isBolted()) || current.isBouldering() != row.isBouldering()
+					|| current.isIceClimbing() != row.isIceClimbing() || current.gradeSystemId() != row.gradeSystemId()
 					|| current.multiPitch() != row.multiPitch()) {
 				if (distributions != null) {
 					result.add(new ProfileDiscipline(current.type(), current.isBolted(), current.isBouldering(),
-							current.gradeSystemId(), current.gradeSystem(), current.multiPitch(), distributions));
+							current.isIceClimbing(), current.gradeSystemId(), current.gradeSystem(), current.multiPitch(),
+							distributions));
 				}
 				current = row;
 				distributions = new ArrayList<>();
@@ -523,7 +553,8 @@ public class UserRepository {
 		}
 		if (distributions != null) {
 			result.add(new ProfileDiscipline(current.type(), current.isBolted(), current.isBouldering(),
-					current.gradeSystemId(), current.gradeSystem(), current.multiPitch(), distributions));
+					current.isIceClimbing(), current.gradeSystemId(), current.gradeSystem(), current.multiPitch(),
+					distributions));
 		}
 		return result;
 	}

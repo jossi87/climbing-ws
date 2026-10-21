@@ -41,6 +41,7 @@ public class ProfilesResourceTest extends BaseResourceTest {
 			assertNotNull(chart.type());
 			assertNotNull(chart.gradeSystem());
 			assertFalse(chart.gradeDistribution().isEmpty());
+			assertFalse(chart.isBouldering() && chart.isIceClimbing());
 			if (chart.multiPitch()) {
 				assertNull(chart.isBolted());
 			} else {
@@ -51,6 +52,7 @@ public class ProfilesResourceTest extends BaseResourceTest {
 
 	private static String chartKey(ProfileDiscipline chart) {
 		return chart.type() + "/" + chart.gradeSystemId() + "/"
+				+ (chart.isBouldering() ? "boulder/" : chart.isIceClimbing() ? "ice/" : "")
 				+ (chart.multiPitch() ? "multi" : chart.isBolted() + "/single");
 	}
 
