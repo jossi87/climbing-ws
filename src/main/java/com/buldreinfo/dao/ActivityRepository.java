@@ -192,20 +192,34 @@ public class ActivityRepository {
 	}
 
 	@Transactional(readOnly = true)
-	public List<Activity> getActivity(Setup setup, Optional<Integer> authUserId, int idArea, int idSector, int lowerGradeWeight, int lowerGradeSystemId, boolean fa, boolean comments, boolean ticks, boolean media, int offset) {
+	public List<Activity> getActivity(Setup setup, Optional<Integer> authUserId, int idArea, int idSector, Map<Integer, Integer> gradeFilters, boolean fa, boolean comments, boolean ticks, boolean media, int offset) {
 		var faIds = new HashSet<Integer>();
 		var tickIds = new HashSet<Integer>();
 		var repeatIds = new HashSet<Integer>();
 		var mediaIds = new HashSet<Integer>();
 		var gbIds = new HashSet<Integer>();
-		var showAllTime = offset > 0 || lowerGradeWeight > 0 || lowerGradeSystemId > 0 || !fa || !comments || !ticks || !media || idArea > 0 || idSector > 0;
+		var hasGradeFilters = gradeFilters != null && !gradeFilters.isEmpty();
+		var showAllTime = offset > 0 || hasGradeFilters || !fa || !comments || !ticks || !media || idArea > 0 || idSector > 0;
+
+		// One independent threshold per grade system. `(0, 0)` is a no-op row so the CTE is always present, and a
+		// threshold only matches grades from its own system: filtering Saxon grades never hides Uiaa-graded problems.
+		var gradeFilterRows = new StringBuilder("SELECT 0 grade_system_id, 0 min_grade_weight");
+		var gradeFilterParams = new ArrayList<Integer>();
+		if (gradeFilters != null) {
+			gradeFilters.forEach((gradeSystemId, minGradeWeight) -> {
+				gradeFilterRows.append(" UNION ALL SELECT ?, ?");
+				gradeFilterParams.add(gradeSystemId);
+				gradeFilterParams.add(minGradeWeight);
+			});
+		}
 
 		var sqlStr = """
 				WITH req AS (
 				  SELECT ? auth_user_id, ? region_id, ? show_all_time,
-				         ? hide_fa, ? hide_guestbook, ? hide_ticks, ? hide_media, ? min_grade_weight, ? filter_grade_system_id,
+				         ? hide_fa, ? hide_guestbook, ? hide_ticks, ? hide_media,
 				         ? filter_area_id, ? filter_sector_id, ? language_id
 				),
+				grade_filter AS (%s),
 				x AS (
 				  SELECT a1.id, a1.type, a1.activity_timestamp, a1.problem_id 
 				  FROM req CROSS JOIN activity a1
@@ -224,10 +238,10 @@ public class ActivityRepository {
 				    AND (req.hide_guestbook = 0 OR a1.type != 'GUESTBOOK')
 				    AND (req.hide_ticks = 0 OR a1.type NOT IN ('TICK','TICK_REPEAT'))
 				    AND (req.hide_media = 0 OR a1.type != 'MEDIA')
-				    AND (req.min_grade_weight = 0 OR EXISTS (
+				    AND NOT EXISTS (
 				          SELECT 1 FROM grade g1
-				          WHERE g1.id = p1.grade_id AND g1.weight >= req.min_grade_weight
-				            AND (req.filter_grade_system_id = 0 OR g1.grade_system_id = req.filter_grade_system_id)))
+				          JOIN grade_filter gf ON gf.grade_system_id = g1.grade_system_id
+				          WHERE g1.id = p1.grade_id AND g1.weight < gf.min_grade_weight)
 				    AND (req.filter_area_id = 0 OR s1.area_id = req.filter_area_id)
 				    AND (req.filter_sector_id = 0 OR s1.id = req.filter_sector_id)
 				  ORDER BY a1.activity_timestamp DESC, a1.problem_id DESC
@@ -250,10 +264,24 @@ public class ActivityRepository {
 				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				GROUP BY x.activity_timestamp, a.id, s.id, x.problem_id, p.name, COALESCE(tt.subtype, ty.subtype), ty.trad_gear, g.grade
 				ORDER BY x.activity_timestamp DESC, x.problem_id DESC
-				""";
+				""".formatted(gradeFilterRows);
+
+		var params = new ArrayList<Object>();
+		params.add(authUserId.orElse(0));
+		params.add(setup.idRegion());
+		params.add(showAllTime);
+		params.add(!fa);
+		params.add(!comments);
+		params.add(!ticks);
+		params.add(!media);
+		params.add(idArea);
+		params.add(idSector);
+		params.add(setup.idLanguage());
+		params.addAll(gradeFilterParams);
+		params.add(offset);
 
 		List<Activity> res = jdbcClient.sql(sqlStr)
-				.params(authUserId.orElse(0), setup.idRegion(), showAllTime, !fa, !comments, !ticks, !media, lowerGradeWeight, lowerGradeSystemId, idArea, idSector, setup.idLanguage(), offset)
+				.params(params.toArray())
 				.query((rs, _) -> {
 					var ts = rs.getObject("activity_timestamp", LocalDateTime.class);
 					var currentActivityIds = new HashSet<Integer>();

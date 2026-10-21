@@ -1,6 +1,8 @@
 package com.buldreinfo.controller;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -38,19 +40,57 @@ public class ActivityController {
 	public ResponseEntity<List<Activity>> getActivity(HttpServletRequest request,
 			@RequestParam(name = "idArea") int idArea,
 			@RequestParam(name = "idSector") int idSector,
-			@RequestParam(name = "lowerGradeWeight", defaultValue = "0") int lowerGradeWeight,
-			@RequestParam(name = "lowerGradeSystemId", defaultValue = "0") int lowerGradeSystemId,
+			/**
+			 * Lowest grade per grade system, formatted as `gradeSystemId:weight` (comma-separated or repeated).
+			 * A threshold only applies to problems graded in its own system, so several systems can be filtered
+			 * independently (e.g. a Saxon threshold does not hide Uiaa-graded problems).
+			 */
+			@RequestParam(name = "gradeFilters", required = false) List<String> gradeFilters,
 			@RequestParam(name = "fa", defaultValue = "false") boolean fa,
 			@RequestParam(name = "comments", defaultValue = "false") boolean comments,
 			@RequestParam(name = "ticks", defaultValue = "false") boolean ticks,
 			@RequestParam(name = "media", defaultValue = "false") boolean media,
 			@RequestParam(name = "offset", defaultValue = "0") int offset) {
 		if (idArea < 0 || idSector < 0) throw new ValidationFailedException("IDs cannot be negative");
-		if (lowerGradeWeight < 0) throw new ValidationFailedException("lowerGradeWeight cannot be negative");
-		if (lowerGradeSystemId < 0) throw new ValidationFailedException("lowerGradeSystemId cannot be negative");
 		if (offset < 0) throw new ValidationFailedException("offset cannot be negative");
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		return ResponseEntity.ok(activityRepo.getActivity(setup, authUserId, idArea, idSector, lowerGradeWeight, lowerGradeSystemId, fa, comments, ticks, media, offset));
+		return ResponseEntity.ok(activityRepo.getActivity(setup, authUserId, idArea, idSector, parseGradeFilters(gradeFilters), fa, comments, ticks, media, offset));
+	}
+
+	/**
+	 * Parse `gradeSystemId:weight` pairs into a map keyed by grade system. Later pairs for the same system win.
+	 * Every threshold must be strictly positive; `0` means “no filter” and is represented by omitting the pair.
+	 */
+	private static Map<Integer, Integer> parseGradeFilters(List<String> gradeFilters) {
+		Map<Integer, Integer> res = new LinkedHashMap<>();
+		if (gradeFilters == null) {
+			return res;
+		}
+		for (var gradeFilter : gradeFilters) {
+			if (gradeFilter == null || gradeFilter.isBlank()) {
+				continue;
+			}
+			var parts = gradeFilter.split(":", -1);
+			if (parts.length != 2) {
+				throw new ValidationFailedException("gradeFilters must be formatted as gradeSystemId:weight");
+			}
+			int gradeSystemId;
+			int weight;
+			try {
+				gradeSystemId = Integer.parseInt(parts[0].trim());
+				weight = Integer.parseInt(parts[1].trim());
+			} catch (NumberFormatException e) {
+				throw new ValidationFailedException("gradeFilters must be formatted as gradeSystemId:weight");
+			}
+			if (gradeSystemId <= 0) {
+				throw new ValidationFailedException("gradeFilters gradeSystemId must be positive");
+			}
+			if (weight <= 0) {
+				throw new ValidationFailedException("gradeFilters weight must be positive");
+			}
+			res.put(gradeSystemId, weight);
+		}
+		return res;
 	}
 }
