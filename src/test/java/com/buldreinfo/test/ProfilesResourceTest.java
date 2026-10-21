@@ -1,6 +1,7 @@
 package com.buldreinfo.test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.http.HttpStatus.OK;
@@ -23,6 +24,24 @@ public class ProfilesResourceTest extends BaseResourceTest {
 		assertEquals(OK, r.getStatusCode());
 		Profile u = assertInstanceOf(Profile.class, r.getBody());
 		assertNotNull(u.identity());
+	}
+
+	@Test
+	public void testGetProfileDisciplineCharts() {
+		var r = tester.getProfiles(getRequest(Region.buldreinfo), USER_ID_SUPERADMIN);
+		assertEquals(OK, r.getStatusCode());
+		Profile u = assertInstanceOf(Profile.class, r.getBody());
+		var charts = u.disciplines();
+		assertNotNull(charts);
+		assertFalse(charts.isEmpty());
+		assertEquals(charts.size(), charts.stream()
+				.map(d -> d.gradeSystemId() + "/" + d.multiPitch())
+				.distinct()
+				.count());
+		for (var chart : charts) {
+			assertNotNull(chart.gradeSystem());
+			assertFalse(chart.gradeDistribution().isEmpty());
+		}
 	}
 
 	@Test
