@@ -5,6 +5,6 @@ import java.util.List;
 public record Profile(ProfileIdentity identity, ProfileKpis kpis, List<ProfileDiscipline> disciplines) {
 	public record ProfileIdentity(int id, String firstname, String lastname, boolean emailVisibleToAll, String themePreference, String languagePreference, MediaIdentity mediaIdentity, List<String> emails, List<UserRegion> userRegions, List<String> activityRegions, String lastActivity) {}
 	public record ProfileKpis(int numImagesCreated, int numVideosCreated, int numImageTags, int numVideoTags) {}
-	public record ProfileDiscipline(int gradeSystemId, String gradeSystem, boolean multiPitch, List<ProfileDisciplineGradeDistribution> gradeDistribution) {}
+	public record ProfileDiscipline(int typeId, String type, String subType, boolean isBouldering, int gradeSystemId, String gradeSystem, boolean multiPitch, List<ProfileDisciplineGradeDistribution> gradeDistribution) {}
 	public record ProfileDisciplineGradeDistribution(String grade, String color, int fa, int tick) {}
 }

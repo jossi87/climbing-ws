@@ -51,7 +51,7 @@ public class ProfilesController {
 		var setup = requestContext.getSetup(request);
 		var identityFuture = CompletableFuture.supplyAsync(() -> userRepo.getProfileIdentity(setup, reqUserId));
 		var kpisFuture = CompletableFuture.supplyAsync(() -> userRepo.getProfileKpis(reqUserId));
-		var disciplinesFuture = CompletableFuture.supplyAsync(() -> userRepo.getProfileDisciplines(reqUserId));
+		var disciplinesFuture = CompletableFuture.supplyAsync(() -> userRepo.getProfileDisciplines(reqUserId, requestContext.getLanguageId(request)));
 		return ResponseEntity.ok(new Profile(identityFuture.join(), kpisFuture.join(), disciplinesFuture.join()));
 	}
 

@@ -427,104 +427,97 @@ public class UserRepository {
 	}
 
 	@Transactional(readOnly = true)
-	public List<ProfileDiscipline> getProfileDisciplines(int userId) {
-		record Row(int gradeSystemId, String gradeSystem, boolean multiPitch, ProfileDisciplineGradeDistribution distribution) {}
+	public List<ProfileDiscipline> getProfileDisciplines(int userId, int idLanguage) {
+		record Row(int typeId, String type, String subType, boolean isBouldering, int gradeSystemId, String gradeSystem,
+				boolean multiPitch, ProfileDisciplineGradeDistribution distribution) {}
 		var res = jdbcClient.sql("""
 				WITH req AS (
-				    SELECT ? AS user_id
+				    SELECT ? user_id, ? language_id
 				),
+				-- 2+ problem_section rows is multi-pitch everywhere else in the app, so the charts use the same rule.
 				pitch_counts AS (
-				    SELECT problem_id, COUNT(*) AS total_pitches
+				    SELECT problem_id, COUNT(*) total_pitches
 				    FROM problem_section
 				    GROUP BY problem_id
 				),
 				-- One row per ascent that counts on the profile: first ascents (free and aid), then the ticks that are
-				-- not already covered by an FA. `multi_pitch` follows the rest of the app (2+ problem_section rows).
-				-- The grade system is the area's — same source as ProfileAscent.gradeSystemId — so even a tick without
-				-- a personal grade belongs to exactly one chart.
-				raw_activity AS (
-				    SELECT
-				        a.grade_system_id, (COALESCE(pc.total_pitches, 0) > 1) AS multi_pitch,
-				        g.grade, clr.hex_code color, g.weight, 1 is_fa, 0 is_tick
-				    FROM req
-				    JOIN fa f ON f.user_id = req.user_id
-				    JOIN problem p ON f.problem_id = p.id
-				    JOIN sector s ON p.sector_id = s.id
-				    JOIN area a ON s.area_id = a.id
-				    JOIN grade g ON p.grade_id = g.id
-				    JOIN grade_color clr ON g.grade_color_id = clr.id
-				    LEFT JOIN pitch_counts pc ON p.id = pc.problem_id
+				-- not already covered by an FA.
+				activity AS (
+				    SELECT p.id problem_id, p.grade_id, 1 is_fa, 0 is_tick
+				    FROM req JOIN fa f ON f.user_id = req.user_id JOIN problem p ON f.problem_id = p.id
 				    UNION ALL
-				    SELECT
-				        a.grade_system_id, (COALESCE(pc.total_pitches, 0) > 1) AS multi_pitch,
-				        g.grade, clr.hex_code color, g.weight, 1 is_fa, 0 is_tick
-				    FROM req
-				    JOIN fa_aid_user fau ON fau.user_id = req.user_id
-				    JOIN problem p ON fau.problem_id = p.id
-				    JOIN sector s ON p.sector_id = s.id
-				    JOIN area a ON s.area_id = a.id
-				    JOIN grade g ON p.grade_id = g.id
-				    JOIN grade_color clr ON g.grade_color_id = clr.id
-				    LEFT JOIN pitch_counts pc ON p.id = pc.problem_id
+				    SELECT p.id, p.grade_id, 1, 0
+				    FROM req JOIN fa_aid_user fau ON fau.user_id = req.user_id JOIN problem p ON fau.problem_id = p.id
 				    UNION ALL
-				    SELECT
-				        a.grade_system_id, (COALESCE(pc.total_pitches, 0) > 1) AS multi_pitch,
-				        COALESCE(g.grade,'No personal grade') grade, COALESCE(clr.hex_code,'#CCCCCC') color, g.weight, 0 is_fa, 1 is_tick
-				    FROM req
-				    JOIN tick t ON t.user_id = req.user_id
-				    JOIN problem p ON t.problem_id = p.id
-				    JOIN sector s ON p.sector_id = s.id
-				    JOIN area a ON s.area_id = a.id
-				    LEFT JOIN grade g ON t.grade_id = g.id
-				    LEFT JOIN grade_color clr ON g.grade_color_id = clr.id
-				    LEFT JOIN pitch_counts pc ON p.id = pc.problem_id
+				    SELECT p.id, t.grade_id, 0, 1
+				    FROM req JOIN tick t ON t.user_id = req.user_id JOIN problem p ON t.problem_id = p.id
 				    WHERE NOT EXISTS (SELECT 1 FROM fa f2 WHERE f2.user_id = req.user_id AND f2.problem_id = t.problem_id)
 				      AND NOT EXISTS (SELECT 1 FROM fa_aid_user fau2 WHERE fau2.user_id = req.user_id AND fau2.problem_id = t.problem_id)
 				),
+				raw_activity AS (
+				    SELECT
+				        ty.id type_id, COALESCE(tt.type, ty.type) type, COALESCE(tt.subtype, ty.subtype) sub_type,
+				        d.is_bouldering, a.grade_system_id, (COALESCE(pc.total_pitches, 0) > 1) AS multi_pitch,
+				        COALESCE(g.grade, 'No personal grade') grade, COALESCE(clr.hex_code, '#CCCCCC') color, g.weight,
+				        act.is_fa, act.is_tick
+				    FROM activity act
+				    JOIN problem p ON p.id = act.problem_id
+				    JOIN sector s ON p.sector_id = s.id
+				    JOIN area a ON s.area_id = a.id
+				    JOIN type ty ON p.type_id = ty.id
+				    JOIN discipline d ON ty.discipline_id = d.id
+				    LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = (SELECT language_id FROM req)
+				    LEFT JOIN grade g ON g.id = act.grade_id
+				    LEFT JOIN grade_color clr ON clr.id = g.grade_color_id
+				    LEFT JOIN pitch_counts pc ON pc.problem_id = p.id
+				),
 				grouped_activity AS (
 				    SELECT
-				        grade_system_id, multi_pitch, grade, color, weight,
+				        type_id, type, sub_type, is_bouldering, grade_system_id, multi_pitch, grade, color, weight,
 				        SUM(is_fa) num_fa, SUM(is_tick) num_tick
 				    FROM raw_activity
-				    GROUP BY grade_system_id, multi_pitch, grade, color, weight
+				    GROUP BY type_id, type, sub_type, is_bouldering, grade_system_id, multi_pitch, grade, color, weight
 				)
 				SELECT
-				    g.grade_system_id, gs.name grade_system, g.multi_pitch, g.grade, g.color, g.num_fa, g.num_tick
+				    g.type_id, g.type, g.sub_type, g.is_bouldering, g.grade_system_id, gs.name grade_system, g.multi_pitch,
+				    g.grade, g.color, g.num_fa, g.num_tick
 				FROM grouped_activity g
 				JOIN grade_system gs ON gs.id = g.grade_system_id
-				-- Most active system first, its single-pitch chart before its multi-pitch one, then hardest grade first
-				-- (`weight` is the cross-system difficulty order; ungraded ticks have none and land last).
+				-- Most active chart first (both pitch kinds of one type+system count together), then by type and
+				-- system, then single-pitch before multi-pitch, then hardest grade first (`weight` is the
+				-- cross-system difficulty order; ungraded ticks have none and land last).
 				ORDER BY
-				    SUM(g.num_fa + g.num_tick) OVER (PARTITION BY g.grade_system_id) DESC,
-				    gs.name,
+				    SUM(g.num_fa + g.num_tick) OVER (PARTITION BY g.type_id, g.grade_system_id) DESC,
+				    g.type, g.sub_type, gs.name, g.grade_system_id,
 				    g.multi_pitch,
 				    g.weight DESC
 				""")
-				.param(userId)
-				.query((rs, _) -> new Row(rs.getInt("grade_system_id"), rs.getString("grade_system"), rs.getBoolean("multi_pitch"),
+				.params(userId, idLanguage)
+				.query((rs, _) -> new Row(rs.getInt("type_id"), rs.getString("type"), rs.getString("sub_type"),
+						rs.getBoolean("is_bouldering"), rs.getInt("grade_system_id"), rs.getString("grade_system"),
+						rs.getBoolean("multi_pitch"),
 						new ProfileDisciplineGradeDistribution(rs.getString("grade"), rs.getString("color"), rs.getInt("num_fa"), rs.getInt("num_tick"))))
 				.list();
 
-		// Rows arrive grouped by (system, pitch), so one pass folds them into a chart per group, in query order.
+		// Rows arrive grouped by (type, system, pitch), so one pass folds them into a chart per group, in query order.
 		List<ProfileDiscipline> result = new ArrayList<>();
 		List<ProfileDisciplineGradeDistribution> distributions = null;
-		int gradeSystemId = 0;
-		String gradeSystem = null;
-		boolean multiPitch = false;
+		Row current = null;
 		for (Row row : res) {
-			if (distributions == null || row.gradeSystemId() != gradeSystemId || row.multiPitch() != multiPitch) {
+			if (distributions == null || current.typeId() != row.typeId() || current.gradeSystemId() != row.gradeSystemId()
+					|| current.multiPitch() != row.multiPitch()) {
 				if (distributions != null) {
-					result.add(new ProfileDiscipline(gradeSystemId, gradeSystem, multiPitch, distributions));
+					result.add(new ProfileDiscipline(current.typeId(), current.type(), current.subType(), current.isBouldering(),
+							current.gradeSystemId(), current.gradeSystem(), current.multiPitch(), distributions));
 				}
-				gradeSystemId = row.gradeSystemId();
-				gradeSystem = row.gradeSystem();
-				multiPitch = row.multiPitch();
+				current = row;
 				distributions = new ArrayList<>();
 			}
 			distributions.add(row.distribution());
 		}
 		if (distributions != null) {
-			result.add(new ProfileDiscipline(gradeSystemId, gradeSystem, multiPitch, distributions));
+			result.add(new ProfileDiscipline(current.typeId(), current.type(), current.subType(), current.isBouldering(),
+					current.gradeSystemId(), current.gradeSystem(), current.multiPitch(), distributions));
 		}
 		return result;
 	}

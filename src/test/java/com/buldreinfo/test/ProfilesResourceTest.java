@@ -35,10 +35,12 @@ public class ProfilesResourceTest extends BaseResourceTest {
 		assertNotNull(charts);
 		assertFalse(charts.isEmpty());
 		assertEquals(charts.size(), charts.stream()
-				.map(d -> d.gradeSystemId() + "/" + d.multiPitch())
+				.map(d -> d.typeId() + "/" + d.gradeSystemId() + "/" + d.multiPitch())
 				.distinct()
 				.count());
 		for (var chart : charts) {
+			assertNotNull(chart.type());
+			assertNotNull(chart.subType());
 			assertNotNull(chart.gradeSystem());
 			assertFalse(chart.gradeDistribution().isEmpty());
 		}
