@@ -49,9 +49,13 @@ public class ProfilesController {
 		if (reqUserId <= 0) throw new ValidationFailedException("Invalid user id=" + reqUserId);
 		userRepo.ensureUserExists(reqUserId);
 		var setup = requestContext.getSetup(request);
+		// Resolved on the request thread: the security context and the request parameters are thread-bound, the three
+		// queries below run on the common pool.
+		var authUserId = requestContext.getAuthenticatedUserId();
+		var idLanguage = requestContext.getLanguageId(request);
 		var identityFuture = CompletableFuture.supplyAsync(() -> userRepo.getProfileIdentity(setup, reqUserId));
 		var kpisFuture = CompletableFuture.supplyAsync(() -> userRepo.getProfileKpis(reqUserId));
-		var disciplinesFuture = CompletableFuture.supplyAsync(() -> userRepo.getProfileDisciplines(setup, reqUserId, requestContext.getLanguageId(request)));
+		var disciplinesFuture = CompletableFuture.supplyAsync(() -> userRepo.getProfileDisciplines(authUserId, setup, reqUserId, idLanguage));
 		return ResponseEntity.ok(new Profile(identityFuture.join(), kpisFuture.join(), disciplinesFuture.join()));
 	}
 

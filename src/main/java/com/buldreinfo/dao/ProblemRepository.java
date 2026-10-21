@@ -361,14 +361,16 @@ public class ProblemRepository {
 		return idProblem;
 	}
 
+	/**
+	 * Recomputes {@code problem.consensus_grade_id} from the personal grades of its ticks (plus its own grade while no
+	 * FA graded it), by averaging their weights inside the problem's own grade system: weights of different systems are
+	 * unrelated, so only a system's own grades are candidates. Without a matching weight the problem keeps its grade.
+	 */
 	@Transactional
 	public void updateProblemConsensusGrade(int problemId) {
 		var gradeSystemId = gradeSystemRepo.getProblemGradeSystem(problemId).orElse(0);
 		jdbcClient.sql("""
 				UPDATE problem p
-				JOIN sector s ON p.sector_id = s.id
-				JOIN area a ON s.area_id = a.id
-				LEFT JOIN region_grade_system rgs ON a.region_id = rgs.region_id AND ? = 0
 				LEFT JOIN (
 				    SELECT ROUND(AVG(w)) as avg_weight
 				    FROM (
@@ -390,12 +392,11 @@ public class ProblemRepository {
 				        )
 				    ) votes
 				) calc ON 1=1
-				LEFT JOIN grade g_final ON g_final.grade_system_id = IF(? = 0, rgs.grade_system_id, ?)
-				                       AND g_final.weight = calc.avg_weight
+				LEFT JOIN grade g_final ON g_final.grade_system_id = ? AND g_final.weight = calc.avg_weight
 				SET p.consensus_grade_id = COALESCE(g_final.id, p.grade_id)
 				WHERE p.id = ?
 				""")
-		.params(gradeSystemId, problemId, problemId, gradeSystemId, gradeSystemId, problemId)
+		.params(problemId, problemId, gradeSystemId, problemId)
 		.update();
 	}
 

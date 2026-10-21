@@ -427,13 +427,20 @@ public class UserRepository {
 		return res;
 	}
 
+	/**
+	 * The grade charts of one profile: one entry per problem type, grade system and pitch kind.
+	 *
+	 * Ascents are counted the way the profile's ascent list counts them — the user's first ascents (free and aid) and
+	 * every tick not already covered by one — and they follow the same visibility rules (trashed problems and problems
+	 * locked from this viewer are left out), so a card's totals always match the rows listed beneath it.
+	 */
 	@Transactional(readOnly = true)
-	public List<ProfileDiscipline> getProfileDisciplines(Setup setup, int userId, int idLanguage) {
+	public List<ProfileDiscipline> getProfileDisciplines(Optional<Integer> authUserId, Setup setup, int userId, int idLanguage) {
 		record Row(String type, Boolean isBolted, boolean isBouldering, boolean isIceClimbing, int gradeSystemId,
 				String gradeSystem, boolean multiPitch, ProfileDisciplineGradeDistribution distribution) {}
 		var res = jdbcClient.sql("""
 				WITH req AS (
-				    SELECT ? user_id, ? language_id, ? req_is_bouldering, ? req_is_climbing, ? req_is_ice
+				    SELECT ? user_id, ? language_id, ? req_is_bouldering, ? req_is_climbing, ? req_is_ice, ? auth_user_id
 				),
 				-- 2+ problem_section rows is multi-pitch everywhere else in the app, so the charts use the same rule.
 				pitch_counts AS (
@@ -465,12 +472,18 @@ public class UserRepository {
 				    JOIN problem p ON p.id = act.problem_id
 				    JOIN sector s ON p.sector_id = s.id
 				    JOIN area a ON s.area_id = a.id
+				    JOIN region r ON a.region_id = r.id
+				    LEFT JOIN user_region ur ON (r.id = ur.region_id AND ur.user_id = (SELECT auth_user_id FROM req))
 				    JOIN type ty ON p.type_id = ty.id
 				    JOIN discipline d ON ty.discipline_id = d.id
 				    LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = (SELECT language_id FROM req)
 				    LEFT JOIN grade g ON g.id = act.grade_id
 				    LEFT JOIN grade_color clr ON clr.id = g.grade_color_id
 				    LEFT JOIN pitch_counts pc ON pc.problem_id = p.id
+				    -- The same visibility rule as the ascent list: a trashed problem, or one this viewer may not read,
+				    -- is not part of the profile's statistics either.
+				    WHERE p.trash IS NULL
+				      AND ((p.locked_admin = 0 AND p.locked_superadmin = 0) OR (ur.superadmin_read = 1) OR (ur.admin_read = 1 AND p.locked_superadmin = 0))
 				),
 				grouped_activity AS (
 				    SELECT
@@ -525,7 +538,7 @@ public class UserRepository {
 				    c.multi_pitch,
 				    c.weight DESC
 				""")
-				.params(userId, idLanguage, setup.isBouldering(), setup.isClimbing(), setup.isIce())
+				.params(userId, idLanguage, setup.isBouldering(), setup.isClimbing(), setup.isIce(), authUserId.orElse(0))
 				.query((rs, _) -> new Row(rs.getString("type"),
 						rs.getObject("is_bolted") == null ? null : rs.getBoolean("is_bolted"),
 						rs.getBoolean("is_bouldering"), rs.getBoolean("is_ice_climbing"), rs.getInt("grade_system_id"),

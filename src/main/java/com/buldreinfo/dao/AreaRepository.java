@@ -198,18 +198,15 @@ public class AreaRepository {
 		int gradeSystemId = gradeSystemRepo.getAreaGradeSystem(areaId).orElse(0);
 
 		var sqlStr = """
-				WITH target_systems AS (
-				  SELECT :gradeSystemId grade_system_id
-				),
-				all_labels AS (
+				WITH all_labels AS (
 				  SELECT 
 				    g.label_compact, 
 				    g.grade_system_id, 
 				    clr.hex_code, 
 				    MIN(g.weight) as sort_weight
 				  FROM grade g
-				  JOIN target_systems ts ON g.grade_system_id = ts.grade_system_id
 				  JOIN grade_color clr ON g.grade_color_id = clr.id
+				  WHERE g.grade_system_id = :gradeSystemId
 				  GROUP BY g.label_compact, g.grade_system_id, clr.hex_code
 				)
 				SELECT 

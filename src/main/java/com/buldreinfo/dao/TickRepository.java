@@ -99,22 +99,34 @@ public class TickRepository {
 					.params(t.id(), userId, t.idProblem())
 					.update();
 			if (affected != 1) throw new IllegalStateException("Invalid tick=" + t);
-		} else if (t.id() == -1) {
-			var gradeId = gradeSystemRepo.getConverterForProblem(t.idProblem()).getIdGradeFromGrade(t.grade());
-			var keyHolder = new GeneratedKeyHolder();
-			jdbcClient.sql("INSERT INTO tick (problem_id, user_id, date, grade_id, comment, stars) VALUES (?, ?, ?, ?, ?, ?)")
-			.params(t.idProblem(), userId, dt, gradeId, StringUtils.stripToNull(t.comment()), t.stars())
-			.update(keyHolder, "id");
+		} else {
+			int gradeId = getGradeId(t);
+			if (t.id() == -1) {
+				var keyHolder = new GeneratedKeyHolder();
+				jdbcClient.sql("INSERT INTO tick (problem_id, user_id, date, grade_id, comment, stars) VALUES (?, ?, ?, ?, ?, ?)")
+				.params(t.idProblem(), userId, dt, gradeId, StringUtils.stripToNull(t.comment()), t.stars())
+				.update(keyHolder, "id");
 
-			upsertTickRepeats(keyHolder.getKey().intValue(), t.repeats());
-		} else if (t.id() > 0) {
-			int gradeId = gradeSystemRepo.getConverterForProblem(t.idProblem()).getIdGradeFromGrade(t.grade());
-			int affected = jdbcClient.sql("UPDATE tick SET date=?, grade_id=?, comment=?, stars=? WHERE id=? AND problem_id=? AND user_id=?")
-					.params(dt, gradeId, StringUtils.stripToNull(t.comment()), t.stars(), t.id(), t.idProblem(), userId)
-					.update();
-			if (affected != 1) throw new IllegalStateException("Invalid tick=" + t);
-			upsertTickRepeats(t.id(), t.repeats());
+				upsertTickRepeats(keyHolder.getKey().intValue(), t.repeats());
+			} else if (t.id() > 0) {
+				int affected = jdbcClient.sql("UPDATE tick SET date=?, grade_id=?, comment=?, stars=? WHERE id=? AND problem_id=? AND user_id=?")
+						.params(dt, gradeId, StringUtils.stripToNull(t.comment()), t.stars(), t.id(), t.idProblem(), userId)
+						.update();
+				if (affected != 1) throw new IllegalStateException("Invalid tick=" + t);
+				upsertTickRepeats(t.id(), t.repeats());
+			}
 		}
+	}
+
+	/**
+	 * The personal grade of a tick, in the grade system of the problem it is saved on. A tick without a grade counts as
+	 * “no personal grade” rather than as an error: the field is optional in the API.
+	 */
+	private int getGradeId(Tick t) {
+		if (t.grade() == null || t.grade().isBlank()) {
+			return GradeConverter.NO_PERSONAL_GRADE_ID;
+		}
+		return gradeSystemRepo.getConverterForProblem(t.idProblem()).getIdGradeFromGrade(t.grade());
 	}
 
 	private void upsertTickRepeats(int idTick, List<TickRepeat> repeats) {
