@@ -6,7 +6,7 @@ import com.buldreinfo.helpers.SectorSort;
 
 public record Toc(int numRegions, int numAreas, int numSectors, int numProblems, List<TocRegion> regions) {
 	public record TocRegion(int id, String name, List<TocArea> areas) {}
-	public record TocArea(int id, String url, String name, Coordinates coordinates, boolean lockedAdmin, boolean lockedSuperadmin, int sunFromHour, int sunToHour, List<TocSector> sectors) {
+	public record TocArea(int id, int gradeSystemId, String url, String name, Coordinates coordinates, boolean lockedAdmin, boolean lockedSuperadmin, int sunFromHour, int sunToHour, List<TocSector> sectors) {
 		public void orderSectors() {
 			if (sectors != null) {
 				sectors.sort((TocSector o1, TocSector o2) -> SectorSort.sortSector(o1.sorting(), o1.name(), o2.sorting(), o2.name()));

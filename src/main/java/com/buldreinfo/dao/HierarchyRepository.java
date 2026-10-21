@@ -675,6 +675,7 @@ public class HierarchyRepository {
 				           p.length_meter, p.starting_altitude, p.fa_date,
 				           r.id AS region_id, r.name AS region_name, r.url AS region_url,
 				           a.id AS area_id, a.name AS area_name, a.coordinates_id AS area_coordinates_id,
+				           a.grade_system_id AS area_grade_system_id,
 				           a.locked_admin AS area_locked_admin, a.locked_superadmin AS area_locked_superadmin,
 				           a.sun_from_hour AS area_sun_from_hour, a.sun_to_hour AS area_sun_to_hour,
 				           s.id AS sector_id_val, s.name AS sector_name, s.sorting AS sector_sorting,
@@ -726,7 +727,7 @@ public class HierarchyRepository {
 				SELECT 
 				    p.region_id, p.region_name, p.area_id, CONCAT(p.region_url, '/area/', p.area_id) AS area_url, p.area_name, 
 				    ac.id AS area_coordinates_id, ac.latitude AS area_latitude, ac.longitude AS area_longitude, ac.elevation AS area_elevation, ac.elevation_source AS area_elevation_source, 
-				    p.area_locked_admin, p.area_locked_superadmin, p.area_sun_from_hour, p.area_sun_to_hour,
+				    p.area_grade_system_id, p.area_locked_admin, p.area_locked_superadmin, p.area_sun_from_hour, p.area_sun_to_hour,
 				    p.sector_id_val AS sector_id, CONCAT(p.region_url, '/sector/', p.sector_id_val) AS sector_url, p.sector_name, p.sector_sorting, p.sector_sun_from_hour, p.sector_sun_to_hour, 
 				    sc.id AS sector_parking_coordinates_id, sc.latitude AS sector_parking_latitude, sc.longitude AS sector_parking_longitude, sc.elevation AS sector_parking_elevation, sc.elevation_source AS sector_parking_elevation_source, 
 				    p.sector_compass_direction_id_calculated, p.sector_compass_direction_id_manual, 
@@ -779,11 +780,12 @@ public class HierarchyRepository {
 				var areaUrl = rs.getString("area_url");
 				var areaName = rs.getString("area_name");
 				var areaCoordinates = new Coordinates(rs.getInt("area_coordinates_id"), rs.getDouble("area_latitude"), rs.getDouble("area_longitude"), rs.getDouble("area_elevation"), rs.getString("area_elevation_source"), 0.0);
+				int areaGradeSystemId = rs.getInt("area_grade_system_id");
 				var areaLockedAdmin = rs.getBoolean("area_locked_admin");
 				var areaLockedSuperadmin = rs.getBoolean("area_locked_superadmin");
 				int areaSunFromHour = rs.getInt("area_sun_from_hour");
 				int areaSunToHour = rs.getInt("area_sun_to_hour");
-				a = new TocArea(areaId, areaUrl, areaName, areaCoordinates, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour, new ArrayList<>());
+				a = new TocArea(areaId, areaGradeSystemId, areaUrl, areaName, areaCoordinates, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour, new ArrayList<>());
 				r.areas().add(a);
 				areaLookup.put(areaId, a);
 			}
