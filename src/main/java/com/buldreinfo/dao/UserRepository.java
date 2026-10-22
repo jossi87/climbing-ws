@@ -514,10 +514,11 @@ public class UserRepository {
 				)
 				SELECT
 				    c.type, c.chart_is_bolted is_bolted, c.is_bouldering, c.is_ice_climbing, c.grade_system_id,
-				    gs.name grade_system, c.multi_pitch, c.grade, c.color, c.num_fa, c.num_tick
+				    COALESCE(gst.name, gs.name) grade_system, c.multi_pitch, c.grade, c.color, c.num_fa, c.num_tick
 				FROM charts c
 				JOIN grade_system gs ON gs.id = c.grade_system_id
 				JOIN req ON TRUE
+				LEFT JOIN grade_system_translation gst ON gst.grade_system_id = gs.id AND gst.language_id = req.language_id
 				-- The site's own disciplines first: the profile is opened from a crag page, so a visitor who came in from
 				-- a bouldering site wants the boulder chart on top (likewise rope and ice). Each permutation is the
 				-- priority of the five chart kinds, so the remaining kinds still land in a sensible order (boulder, sport,
@@ -535,7 +536,7 @@ public class UserRepository {
 				    -- key column is in the ORDER BY, which is what lets the caller fold the rows.
 				    SUM(c.num_fa + c.num_tick) OVER (PARTITION BY c.type, c.chart_is_bolted, c.is_bouldering, c.is_ice_climbing,
 				        c.grade_system_id, c.multi_pitch) DESC,
-				    c.type, c.chart_is_bolted DESC, c.is_bouldering, c.is_ice_climbing, gs.name, c.grade_system_id,
+				    c.type, c.chart_is_bolted DESC, c.is_bouldering, c.is_ice_climbing, COALESCE(gst.name, gs.name), c.grade_system_id,
 				    c.multi_pitch,
 				    c.weight DESC
 				""")

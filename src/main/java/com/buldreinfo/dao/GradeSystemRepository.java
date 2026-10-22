@@ -95,9 +95,9 @@ public class GradeSystemRepository {
 				+ " grade systems, so every area must pick one.");
 	}
 
-	@Cacheable(value = CacheConstants.REGION_CACHE_NAME, key = "'grade-systems'", sync = true)
+	@Cacheable(value = CacheConstants.REGION_CACHE_NAME, key = "'grade-systems:' + #idLanguage", sync = true)
 	@Transactional(readOnly = true)
-	public List<GradeSystem> getGradeSystems() {
+	public List<GradeSystem> getGradeSystems(int idLanguage) {
 		Map<Integer, List<Grade>> gradesBySystem = new HashMap<>();
 		jdbcClient.sql("""
 				SELECT g.grade_system_id, g.id, g.grade, g.label_major, g.label_compact, g.weight, c.hex_code color
@@ -111,7 +111,13 @@ public class GradeSystemRepository {
 				});
 
 		Map<Integer, GradeSystem> systems = new LinkedHashMap<>();
-		jdbcClient.sql("SELECT id, name FROM grade_system ORDER BY id")
+		jdbcClient.sql("""
+				SELECT gs.id, COALESCE(gst.name, gs.name) name
+				FROM grade_system gs
+				LEFT JOIN grade_system_translation gst ON gst.grade_system_id = gs.id AND gst.language_id = ?
+				ORDER BY gs.id
+				""")
+				.param(idLanguage)
 				.query(rs -> {
 					systems.put(rs.getInt("id"), new GradeSystem(rs.getInt("id"), rs.getString("name"), gradesBySystem.getOrDefault(rs.getInt("id"), List.of())));
 				});

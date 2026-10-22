@@ -28,7 +28,7 @@ public record Meta(
 		var regionsFuture = CompletableFuture.supplyAsync(() -> regionRepo.getRegions(setup.idRegion(), setup.idLanguage()));
 		var mapsFuture = CompletableFuture.supplyAsync(() -> mapRepo.getMaps(setup.idRegion()));
 		var languagesFuture = CompletableFuture.supplyAsync(() -> regionRepo.getLanguages());
-		var allGradeSystemsFuture = CompletableFuture.supplyAsync(() -> gradeSystemRepo.getGradeSystems());
+		var allGradeSystemsFuture = CompletableFuture.supplyAsync(() -> gradeSystemRepo.getGradeSystems(setup.idLanguage()));
 		var activityGradeSystemIdsFuture = CompletableFuture.supplyAsync(
 				() -> gradeSystemRepo.getActivityGradeSystemIds(setup.idRegion(), authUserId.orElse(0)));
 		CompletableFuture.allOf(authUserFuture, faYearsFuture, typesFuture, regionsFuture, mapsFuture, languagesFuture,
