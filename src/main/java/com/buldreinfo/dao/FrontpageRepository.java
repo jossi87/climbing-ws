@@ -9,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.helpers.GradeConverter;
-import com.buldreinfo.helpers.TimeAgo;
 import com.buldreinfo.model.Frontpage.FrontpageFirstAscent;
 import com.buldreinfo.model.Frontpage.FrontpageLastComment;
 import com.buldreinfo.model.Frontpage.FrontpageNewestMedia;
@@ -95,7 +94,7 @@ public class FrontpageRepository {
 					var ts = rs.getTimestamp("activity_timestamp").toLocalDateTime();
 					List<User> users = jsonHelper.parseArray(rs.getString("user_data"), User[].class);
 					return new FrontpageFirstAscent(
-							TimeAgo.getTimeAgo(ts.toLocalDate()),
+							ts,
 							rs.getInt("area_id"),
 							rs.getString("area_name"),
 							rs.getInt("problem_id"),
@@ -150,7 +149,7 @@ public class FrontpageRepository {
 									: null;
 					User user = new User(rs.getInt("user_id"), rs.getString("user_name"), mi);
 					return new FrontpageLastComment(
-							TimeAgo.getTimeAgo(ts.toLocalDate()),
+							ts,
 							rs.getInt("area_id"),
 							rs.getString("area_name"),
 							rs.getInt("problem_id"),
@@ -226,7 +225,7 @@ public class FrontpageRepository {
 									: null;
 					User user = new User(rs.getInt("user_id"), rs.getString("user_name"), mi);
 					return new FrontpageRecentAscent(
-							TimeAgo.getTimeAgo(ts.toLocalDate()),
+							ts,
 							rs.getInt("area_id"),
 							rs.getString("area_name"),
 							rs.getInt("problem_id"),

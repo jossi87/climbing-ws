@@ -1,5 +1,6 @@
 package com.buldreinfo.model;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -9,7 +10,7 @@ public class Activity {
 	public record ActivityMedia (MediaIdentity identity, boolean movie, boolean is360, String embedUrl) {}
 	private final Set<Integer> activityIds;
 	private List<ActivityThumbnail> activityThumbnails;
-	private final String timeAgo;
+	private final LocalDateTime timestamp;
 	private final int areaId;
 	private final String areaName;
 	private final boolean areaLockedAdmin;
@@ -34,9 +35,9 @@ public class Activity {
 	private String description;
 	private String message;
 	private List<User> users;
-	public Activity(Set<Integer> activityIds, String timeAgo, int areaId, String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, int sectorId, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int problemId, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String problemName, String problemSubtype, boolean problemTradGear, String grade, int gradeSystemId) {
+	public Activity(Set<Integer> activityIds, LocalDateTime timestamp, int areaId, String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, int sectorId, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int problemId, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String problemName, String problemSubtype, boolean problemTradGear, String grade, int gradeSystemId) {
 		this.activityIds = activityIds;
-		this.timeAgo = timeAgo;
+		this.timestamp = timestamp;
 		this.areaId = areaId;
 		this.areaName = areaName;
 		this.areaLockedAdmin = areaLockedAdmin;
@@ -131,8 +132,8 @@ public class Activity {
 	public int getStars() {
 		return stars;
 	}
-	public String getTimeAgo() {
-		return timeAgo;
+	public LocalDateTime getTimestamp() {
+		return timestamp;
 	}
 	public List<User> getUsers() {
 		return users;

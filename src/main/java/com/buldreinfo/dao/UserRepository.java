@@ -37,7 +37,6 @@ import com.buldreinfo.excel.ExcelWorkbook;
 import com.buldreinfo.exception.ForbiddenException;
 import com.buldreinfo.exception.UnauthorizedException;
 import com.buldreinfo.exception.ValidationFailedException;
-import com.buldreinfo.helpers.TimeAgo;
 import com.buldreinfo.model.Administrator;
 import com.buldreinfo.model.AdminUser;
 import com.buldreinfo.model.AuthenticatedUser;
@@ -190,7 +189,7 @@ public class UserRepository {
 							rs.getString("name"), 
 							emails, 
 							mediaIdentity, 
-							TimeAgo.getTimeAgo(rs.getObject("last_login", LocalDate.class))
+							rs.getObject("last_login", LocalDateTime.class)
 							);
 				})
 				.list();
@@ -316,7 +315,7 @@ public class UserRepository {
 							rs.getInt("id"),
 							rs.getString("name"),
 							mediaIdentity,
-							TimeAgo.getTimeAgo(rs.getObject("last_login", LocalDate.class)),
+							rs.getObject("last_login", LocalDateTime.class),
 							rs.getBoolean("admin_read"),
 							rs.getBoolean("admin_write"),
 							rs.getBoolean("superadmin_read"),
@@ -614,7 +613,7 @@ public class UserRepository {
 							emails,
 							getUserRegion(userId, setup, activityRegions),
 							activityRegionNames(activityRegions),
-							(lastLogin == null) ? null : TimeAgo.getTimeAgo(lastLogin.toLocalDate())
+							lastLogin
 							);
 				})
 				.optional()
@@ -774,7 +773,7 @@ public class UserRepository {
 					List<String> emails = (emailsStr == null || emailsStr.isBlank())
 								? List.of()
 								: List.of(emailsStr.split(";"));
-					return new AdminUser(rs.getInt("id"), rs.getString("name"), rs.getString("firstname"), rs.getString("lastname"), false, mediaIdentity, TimeAgo.getTimeAgo(rs.getObject("last_login", LocalDate.class)), emails, List.<AdminUser.AdminRegion>of(), List.of());
+					return new AdminUser(rs.getInt("id"), rs.getString("name"), rs.getString("firstname"), rs.getString("lastname"), false, mediaIdentity, rs.getObject("last_login", LocalDateTime.class), emails, List.<AdminUser.AdminRegion>of(), List.of());
 				})
 				.list();
 

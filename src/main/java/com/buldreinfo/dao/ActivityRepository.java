@@ -18,7 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.helpers.GradeConverter;
-import com.buldreinfo.helpers.TimeAgo;
 import com.buldreinfo.model.Activity;
 import com.buldreinfo.model.MediaIdentity;
 
@@ -303,7 +302,7 @@ public class ActivityRepository {
 							}
 						}
 					}
-					return new Activity(currentActivityIds, TimeAgo.getTimeAgo(ts.toLocalDate()), 
+					return new Activity(currentActivityIds, ts,
 							rs.getInt("area_id"), rs.getString("area_name"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"),
 							rs.getInt("sector_id"), rs.getString("sector_name"), rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"),
 							rs.getInt("problem_id"), rs.getBoolean("problem_locked_admin"), rs.getBoolean("problem_locked_superadmin"), 
