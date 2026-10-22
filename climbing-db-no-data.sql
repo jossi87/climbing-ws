@@ -414,7 +414,7 @@ DROP TABLE IF EXISTS `language`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `language` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `code` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci NOT NULL,
   `name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `language_code_uq` (`code`)
@@ -638,7 +638,6 @@ CREATE TABLE `media_svg` (
   `rappel_y` int DEFAULT NULL,
   `rappel_bolted` int DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `id_UNIQUE` (`id`),
   KEY `media_svg_media_id_idx` (`media_id`),
   CONSTRAINT `media_svg_media_id` FOREIGN KEY (`media_id`) REFERENCES `media` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_da_0900_ai_ci;
@@ -764,7 +763,7 @@ CREATE TABLE `region` (
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci NOT NULL,
   `title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci DEFAULT NULL,
   `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci DEFAULT NULL,
-  `url` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `url` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci NOT NULL,
   `latitude` decimal(13,10) DEFAULT NULL,
   `longitude` decimal(13,10) DEFAULT NULL,
   `default_zoom` int DEFAULT NULL,
@@ -1239,4 +1238,4 @@ CREATE TABLE `user_region` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-10-22  9:28:23
+-- Dump completed on 2026-10-22 10:24:55
