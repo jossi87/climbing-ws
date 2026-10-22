@@ -29,6 +29,7 @@ import com.buldreinfo.model.GradeDistribution;
 import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Sector;
 import com.buldreinfo.pdf.PdfGenerator;
+import com.buldreinfo.pdf.PdfText;
 import com.buldreinfo.service.AreaService;
 import com.buldreinfo.service.LeafletPrintService;
 import com.buldreinfo.service.SectorService;
@@ -110,8 +111,9 @@ public class AreasController {
 				.map(s -> sectorService.getSector(authUserId, false, setup, s.id()))
 				.toList();
 		String filename = FilenameUtil.generateFilename(area.name(), StorageType.PDF);
+		var pdfText = PdfText.forLanguageCode(requestContext.getLanguageCode(request));
 		StreamingResponseBody stream = output -> {
-			try (PdfGenerator generator = new PdfGenerator(storage, leafletPrintService, output)) {
+			try (PdfGenerator generator = new PdfGenerator(storage, leafletPrintService, pdfText, output)) {
 				generator.writeArea(setup, area, gradeDistribution, sectors);
 			} catch (Exception e) {
 				throw new InternalServerErrorException("PDF generation failed", e);

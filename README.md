@@ -52,6 +52,26 @@ You should now be able to access the server on:
 - <http://localhost:8080/swagger-ui>
 - <http://localhost:8080/v3/api-docs>
 
+## :page_facing_up: PDF export
+
+The printable sheets (`/api/problems/{id}/pdf`, `/api/sectors/{id}/pdf`, `/api/areas/{id}/pdf`) are laid out by
+[`PdfGenerator`](src/main/java/com/buldreinfo/pdf/PdfGenerator.java). To preview them locally, run the main method of
+`com.buldreinfo.batch.WritePdf`; an optional first argument overrides the language (`WritePdf cs`), otherwise the
+default language of the printed region is used.
+
+- **Labels** live in `src/main/resources/i18n/pdf.properties` (English, the base bundle) and `pdf_<code>.properties`.
+  A key missing from a translation falls back to English, as does an unknown or absent `?lang=`.
+- **Encoding** is UTF-8 (`PropertyResourceBundle` reads properties as UTF-8 since JDK 9). `.editorconfig` pins the
+  charset, and `PdfTextTest` fails if a bundle is ever saved as ISO-8859-1/cp1250 - the Czech `ř/ě/ů` would otherwise
+  turn into unreadable mojibake.
+- **Plurals** use `MessageFormat`/`ChoiceFormat` patterns, because Czech needs four forms:
+  `pdf.ascentCount={0} {0,choice,0#přelezů|1#přelez|2#přelezy|5#přelezů}`.
+- **Fonts**: `LiberationSans-{Regular,Bold,Italic}.ttf` (SIL OFL 1.1) sit next to the generator and are embedded in
+  every PDF, because the runtime image installs no fonts and the built-in Helvetica/WinAnsi fonts cannot render Czech
+  diacritics. Keep `LiberationSans-LICENSE.txt` next to them - the license must travel with the font files.
+- **Adding a language**: copy `pdf.properties` to `pdf_<code>.properties`, translate the values and run the tests;
+  `PdfTextTest.everyLanguageTranslatesEveryKey` enforces key parity.
+
 ## :scroll: License
 
 Distributed under the GNU GENERAL PUBLIC LICENSE (Version 3): https://brattelinjer.no/gpl-3.0.txt

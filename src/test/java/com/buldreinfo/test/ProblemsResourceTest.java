@@ -9,14 +9,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.http.HttpStatus.OK;
 
-import java.io.FileOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
+import org.openpdf.text.pdf.PdfName;
+import org.openpdf.text.pdf.PdfReader;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
@@ -64,11 +64,24 @@ public class ProblemsResourceTest extends BaseResourceTest {
 	public void testGetProblemPdf() throws IOException {
 		var r = tester.getProblemsPdf(getRequest(Region.brattelinjer), BRATTELINJER_PROBLEM_ID_PDF);
 		assertEquals(OK, r.getStatusCode());
-		StreamingResponseBody stream = assertInstanceOf(StreamingResponseBody.class, r.getBody());
-		Path p = Files.createTempFile("problemPdf", ".pdf");
-		try (var fos = new FileOutputStream(p.toFile())) {
-			stream.writeTo(fos);
+		var pdf = new ByteArrayOutputStream();
+		assertInstanceOf(StreamingResponseBody.class, r.getBody()).writeTo(pdf);
+		try (var reader = new PdfReader(pdf.toByteArray())) {
+			// Without ?lang= the sheet is English, and it declares that to the viewer.
+			assertEquals("en", reader.getCatalog().getAsString(PdfName.LANG).toString());
+			assertFalse(reader.getTrailer().getAsDict(PdfName.INFO).getAsString(PdfName.TITLE).toString().isBlank());
 		}
-		Files.deleteIfExists(p);
+	}
+
+	/** The export is localised: ?lang=cs must reach the bundles and end up as the catalog language. */
+	@Test
+	public void testGetProblemPdfCzech() throws IOException {
+		var r = tester.getProblemsPdf(getRequest(Region.brattelinjer, "cs"), BRATTELINJER_PROBLEM_ID_PDF);
+		assertEquals(OK, r.getStatusCode());
+		var pdf = new ByteArrayOutputStream();
+		assertInstanceOf(StreamingResponseBody.class, r.getBody()).writeTo(pdf);
+		try (var reader = new PdfReader(pdf.toByteArray())) {
+			assertEquals("cs", reader.getCatalog().getAsString(PdfName.LANG).toString());
+		}
 	}
 }	

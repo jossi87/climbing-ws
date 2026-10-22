@@ -45,14 +45,23 @@ public class RequestContext {
 		return (auth != null && auth.getPrincipal() instanceof Integer userId) ? Optional.of(userId) : Optional.empty();
 	}
 
-	public int getLanguageId(HttpServletRequest request) {
+	/**
+	 * The language the client asked for ({@code ?lang=}), or {@code null} when it asked for none.
+	 * The generated PDFs resolve their labels from this code, while the DAO layer only needs the
+	 * database id ({@link #getLanguageId(HttpServletRequest)}). Read it on the request thread.
+	 */
+	public String getLanguageCode(HttpServletRequest request) {
 		String code = request.getParameter("lang");
+		return (code == null || code.isBlank()) ? null : code.strip();
+	}
+
+	public int getLanguageId(HttpServletRequest request) {
+		String code = getLanguageCode(request);
 		if (code == null) {
 			return 0;
 		}
-		String wanted = code.trim();
 		return regionRepo.getLanguages().stream()
-				.filter(l -> l.code().equalsIgnoreCase(wanted))
+				.filter(l -> l.code().equalsIgnoreCase(code))
 				.map(Language::id)
 				.findFirst()
 				.orElse(0);

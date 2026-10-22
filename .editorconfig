@@ -1,0 +1,22 @@
+# Keeps every editor on the settings .gitattributes expects, so a commit from Windows, Linux or
+# IntelliJ/VS Code produces the same bytes.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = tab
+indent_size = 4
+
+[*.{yml,yaml,json,md}]
+indent_style = space
+indent_size = 2
+
+# Properties bundles are read as UTF-8 (java.util.PropertyResourceBundle since JDK 9). Saving one as
+# cp1250/ISO-8859-1 turns "Přelezy" into mojibake - PdfTextTest.bundleIsReadAsUtf8 fails on that.
+# Trailing spaces are meaningful in a value, so they must not be stripped.
+[*.properties]
+charset = utf-8
+trim_trailing_whitespace = false

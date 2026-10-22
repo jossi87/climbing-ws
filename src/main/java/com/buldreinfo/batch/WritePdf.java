@@ -15,12 +15,17 @@ import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Sector;
 import com.buldreinfo.pdf.PdfGenerator;
+import com.buldreinfo.pdf.PdfText;
 import com.buldreinfo.service.AreaService;
 import com.buldreinfo.service.LeafletPrintService;
 import com.buldreinfo.service.ProblemService;
 import com.buldreinfo.service.SectorService;
 
 public class WritePdf {
+	/**
+	 * @param args optional first argument: language code of the generated sheets (e.g. {@code cs}),
+	 *             which defaults to the language of the region being printed.
+	 */
 	public static void main(String[] args) throws FileNotFoundException, IOException {
 		var context = new SpringApplicationBuilder(Application.class)
 				.web(WebApplicationType.NONE)
@@ -38,11 +43,12 @@ public class WritePdf {
 				.findAny()
 				.orElseThrow();
 		var authUserId = Optional.of(1);
+		var text = PdfText.forLanguageCode(args.length > 0 ? args[0] : setup.defaultLanguage());
 		var problem = problemService.getProblem(authUserId, setup, 7745, false);
 		var area = areaService.getArea(setup, authUserId, problem.areaId());
 		var sector = sectorService.getSector(authUserId, false, setup, problem.sectorId());
 		try (var fos = new FileOutputStream("C:/Users/JosteinØygarden/Desktop/problem.pdf");
-				PdfGenerator generator = new PdfGenerator(storage, leafletPrintService, fos)) {
+				PdfGenerator generator = new PdfGenerator(storage, leafletPrintService, text, fos)) {
 			generator.writeProblem(setup, area, sector, problem);
 		}
 		var area2 = areaService.getArea(setup, authUserId, 2754);
@@ -52,7 +58,7 @@ public class WritePdf {
 			sectors.add(sectorService.getSector(authUserId, false, setup, areaSector.id()));
 		}
 		try (var fos = new FileOutputStream("C:/Users/JosteinØygarden/Desktop/area.pdf");
-				PdfGenerator generator = new PdfGenerator(storage, leafletPrintService, fos)) {
+				PdfGenerator generator = new PdfGenerator(storage, leafletPrintService, text, fos)) {
 			generator.writeArea(setup, area2, gradeDist, sectors);
 		}
 		System.out.println("PDFs generated successfully.");

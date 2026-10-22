@@ -71,6 +71,12 @@ public abstract class BaseResourceTest {
 		return req;
 	}
 
+	protected HttpServletRequest getRequest(Region region, String languageCode) {
+		HttpServletRequest req = getRequest(region);
+		when(req.getParameter("lang")).thenReturn(languageCode);
+		return req;
+	}
+
 	protected Setup getSetup(Region region) {
 		String domain = (region == Region.buldreinfo) ? "buldreinfo.com" : "brattelinjer.no";
 		return regionRepo.getSetups(0).stream()

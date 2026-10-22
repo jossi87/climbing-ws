@@ -36,11 +36,14 @@ import org.openpdf.text.pdf.BaseFont;
 import org.openpdf.text.pdf.PdfAction;
 import org.openpdf.text.pdf.PdfContentByte;
 import org.openpdf.text.pdf.PdfGState;
+import org.openpdf.text.pdf.PdfName;
+import org.openpdf.text.pdf.PdfObject;
 import org.openpdf.text.pdf.PdfOutline;
 import org.openpdf.text.pdf.PdfPCell;
 import org.openpdf.text.pdf.PdfPCellEvent;
 import org.openpdf.text.pdf.PdfPTable;
 import org.openpdf.text.pdf.PdfPageEventHelper;
+import org.openpdf.text.pdf.PdfString;
 import org.openpdf.text.pdf.PdfTemplate;
 import org.openpdf.text.pdf.PdfWriter;
 import org.slf4j.Logger;
@@ -74,7 +77,6 @@ import com.buldreinfo.util.FilenameUtil;
 public class PdfGenerator implements AutoCloseable {
 
 	private class PageHeaderFooter extends PdfPageEventHelper {
-		private BaseFont baseFont;
 		private final String copyrightText = "\u00A9 buldreinfo.com & brattelinjer.no";
 		private String headerText = "";
 		private PdfTemplate totalPages;
@@ -82,7 +84,7 @@ public class PdfGenerator implements AutoCloseable {
 		@Override
 		public void onCloseDocument(PdfWriter writer, @SuppressWarnings("unused") Document document) {
 			totalPages.beginText();
-			totalPages.setFontAndSize(baseFont, 8);
+			totalPages.setFontAndSize(BASE_REGULAR, 8);
 			totalPages.setColorFill(Color.DARK_GRAY);
 			totalPages.setTextMatrix(0, 0);
 			totalPages.showText(String.valueOf(writer.getPageNumber() - 1));
@@ -95,7 +97,7 @@ public class PdfGenerator implements AutoCloseable {
 
 			cb.saveState();
 			cb.beginText();
-			cb.setFontAndSize(baseFont, 8);
+			cb.setFontAndSize(BASE_REGULAR, 8);
 			cb.setColorFill(Color.DARK_GRAY);
 
 			cb.showTextAligned(Element.ALIGN_LEFT, headerText, document.left(), document.top() + 10, 0);
@@ -106,16 +108,16 @@ public class PdfGenerator implements AutoCloseable {
 
 			cb.saveState();
 			cb.beginText();
-			cb.setFontAndSize(baseFont, 8);
+			cb.setFontAndSize(BASE_REGULAR, 8);
 			cb.setColorFill(Color.DARK_GRAY);
-			String text = "Page " + writer.getPageNumber() + " of ";
-			float textWidth = baseFont.getWidthPoint(text, 8);
-			float totalWidth = textWidth + baseFont.getWidthPoint("999", 8);
+			String footerText = text.footerPage(writer.getPageNumber()) + " ";
+			float textWidth = BASE_REGULAR.getWidthPoint(footerText, 8);
+			float totalWidth = textWidth + BASE_REGULAR.getWidthPoint("999", 8);
 			float footerX = (document.right() - document.left()) / 2 + document.leftMargin() - (totalWidth / 2);
 			float footerY = document.bottom() - 10;
 
 			cb.setTextMatrix(footerX, footerY);
-			cb.showText(text);
+			cb.showText(footerText);
 			cb.endText();
 			cb.addTemplate(totalPages, footerX + textWidth, footerY);
 			cb.restoreState();
@@ -124,11 +126,6 @@ public class PdfGenerator implements AutoCloseable {
 		@Override
 		public void onOpenDocument(PdfWriter writer, @SuppressWarnings("unused") Document document) {
 			totalPages = writer.getDirectContent().createTemplate(30, 12);
-			try {
-				baseFont = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, BaseFont.NOT_EMBEDDED);
-			} catch (Exception e) {
-				logger.error("Error creating font for header/footer", e);
-			}
 		}
 
 		public void setHeaderText(String text) {
@@ -142,14 +139,11 @@ public class PdfGenerator implements AutoCloseable {
 		}
 		@Override
 		public void cellLayout(@SuppressWarnings("unused") PdfPCell cell, Rectangle position, PdfContentByte[] canvases) {
-			if (watermarkFont == null) {
-				return;
-			}
 			PdfContentByte cb = canvases[PdfPTable.TEXTCANVAS];
 			cb.saveState();
 			try {
 				cb.beginText();
-				cb.setFontAndSize(watermarkFont, 6);
+				cb.setFontAndSize(BASE_BOLD, 6);
 				cb.setTextRenderingMode(PdfContentByte.TEXT_RENDER_MODE_FILL_STROKE);
 				cb.setLineWidth(0.3f);
 				cb.setColorStroke(Color.BLACK);
@@ -164,15 +158,32 @@ public class PdfGenerator implements AutoCloseable {
 			cb.restoreState();
 		}
 	}
-	private static final Font FONT_BOLD = new Font(Font.HELVETICA, 8, Font.BOLD);
-	private static final Font FONT_H1 = new Font(Font.HELVETICA, 16, Font.BOLD);
-	private static final Font FONT_H2 = new Font(Font.HELVETICA, 11, Font.BOLD);
-	private static final Font FONT_ITALIC = new Font(Font.HELVETICA, 9, Font.ITALIC);
-	private static final Font FONT_LINK = new Font(Font.HELVETICA, 8, Font.NORMAL, Color.BLUE);
-	private static final Font FONT_REG = new Font(Font.HELVETICA, 8, Font.NORMAL);
-	private static final Font FONT_REG_LINK = new Font(Font.HELVETICA, 9, Font.NORMAL, Color.BLUE);
-	private static final Font FONT_SMALL = new Font(Font.HELVETICA, 5, Font.ITALIC);
+	/* The base-14 Helvetica cannot encode Czech (ř, č, ě, ů) and, being unembedded, is drawn with
+	 * whatever glyphs the viewer happens to have - so the sheets use an embedded TrueType font. */
+	private static final BaseFont BASE_REGULAR = loadBaseFont("LiberationSans-Regular.ttf");
+	private static final BaseFont BASE_BOLD = loadBaseFont("LiberationSans-Bold.ttf");
+	private static final BaseFont BASE_ITALIC = loadBaseFont("LiberationSans-Italic.ttf");
+	private static final Font FONT_BOLD = new Font(BASE_BOLD, 8, Font.BOLD);
+	private static final Font FONT_H1 = new Font(BASE_BOLD, 16, Font.BOLD);
+	private static final Font FONT_H2 = new Font(BASE_BOLD, 11, Font.BOLD);
+	private static final Font FONT_ITALIC = new Font(BASE_ITALIC, 9, Font.ITALIC);
+	private static final Font FONT_LINK = new Font(BASE_REGULAR, 8, Font.NORMAL, Color.BLUE);
+	private static final Font FONT_REG = new Font(BASE_REGULAR, 8, Font.NORMAL);
+	private static final Font FONT_REG_LINK = new Font(BASE_REGULAR, 9, Font.NORMAL, Color.BLUE);
+	private static final Font FONT_SMALL = new Font(BASE_ITALIC, 5, Font.ITALIC);
 	private final static int IMAGE_STAR_SIZE = 7;
+
+	/** Reads the font from the classpath, so the resource also resolves from inside the executable jar. */
+	private static BaseFont loadBaseFont(String resource) {
+		try (var in = PdfGenerator.class.getResourceAsStream(resource)) {
+			if (in == null) {
+				throw new IllegalStateException("Missing PDF font " + resource);
+			}
+			return BaseFont.createFont(resource, BaseFont.IDENTITY_H, BaseFont.EMBEDDED, true, in.readAllBytes(), null);
+		} catch (IOException | DocumentException e) {
+			throw new IllegalStateException("Could not load PDF font " + resource, e);
+		}
+	}
 
 	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	private static final Pattern URL_PATTERN = Pattern.compile("(https?://\\S+)");
@@ -182,27 +193,33 @@ public class PdfGenerator implements AutoCloseable {
 	private final Map<String, byte[]> preRenderedPitchAssets = new HashMap<>();
 	private final StorageManager storage;
 	private final LeafletPrintService leafletPrintService;
-
-	private BaseFont watermarkFont;
+	private final PdfText text;
 
 	private final PdfWriter writer;
 
-	public PdfGenerator(StorageManager storage, LeafletPrintService leafletPrintService, OutputStream output) {
+	public PdfGenerator(StorageManager storage, LeafletPrintService leafletPrintService, PdfText text, OutputStream output) {
 		this.storage = storage;
 		this.leafletPrintService = leafletPrintService;
+		this.text = text;
 		this.document = new Document(PageSize.A4, 30, 30, 30, 30);
 		this.writer = PdfWriter.getInstance(document, output);
 
 		this.writer.setViewerPreferences(PdfWriter.PageModeUseOutlines);
+		// Declares the language of the text, so viewers, screen readers and hyphenation use the
+		// right one instead of guessing from the machine locale.
+		this.writer.getExtraCatalog().put(PdfName.LANG, new PdfString(text.languageTag()));
 		this.pageEvent = new PageHeaderFooter();
 		this.writer.setPageEvent(this.pageEvent);
 
 		document.open();
-		try {
-			watermarkFont = BaseFont.createFont(BaseFont.HELVETICA_BOLD, BaseFont.WINANSI, BaseFont.NOT_EMBEDDED);
-		} catch (Exception e) {
-			logger.error("Could not create font", e);
-		}
+	}
+
+	/**
+	 * Shown in the viewer's title bar and the document properties. UTF-16, because area and
+	 * problem names are not restricted to Latin-1.
+	 */
+	private void setDocumentTitle(String title) {
+		writer.getInfo().put(PdfName.TITLE, new PdfString(title, PdfObject.TEXT_UNICODE));
 	}
 
 	@Override
@@ -214,6 +231,7 @@ public class PdfGenerator implements AutoCloseable {
 		try {
 			mediaIdProcessed.clear();
 			pageEvent.setHeaderText(area.name());
+			setDocumentTitle(area.name());
 			document.add(new Paragraph(area.name(), FONT_H1));
 			writeMapArea(area, sectors);
 
@@ -222,11 +240,11 @@ public class PdfGenerator implements AutoCloseable {
 			info.setSpacingBefore(15f);
 			info.setSpacingAfter(15f);
 
-			info.addCell(createKeyCell("Generated"));
+			info.addCell(createKeyCell(text.generated()));
 			info.addCell(createValueCell(new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date())));
 
 			String areaUrl = setup.url() + "/area/" + area.id();
-			info.addCell(createKeyCell("URL"));
+			info.addCell(createKeyCell(text.url()));
 			Anchor anchor = new Anchor(areaUrl, FONT_LINK);
 			anchor.setReference(areaUrl);
 			PdfPCell urlCell = new PdfPCell(anchor);
@@ -239,13 +257,13 @@ public class PdfGenerator implements AutoCloseable {
 			if ((area.accessClosed() != null && !area.accessClosed().isBlank()) || (area.accessInfo() != null && !area.accessInfo().isBlank()) || (area.comment() != null && !area.comment().isBlank())) {
 				StringBuilder areaInfo = new StringBuilder();
 				if (area.accessClosed() != null && !area.accessClosed().isBlank()) {
-					areaInfo.append("Access closed: ").append(area.accessClosed());
+					areaInfo.append(text.accessClosed(area.accessClosed()));
 				}
 				if (area.accessInfo() != null && !area.accessInfo().isBlank()) {
 					if (areaInfo.length() > 0) {
 						areaInfo.append("\n");
 					}
-					areaInfo.append("Access info: ").append(area.accessInfo());
+					areaInfo.append(text.accessInfo(area.accessInfo()));
 				}
 				if (area.comment() != null && !area.comment().isBlank()) {
 					if (areaInfo.length() > 0) {
@@ -253,12 +271,12 @@ public class PdfGenerator implements AutoCloseable {
 					}
 					areaInfo.append(area.comment());
 				}
-				info.addCell(createKeyCell("Description"));
+				info.addCell(createKeyCell(text.description()));
 				info.addCell(createValueCell(areaInfo.toString()));
 			}
 
 			if (gradeDistribution != null && !gradeDistribution.isEmpty()) {
-				info.addCell(createKeyCell("Grade Dist."));
+				info.addCell(createKeyCell(text.gradeDistribution()));
 				PdfTemplate template = getChartTemplate(gradeDistribution, writer.getDirectContent(), 400f, 150f);
 				PdfPCell chartCell = new PdfPCell(Image.getInstance(template));
 				chartCell.setBorder(Rectangle.BOTTOM);
@@ -287,6 +305,7 @@ public class PdfGenerator implements AutoCloseable {
 
 			String headerTitle = String.format("%s / %s / #%d %s [%s]", area.name(), sector.name(), problem.nr(), problem.name(), problem.grade());
 			pageEvent.setHeaderText(headerTitle);
+			setDocumentTitle(headerTitle);
 
 			document.add(new Paragraph(headerTitle, FONT_H1));
 			writeMapProblem(area, sector, problem);
@@ -296,11 +315,11 @@ public class PdfGenerator implements AutoCloseable {
 			info.setSpacingBefore(15f);
 			info.setSpacingAfter(15f);
 
-			info.addCell(createKeyCell("Generated"));
+			info.addCell(createKeyCell(text.generated()));
 			info.addCell(createValueCell(new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date())));
 
 			String problemUrl = setup.url() + "/problem/" + problem.id();
-			info.addCell(createKeyCell("URL"));
+			info.addCell(createKeyCell(text.url()));
 			Anchor anchor = new Anchor(problemUrl, FONT_LINK);
 			anchor.setReference(problemUrl);
 			PdfPCell urlCell = new PdfPCell(anchor);
@@ -312,56 +331,56 @@ public class PdfGenerator implements AutoCloseable {
 
 			StringBuilder areaInfo = new StringBuilder();
 			if (area.accessClosed() != null && !area.accessClosed().isEmpty()) {
-				areaInfo.append("Access closed: ").append(area.accessClosed());
+				areaInfo.append(text.accessClosed(area.accessClosed()));
 			}
 			if (area.accessInfo() != null && !area.accessInfo().isEmpty()) {
 				if (areaInfo.length() > 0) areaInfo.append("\n");
-				areaInfo.append("Access info: ").append(area.accessInfo());
+				areaInfo.append(text.accessInfo(area.accessInfo()));
 			}
 			if (area.comment() != null && !area.comment().isEmpty()) {
 				if (areaInfo.length() > 0) areaInfo.append("\n");
 				areaInfo.append(area.comment());
 			}
 			if (!areaInfo.isEmpty()) {
-				info.addCell(createKeyCell("Area"));
+				info.addCell(createKeyCell(text.area()));
 				info.addCell(createValueCell(areaInfo.toString()));
 			}
 
 			StringBuilder sectorInfo = new StringBuilder();
 			if (sector.accessClosed() != null && !sector.accessClosed().isEmpty()) {
-				sectorInfo.append("Access closed: ").append(sector.accessClosed());
+				sectorInfo.append(text.accessClosed(sector.accessClosed()));
 			}
 			if (sector.accessInfo() != null && !sector.accessInfo().isEmpty()) {
 				if (sectorInfo.length() > 0) sectorInfo.append("\n");
-				sectorInfo.append("Access info: ").append(sector.accessInfo());
+				sectorInfo.append(text.accessInfo(sector.accessInfo()));
 			}
 			if (sector.comment() != null && !sector.comment().isEmpty()) {
 				if (sectorInfo.length() > 0) sectorInfo.append("\n");
 				sectorInfo.append(sector.comment());
 			}
 			if (!sectorInfo.isEmpty()) {
-				info.addCell(createKeyCell("Sector"));
+				info.addCell(createKeyCell(text.sector()));
 				info.addCell(createValueCell(sectorInfo.toString()));
 			}
 
 			if (problem.faAid() != null) {
 				String aide = problem.faAid().users().stream().map(User::name).collect(Collectors.joining(", "));
-				info.addCell(createKeyCell("FA (Aid)"));
+				info.addCell(createKeyCell(text.firstAscentAid()));
 				info.addCell(createValueCell(aide + " (" + problem.faAid().dateHr() + ")"));
 			}
 
 			String fa = problem.fa().stream().map(User::name).collect(Collectors.joining(", "));
 			if (!fa.isEmpty()) {
-				info.addCell(createKeyCell("First Ascent"));
+				info.addCell(createKeyCell(text.firstAscent()));
 				info.addCell(createValueCell(fa + " (" + problem.faDateHr() + ")"));
 			}
 
 			if (problem.comment() != null && !problem.comment().isEmpty()) {
-				info.addCell(createKeyCell("Description"));
+				info.addCell(createKeyCell(text.description()));
 				info.addCell(createValueCell(problem.comment()));
 			}
 			if (problem.lengthMeter() != 0) {
-				info.addCell(createKeyCell("Length"));
+				info.addCell(createKeyCell(text.length()));
 				info.addCell(createValueCell(problem.lengthMeter() + "m"));
 			}
 			document.add(info);
@@ -440,14 +459,14 @@ public class PdfGenerator implements AutoCloseable {
 					Paragraph p = new Paragraph(8);
 
 					String destName = "pitch_" + problem.id() + "_" + section.nr();
-					Chunk pitchTitle = new Chunk("Pitch " + section.nr() + " (" + section.grade() + "): ", FONT_BOLD);
+					Chunk pitchTitle = new Chunk(text.pitch(section.nr()) + " (" + section.grade() + "): ", FONT_BOLD);
 					pitchTitle.setLocalDestination(destName);
 					p.add(pitchTitle);
 
 					p.add(new Chunk(section.description() == null ? "" : section.description(), FONT_REG));
 					pitchCell.addElement(p);
 
-					new PdfOutline(rootOutline, PdfAction.gotoLocalPage(destName, false), "Pitch " + section.nr());
+					new PdfOutline(rootOutline, PdfAction.gotoLocalPage(destName, false), text.pitch(section.nr()));
 
 					PdfPTable grid = createPitchGrid(problem, section);
 					pitchCell.addElement(grid);
@@ -637,7 +656,7 @@ public class PdfGenerator implements AutoCloseable {
 		return cell;
 	}
 
-	private PdfTemplate getChartTemplate(Collection<GradeDistribution> gradeDistribution, PdfContentByte cb, float plotWidth, float plotHeight) throws DocumentException, IOException {
+	private PdfTemplate getChartTemplate(Collection<GradeDistribution> gradeDistribution, PdfContentByte cb, float plotWidth, float plotHeight) throws DocumentException {
 		PdfTemplate template = cb.createTemplate(plotWidth + 40f, plotHeight + 50f);
 		if (gradeDistribution == null || gradeDistribution.isEmpty()) return template;
 		int maxCount = gradeDistribution.stream().mapToInt(GradeDistribution::getNum).max().orElse(1);
@@ -648,8 +667,7 @@ public class PdfGenerator implements AutoCloseable {
 		transparentState.setFillOpacity(0.35f);
 		PdfGState opaqueState = new PdfGState();
 		opaqueState.setFillOpacity(1.0f);
-		BaseFont bf = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
-		template.setFontAndSize(bf, 8);
+		template.setFontAndSize(BASE_REGULAR, 8);
 		int i = 0;
 		for (GradeDistribution d : gradeDistribution) {
 			float x = 20f + (i * stepX) + (spacing / 2f);
@@ -977,21 +995,21 @@ public class PdfGenerator implements AutoCloseable {
 			table.setWidthPercentage(100);
 
 			addTableCell(table, FONT_BOLD, "#", null, false);
-			addTableCell(table, FONT_BOLD, "Name", null, false);
-			addTableCell(table, FONT_BOLD, "Grade", null, false);
+			addTableCell(table, FONT_BOLD, text.columnName(), null, false);
+			addTableCell(table, FONT_BOLD, text.columnGrade(), null, false);
 			if (showType) {
-				addTableCell(table, FONT_BOLD, "Type", null, false);
+				addTableCell(table, FONT_BOLD, text.columnType(), null, false);
 			}
-			addTableCell(table, FONT_BOLD, "FA", null, false);
-			addTableCell(table, FONT_BOLD, "Note", null, false);
+			addTableCell(table, FONT_BOLD, text.columnFirstAscent(), null, false);
+			addTableCell(table, FONT_BOLD, text.columnNote(), null, false);
 
 			for (SectorProblem p : s.problems()) {
 				String description = (p.comment() == null || p.comment().isBlank()) ? null : p.comment();
 				if (p.rock() != null && !p.rock().isBlank()) {
 					if (description == null) {
-						description = "Rock: " + p.rock();
+						description = text.rock(p.rock());
 					} else {
-						description = "Rock: " + p.rock() + ". " + description;
+						description = text.rock(p.rock()) + ". " + description;
 					}
 				}
 				if (p.broken() != null && !p.broken().isBlank()) {
@@ -1037,7 +1055,7 @@ public class PdfGenerator implements AutoCloseable {
 				Phrase note = new Phrase();
 				if (p.numTicks() > 0) {
 					appendStarIcons(note, p.stars());
-					note.add(new Chunk(" " + p.numTicks() + " ascent" + (p.numTicks() == 1 ? "" : "s"), FONT_REG));
+					note.add(new Chunk(" " + text.ascentCount(p.numTicks()), FONT_REG));
 				}
 				if (description != null) {
 					note.add(new Chunk((p.numTicks() > 0 ? " - " : "") + description, FONT_ITALIC));
@@ -1062,7 +1080,7 @@ public class PdfGenerator implements AutoCloseable {
 
 	private void writeTicksAndComments(Problem p) throws BadElementException, IOException {
 		if (p.ticks() != null && !p.ticks().isEmpty()) {
-			document.add(new Paragraph("Ascents", FONT_H2));
+			document.add(new Paragraph(text.ascents(), FONT_H2));
 			PdfPTable table = new PdfPTable(new float[]{1.0f, 1.3f, 4.5f});
 			table.setWidthPercentage(100);
 			table.setSpacingBefore(5f);
@@ -1102,7 +1120,7 @@ public class PdfGenerator implements AutoCloseable {
 		}
 
 		if (p.comments() != null && !p.comments().isEmpty()) {
-			document.add(new Paragraph("Comments", FONT_H2));
+			document.add(new Paragraph(text.comments(), FONT_H2));
 			PdfPTable cTable = new PdfPTable(new float[]{1.0f, 1.3f, 4.5f});
 			cTable.setWidthPercentage(100);
 			cTable.setSpacingBefore(5f);

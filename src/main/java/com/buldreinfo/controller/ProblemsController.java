@@ -25,6 +25,7 @@ import com.buldreinfo.model.ProblemSearchResult;
 import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Svg;
 import com.buldreinfo.pdf.PdfGenerator;
+import com.buldreinfo.pdf.PdfText;
 import com.buldreinfo.service.AreaService;
 import com.buldreinfo.service.LeafletPrintService;
 import com.buldreinfo.service.MediaService;
@@ -99,8 +100,9 @@ public class ProblemsController {
 		final var area = areaService.getArea(setup, authUserId, problem.areaId());
 		final var sector = sectorService.getSector(authUserId, false, setup, problem.sectorId());
 		String filename = FilenameUtil.generateFilename(problem.name(), StorageType.PDF);
+		var pdfText = PdfText.forLanguageCode(requestContext.getLanguageCode(request));
 		StreamingResponseBody stream = output -> {
-			try (var generator = new PdfGenerator(storage, leafletPrintService, output)) {
+			try (var generator = new PdfGenerator(storage, leafletPrintService, pdfText, output)) {
 				generator.writeProblem(setup, area, sector, problem);
 			} catch (Exception e) {
 				throw new InternalServerErrorException("PDF generation failed", e);

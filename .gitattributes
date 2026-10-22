@@ -1,0 +1,12 @@
+# Line endings: the repository stores LF, whatever the OS of the machine that committed.
+# Windows-only scripts must keep CRLF, or cmd.exe mis-parses them.
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binary assets: never line-ending-convert or diff these as text.
+# Liberation Sans is committed because the PDF export embeds it (see com.buldreinfo.pdf.PdfGenerator)
+# and the runtime image ships no fonts (eclipse-temurin:25-jre-jammy in the Dockerfile).
+*.ttf binary
+*.png binary
+*.jar binary
