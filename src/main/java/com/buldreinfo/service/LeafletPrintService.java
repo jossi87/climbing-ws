@@ -6,6 +6,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Optional;
@@ -27,6 +28,9 @@ import com.buldreinfo.util.JsonHelper;
 public class LeafletPrintService {
 	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	private static final String RENDERER_URL = "http://climbing-leaflet-renderer:3000/render";
+	// An area renders one sector at a time; 15s was too short, the snapshot was abandoned while the renderer was
+	// still working and that abandoned page slowed down every following sector.
+	private static final Duration RENDER_TIMEOUT = Duration.ofSeconds(120);
 
 	private final HttpClient httpClient;
 	private final JsonHelper jsonHelper;
@@ -59,7 +63,7 @@ public class LeafletPrintService {
 			HttpRequest request = HttpRequest.newBuilder()
 					.uri(URI.create(RENDERER_URL))
 					.header("Content-Type", "application/json")
-					.timeout(Duration.ofSeconds(15))
+					.timeout(RENDER_TIMEOUT)
 					.POST(HttpRequest.BodyPublishers.ofString(json))
 					.build();
 			HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
@@ -69,6 +73,9 @@ public class LeafletPrintService {
 			logger.error("Map renderer returned status: {}. Body: {}", response.statusCode(), new String(response.body()));
 			return Optional.empty();
 
+		} catch (HttpTimeoutException e) {
+			logger.warn("Map renderer did not answer within {}, the map is left blank: {}", RENDER_TIMEOUT, e.getMessage());
+			return Optional.empty();
 		} catch (IOException e) {
 			logger.error("Network error while calling map-renderer. Ensure the container is running. Repo: https://github.com/jossi87/climbing-leaflet-renderer: {}", e.getMessage());
 			return Optional.empty();

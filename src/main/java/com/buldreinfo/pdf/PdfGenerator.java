@@ -977,7 +977,15 @@ public class PdfGenerator implements AutoCloseable {
 	}
 
 	private void writeSectors(Setup setup, List<Sector> sectors) throws BadElementException, IOException, InterruptedException, ExecutionException {
-		for (Sector s : sectors) {
+		for (int i = 0; i < sectors.size(); i++) {
+			if (Thread.currentThread().isInterrupted()) {
+				// The container interrupts the worker when the async request times out or the client disconnects.
+				// Every remaining map snapshot would fail instantly, so stop instead of hammering the renderer.
+				logger.warn("PDF export was interrupted or timed out; skipping the remaining {} of {} sector(s)",
+						sectors.size() - i, sectors.size());
+				return;
+			}
+			Sector s = sectors.get(i);
 			final boolean showType = s.problems().stream().map(p -> p.t().id()).distinct().count() > 1;
 			document.newPage();
 			document.add(new Paragraph(s.name(), FONT_H2));

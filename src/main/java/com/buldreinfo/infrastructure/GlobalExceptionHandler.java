@@ -20,6 +20,7 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -30,13 +31,23 @@ import com.buldreinfo.exception.UnauthorizedException;
 import com.buldreinfo.exception.ValidationFailedException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 
+import jakarta.servlet.http.HttpServletResponse;
+
 @ControllerAdvice
 public class GlobalExceptionHandler {
 	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	@ExceptionHandler(Exception.class)
-	public ResponseEntity<Object> handleException(Exception e) {
+	public ResponseEntity<Object> handleException(Exception e, HttpServletResponse response) {
 		Throwable cause = unwrap(e);
+
+		if (response.isCommitted()) {
+			// Streaming endpoints (the PDF exports) send their headers before the bytes are rendered. Once the
+			// response is committed a JSON body cannot be added - the message converters fail on the PDF content
+			// type and the real cause is lost in a second exception.
+			logger.warn("Response was already committed; dropping the error body for: {}", cause.getMessage());
+			return null;
+		}
 
 		return switch (cause) {
 		case ValidationFailedException vfe -> {
@@ -100,6 +111,21 @@ public class GlobalExceptionHandler {
 			yield jsonError(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
 		}
 		};
+	}
+
+	/**
+	 * Raised by the servlet container when an async request outlives {@code spring.mvc.async.request-timeout}.
+	 * A PDF export streams while it renders, so by the time this fires the response is normally committed and the
+	 * client has already received a truncated file - there is nothing left to write.
+	 */
+	@ExceptionHandler(AsyncRequestTimeoutException.class)
+	public ResponseEntity<Object> handleAsyncTimeout(HttpServletResponse response) {
+		if (response.isCommitted()) {
+			logger.warn("Async request timed out after the response was committed; the client received a partial response");
+			return null;
+		}
+		logger.warn("Async request timed out before the response was committed");
+		return jsonError(HttpStatus.SERVICE_UNAVAILABLE, "The request timed out before the response was ready");
 	}
 
 	private static ResponseEntity<Object> jsonError(HttpStatus status, String message) {
