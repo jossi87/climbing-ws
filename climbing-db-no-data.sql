@@ -1,8 +1,8 @@
--- MySQL dump 10.13  Distrib 8.0.46, for Linux (x86_64)
+-- MySQL dump 10.13  Distrib 9.7.1, for Linux (x86_64)
 --
 -- Host: localhost    Database: climbing
 -- ------------------------------------------------------
--- Server version	8.0.46
+-- Server version	9.7.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -145,7 +145,7 @@ DROP TABLE IF EXISTS `discipline`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `discipline` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `name` varchar(45) COLLATE utf8mb4_da_0900_ai_ci NOT NULL,
+  `name` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci NOT NULL,
   `is_bouldering` int NOT NULL,
   `is_rope_climbing` int NOT NULL,
   `is_ice_climbing` int NOT NULL,
@@ -771,7 +771,7 @@ CREATE TABLE `region` (
   `emails` varchar(4000) CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci DEFAULT NULL,
   `last_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `language_id` int NOT NULL,
-  `country_code` char(2) COLLATE utf8mb4_da_0900_ai_ci NOT NULL DEFAULT 'NO',
+  `country_code` char(2) CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci NOT NULL DEFAULT 'NO',
   PRIMARY KEY (`id`),
   KEY `region_language_id` (`language_id`),
   CONSTRAINT `region_language_id` FOREIGN KEY (`language_id`) REFERENCES `language` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
@@ -1239,4 +1239,4 @@ CREATE TABLE `user_region` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-10-22  5:42:39
+-- Dump completed on 2026-10-22  9:28:23
