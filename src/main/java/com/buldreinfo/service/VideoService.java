@@ -32,7 +32,7 @@ public class VideoService {
 	 * and the top rung is capped at the source resolution rather than a fixed 1080p. Capped-CRF keeps quality
 	 * high on easy content while {@code maxrate} protects the bitrate on busy footage.
 	 */
-	private record HlsRung(int height, int crf, int maxrateKbps) {}
+	record HlsRung(int height, int crf, int maxrateKbps) {}
 
 	private static final List<HlsRung> HLS_LADDER = List.of(
 			new HlsRung(360, 24, 600),
@@ -43,6 +43,24 @@ public class VideoService {
 
 	private static final int HLS_SEGMENT_SECONDS = 6;
 	private static final int HLS_AUDIO_KBPS = 128;
+	/**
+	 * Threads the split/scale graph may use, against ffmpeg's default of one per core. Every graph thread may keep
+	 * a whole raw frame alive per link — 12 MB a frame at 2160p — and splitting and scaling is cheap next to the
+	 * encoders, so a single thread loses nothing measurable (a 4K ladder encoded in the same 5.6 s either way)
+	 * while keeping that pool out of the picture.
+	 */
+	private static final int HLS_FILTER_THREADS = 1;
+	/**
+	 * Frames each x264 instance may look ahead, against ffmpeg's default of 40. Every one of them is a raw frame of
+	 * that rung's own size, and each rung of the ladder keeps its own queue, so this lookahead — together with the
+	 * threads each rung gets, see {@link #threadsPerRung(int)} — is what makes a 4K ladder expensive. Measured on a
+	 * 6 s 2160p clip with the CPU quota the container has: the ladder as it was (1.5 × cores of threads per rung,
+	 * 40 frames of lookahead) peaked at 3.4 GB, one thread per rung with this lookahead at 1.7 GB. The former is
+	 * what the kernel's OOM killer answered with SIGKILL — exit code 137 — taking the whole movie with it. Twenty
+	 * frames still leave mbtree a window to place its decisions: at the same CRF that rung scored 0.99508 SSIM
+	 * against the source, where 40 frames scored 0.99514, for 16.18 MB against 16.20 MB.
+	 */
+	private static final int HLS_X264_LOOKAHEAD = 20;
 	/** The playlist a player starts from: it lists the rungs, and every rung lists the segments of its m4s file. */
 	private static final String HLS_MASTER_PLAYLIST = "master.m3u8";
 	/**
@@ -180,10 +198,24 @@ public class VideoService {
 	/** Runs the single ffmpeg pass producing every rung, copying the audio when {@link #canCopyAudio(Path)} allows it. */
 	private void encodeHls(Path src, Path outDir, List<HlsRung> rungs, boolean hasAudio, boolean copyAudio)
 			throws IOException, InterruptedException {
+		List<String> cmd = buildEncodeCommand(ffmpegPath, src, rungs, hasAudio, copyAudio);
+		runCommand(outDir, cmd.toArray(String[]::new), HLS_ENCODE_TIMEOUT_MINUTES);
+	}
+
+	/**
+	 * The one ffmpeg command behind the whole ladder: it splits the source, scales each rung and encodes them all
+	 * side by side, so everything that keeps the pass affordable — the graph's threads, the lookahead, and the
+	 * threads each rung gets — has to be on this command line.
+	 */
+	static List<String> buildEncodeCommand(String ffmpegPath, Path src, List<HlsRung> rungs, boolean hasAudio,
+			boolean copyAudio) {
 		List<String> cmd = new ArrayList<>();
 		cmd.add(ffmpegPath);
 		cmd.add("-y");
 		cmd.add("-nostdin");
+		// Read when the filter graph is built, so this has to be in place before -filter_complex below.
+		cmd.add("-filter_complex_threads");
+		cmd.add(String.valueOf(HLS_FILTER_THREADS));
 		cmd.add("-i");
 		cmd.add(src.toString());
 		cmd.add("-filter_complex");
@@ -205,8 +237,14 @@ public class VideoService {
 		cmd.add("0");
 		cmd.add("-pix_fmt");
 		cmd.add("yuv420p");
+		cmd.add("-x264-params");
+		cmd.add("rc-lookahead=" + HLS_X264_LOOKAHEAD);
+		int threadsPerRung = threadsPerRung(rungs.size());
 		for (int i = 0; i < rungs.size(); i++) {
 			HlsRung rung = rungs.get(i);
+			// Per-stream, because every rung is its own encoder and each would otherwise take 1.5 × cores.
+			cmd.add("-threads:v:" + i);
+			cmd.add(String.valueOf(threadsPerRung));
 			cmd.add("-crf:v:" + i);
 			cmd.add(String.valueOf(rung.crf()));
 			cmd.add("-maxrate:v:" + i);
@@ -243,7 +281,7 @@ public class VideoService {
 		cmd.add("-var_stream_map");
 		cmd.add(buildVarStreamMap(rungs, hasAudio));
 		cmd.add("v%v.m3u8");
-		runCommand(outDir, cmd.toArray(String[]::new), HLS_ENCODE_TIMEOUT_MINUTES);
+		return cmd;
 	}
 
 	/**
@@ -317,8 +355,18 @@ public class VideoService {
 		return sb.toString();
 	}
 
+	/**
+	 * Encoder threads per rung. One ffmpeg process encodes the whole ladder at once, so each rung's x264 instance
+	 * would ask for 1.5 × cores of its own and hold a frame queue to match. Sharing the cores out over the rungs
+	 * keeps the threads — and with them the memory — at roughly one core's worth however tall the ladder is.
+	 * {@code availableProcessors} honours a container's CPU quota, which is what the encode actually gets.
+	 */
+	static int threadsPerRung(int rungCount) {
+		return Math.max(1, Math.round((float) Runtime.getRuntime().availableProcessors() / rungCount));
+	}
+
 	/** Rungs the source is tall enough for; the top rung is capped at the source height so nothing is upscaled. */
-	private static List<HlsRung> selectRungs(int sourceHeight) {
+	static List<HlsRung> selectRungs(int sourceHeight) {
 		List<HlsRung> selected = new ArrayList<>();
 		int lastHeight = -1;
 		for (HlsRung rung : HLS_LADDER) {
@@ -433,7 +481,17 @@ public class VideoService {
 		}
 		int exitCode = p.exitValue();
 		if (exitCode != 0) {
-			throw new IOException("Command failed with exit code " + exitCode + ": " + String.join(" ", cmd));
+			throw new IOException("Command failed with exit code " + exitCode + describeExit(exitCode) + ": " + String.join(" ", cmd));
 		}
+	}
+
+	/**
+	 * Names the signal behind a {@code 128 + n} exit code. Only 137 matters here: SIGKILL from outside is what a
+	 * container's OOM killer sends to the largest process, and without this the log holds nothing but the enormous
+	 * command line to explain why ffmpeg vanished mid-encode. See {@link #HLS_X264_LOOKAHEAD} for the memory this
+	 * encode is allowed to use.
+	 */
+	private static String describeExit(int exitCode) {
+		return exitCode == 137 ? " (SIGKILL - most likely the OOM killer)" : "";
 	}
 }
