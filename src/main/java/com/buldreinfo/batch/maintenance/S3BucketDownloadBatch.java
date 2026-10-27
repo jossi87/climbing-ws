@@ -93,7 +93,7 @@ public class S3BucketDownloadBatch {
 			for (ListObjectsV2Response page : storage.getS3Client().listObjectsV2Paginator(listRequest)) {
 				for (S3Object s3Object : page.contents()) {
 					String key = s3Object.key();
-					if (key.startsWith("web/jpg_resized/") || key.startsWith("web/webp_resized/")) {
+					if (key.startsWith("web/jpg_resized/") || key.startsWith("web/webp_resized/") || key.startsWith("cloudflare/")) {
 						continue; 
 					}
 					executor.submit(() -> syncFile(storage, s3Object));
