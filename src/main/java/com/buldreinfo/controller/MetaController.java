@@ -24,6 +24,7 @@ import com.buldreinfo.excel.ExcelWorkbook;
 import com.buldreinfo.exception.InternalServerErrorException;
 import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.infrastructure.RequestContext;
+import com.buldreinfo.model.ArdManifest;
 import com.buldreinfo.model.GradeDistribution;
 import com.buldreinfo.model.Meta;
 import com.buldreinfo.model.Toc;
@@ -93,7 +94,10 @@ public class MetaController {
 	@GetMapping(value = "/robots.txt", produces = MediaType.TEXT_PLAIN_VALUE)
 	public ResponseEntity<String> getRobotsTxt(HttpServletRequest request) {
 		var setup = requestContext.getSetup(request);
-		var lines = List.of("User-agent: *", "Disallow: */pdf", "Sitemap: " + setup.url() + "/sitemap.txt");
+		var lines = List.of("User-agent: *",
+				"Disallow: */pdf",
+				"Sitemap: " + setup.url() + "/sitemap.txt",
+				"Agentmap: " + setup.url() + "/.well-known/ard.json");
 		return ResponseEntity.ok(String.join("\r\n", lines));
 	}
 
@@ -102,6 +106,15 @@ public class MetaController {
 	public ResponseEntity<String> getSitemapTxt(HttpServletRequest request) {
 		var setup = requestContext.getSetup(request);
 		return ResponseEntity.ok(hierarchyRepo.getSitemapTxt(setup));
+	}
+
+	@Operation(summary = "Get ARD manifest (agentic resource discovery)")
+	@GetMapping(value = "/.well-known/ard.json", produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<ArdManifest> getArdJson(HttpServletRequest request) {
+		var setup = requestContext.getSetup(request);
+		return ResponseEntity.ok()
+				.header(HttpHeaders.CACHE_CONTROL, "public, max-age=3600")
+				.body(ArdManifest.from(setup));
 	}
 
 	@Operation(summary = "Get table of contents (all problems)")
