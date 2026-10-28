@@ -67,8 +67,6 @@ public class MetaResourceTest extends BaseResourceTest {
 			assertEquals(OK, r.getStatusCode());
 			var url = getSetup(region).url();
 			assertTrue(r.getBody().contains("Sitemap: " + url + "/sitemap.txt"), r.getBody());
-			// ARD's Agentmap directive (spec 5.1) has to name the manifest of the domain that was asked.
-			assertTrue(r.getBody().contains("Agentmap: " + url + "/.well-known/ard.json"), r.getBody());
 		}
 	}
 

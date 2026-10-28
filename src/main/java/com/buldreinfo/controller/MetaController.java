@@ -96,8 +96,7 @@ public class MetaController {
 		var setup = requestContext.getSetup(request);
 		var lines = List.of("User-agent: *",
 				"Disallow: */pdf",
-				"Sitemap: " + setup.url() + "/sitemap.txt",
-				"Agentmap: " + setup.url() + "/.well-known/ard.json");
+				"Sitemap: " + setup.url() + "/sitemap.txt");
 		return ResponseEntity.ok(String.join("\r\n", lines));
 	}
 
