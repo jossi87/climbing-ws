@@ -27,6 +27,7 @@ import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.model.ArdManifest;
 import com.buldreinfo.model.GradeDistribution;
 import com.buldreinfo.model.Meta;
+import com.buldreinfo.model.SecurityTxt;
 import com.buldreinfo.model.Toc;
 import com.buldreinfo.model.Toc.TocPitch;
 import com.buldreinfo.util.FilenameUtil;
@@ -114,6 +115,15 @@ public class MetaController {
 		return ResponseEntity.ok()
 				.header(HttpHeaders.CACHE_CONTROL, "public, max-age=3600")
 				.body(ArdManifest.from(setup));
+	}
+
+	@Operation(summary = "Get security.txt (vulnerability disclosure, RFC 9116)")
+	@GetMapping(value = "/.well-known/security.txt", produces = MediaType.TEXT_PLAIN_VALUE)
+	public ResponseEntity<String> getSecurityTxt(HttpServletRequest request) {
+		var setup = requestContext.getSetup(request);
+		return ResponseEntity.ok()
+				.header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
+				.body(SecurityTxt.of(setup));
 	}
 
 	@Operation(summary = "Get table of contents (all problems)")

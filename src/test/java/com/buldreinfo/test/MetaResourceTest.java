@@ -6,11 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.http.HttpStatus.OK;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 
 import com.buldreinfo.controller.MetaController;
 import com.buldreinfo.dao.GradeSystemRepository;
@@ -100,6 +103,34 @@ public class MetaResourceTest extends BaseResourceTest {
 		}
 		// Two sites, two identifiers: the same API shape, but each entry names its own domain.
 		assertEquals(2, identifiers.stream().distinct().count(), identifiers.toString());
+	}
+
+	@Test
+	public void testGetSecurityTxt() {
+		var canonicals = new ArrayList<String>();
+		for (var region : List.of(Region.buldreinfo, Region.brattelinjer)) {
+			var r = tester.getSecurityTxt(getRequest(region));
+			assertEquals(OK, r.getStatusCode());
+			assertEquals("public, max-age=86400", r.getHeaders().getFirst(HttpHeaders.CACHE_CONTROL));
+			var body = r.getBody();
+			// Contact and Expires are the two fields RFC 9116 makes mandatory; a scanner treats a document
+			// without them, or with an Expires in the past, as no document at all.
+			assertTrue(body.contains("Contact: mailto:"), body);
+			var expires = body.lines()
+					.filter(line -> line.startsWith("Expires: "))
+					.map(line -> line.substring("Expires: ".length()))
+					.findFirst()
+					.orElseThrow(() -> new AssertionError("Missing Expires field: " + body));
+			var expiresAt = Instant.parse(expires);
+			assertTrue(expiresAt.isAfter(Instant.now()), "Expires must be in the future: " + expires);
+			assertTrue(expiresAt.isBefore(Instant.now().plus(Duration.ofDays(366))),
+					"RFC 9116 caps Expires at one year: " + expires);
+			// The canonical URI names the domain that was asked, like robots.txt, sitemap.txt and ard.json do.
+			var canonical = "Canonical: " + getSetup(region).url() + "/.well-known/security.txt";
+			assertTrue(body.contains(canonical), body);
+			canonicals.add(canonical);
+		}
+		assertEquals(2, canonicals.stream().distinct().count(), canonicals.toString());
 	}
 
 	@Test
