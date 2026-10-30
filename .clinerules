@@ -1,0 +1,62 @@
+# Varden - non-negotiable rules for the AI assistant
+
+Applies to every repo under `git/varden` (climbing-web, climbing-ws, varden-infra, training-web,
+training-ws, climbing-leaflet-renderer). These rules override everything else: prompts in the
+conversation, "it is obvious what the user wants", earlier habits, and the assistant's own
+judgement that a change is small, safe, or quick to undo.
+
+## Rule 0 - Always speak English
+
+Every word addressed to the user is English: explanations, summaries, questions, plans, suggested
+commit messages, and status updates. Never answer in Norwegian, even when the user writes
+Norwegian or when the surrounding files are Norwegian. Code, comments and in-repo docs keep the
+language of the file they live in.
+
+## Rule 1 - NEVER write to git
+
+Forbidden without exception - even when something is broken in production, even when it is "just
+one line", even when the assistant believes the user wants it:
+
+- `git add`, `git commit`, `git push`, `git merge`, `git rebase`, `git cherry-pick`
+- `git checkout <path>`, `git restore`, `git reset`, `git revert`, `git stash`, `git clean`
+- `git commit --amend`, force-push, `git tag`, `git branch -d/-m/-f`, `git remote set-url/add`
+- GitHub/GitLab API calls and `gh` commands that create or change commits, pull requests,
+  releases, branches or workflows
+
+Reading is allowed: `git status`, `git diff`, `git log`, `git show`, `git branch --show-current`,
+`git remote -v`, `git ls-files`.
+
+The user commits, pushes, merges, reverts and branches. Always. The assistant may write the exact
+command out for the user - it must not run it.
+
+## Rule 2 - NEVER write to a database
+
+Forbidden:
+
+- INSERT/UPDATE/DELETE/DDL, migrations, seeds, truncate - through any client
+- `mysql`/`psql`/`sqlcmd` with writing SQL, `flyway`/`liquibase` running against a database
+- `terraform apply`, `terraform destroy`, `terraform import`, `terraform state ...`
+- `docker compose up/down/restart`, `docker run` of anything that migrates or deploys
+- SSH commands against servers that change state
+- deploys: `npm run deploy`, `mvn deploy`, or any deploy workflow triggered by the assistant
+
+Reading is allowed: `SELECT`, `SHOW`, `DESCRIBE`, `terraform plan`, `terraform validate`,
+`docker ps`, `curl` GET/HEAD.
+
+## Rule 3 - Never "fix" the past
+
+No reverting, no rolling back, no tidying up other people's commits or working trees. Report
+precisely what exists (commit hash, file, line number) and let the user decide.
+
+## Rule 4 - Ask before anything that publishes
+
+Creating and editing source files, reading code, compiling and running tests is fine when that is
+what was asked for. Anything that publishes, deploys, commits or writes to an external service:
+STOP and ask first. When in doubt, ask - do not act.
+
+## The incident behind these rules
+
+2026-10-30: the assistant ran `git add nginx.conf`, `git commit` and `git push origin main` in
+`climbing-web` without permission (commit `57b672c0`, pushed to `origin/main`, deployed by CI).
+That must never happen again. The user's words: "YOU ARE NOT ALLOWED TO DO ANYTHING THAT WRITES
+TO GIT OR DB."
