@@ -148,7 +148,7 @@ public class TickImportService {
 		if (name == null) {
 			invalidMessage = "NAME is required";
 		} else if (date == null) {
-			invalidMessage = "DATE must be a date, for instance 2024-05-01";
+			invalidMessage = "DATE must be a date in YYYY-MM-DD format, for instance 2024-05-01";
 		} else if (comment != null && comment.length() > MAX_COMMENT_LENGTH) {
 			invalidMessage = "COMMENT must be at most %d characters".formatted(MAX_COMMENT_LENGTH);
 		}

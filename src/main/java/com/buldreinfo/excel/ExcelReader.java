@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
@@ -23,9 +24,13 @@ import org.apache.poi.ss.usermodel.WorkbookFactory;
 /**
  * Minimal reader for uploaded spreadsheets: maps the labels in the header row to column indexes so
  * values can be read by label instead of by position, which makes extra or reordered columns
- * harmless. Blank rows are skipped and cells are read by their cached value, so formulas work too.
+ * harmless. A header may describe the expected value in parentheses ("DATE (YYYY-MM-DD)"), which is
+ * a hint for the user and not part of the label. Blank rows are skipped and cells are read by their
+ * cached value, so formulas work too.
  */
 public final class ExcelReader implements AutoCloseable {
+	/** Trailing hint in a header, e.g. the "(YYYY-MM-DD)" of "DATE (YYYY-MM-DD)". */
+	private static final Pattern LABEL_HINT = Pattern.compile("\\s*\\([^)]*\\)$");
 	private static final DateTimeFormatter SHORT_DATE = DateTimeFormatter.ofPattern("d-M-yyyy", Locale.ROOT);
 	private final Workbook workbook;
 	private final Sheet sheet;
@@ -109,7 +114,9 @@ public final class ExcelReader implements AutoCloseable {
 	}
 
 	private static String normalizeLabel(String label) {
-		return label.replace('\u00A0', ' ').strip().replaceAll("\\s+", " ").toUpperCase(Locale.ROOT);
+		// The hint in parentheses only describes what to type, so "DATE (YYYY-MM-DD)" is the DATE column.
+		var withoutHint = LABEL_HINT.matcher(label.replace('\u00A0', ' ').strip()).replaceFirst("").strip();
+		return withoutHint.replaceAll("\\s+", " ").toUpperCase(Locale.ROOT);
 	}
 
 	private static CellType cellType(Cell cell) {
