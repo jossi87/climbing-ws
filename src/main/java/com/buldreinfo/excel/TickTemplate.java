@@ -84,7 +84,7 @@ public final class TickTemplate {
 		DataValidationConstraint constraint = helper.createExplicitListConstraint(STARS);
 		var ranges = new CellRangeAddressList(1, LAST_DATA_ROW - 1, column, column);
 		DataValidation validation = helper.createValidation(constraint, ranges);
-		validation.setSuppressDropDownArrow(false);
+		validation.setSuppressDropDownArrow(true);
 		validation.setEmptyCellAllowed(true);
 		validation.setShowErrorBox(true);
 		validation.createErrorBox("Invalid stars", "Stars must be empty or a number from 0 to 3.");

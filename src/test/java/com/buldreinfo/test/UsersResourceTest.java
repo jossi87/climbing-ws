@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.http.HttpStatus.OK;
 
 import java.io.ByteArrayInputStream;
@@ -48,6 +49,7 @@ public class UsersResourceTest extends BaseResourceTest {
 			}
 			var validations = sheet.getDataValidations();
 			assertEquals(1, validations.size(), "STARS must have a dropdown");
+			assertTrue(validations.getFirst().getSuppressDropDownArrow(), "STARS must show its dropdown in Excel");
 			var regions = validations.getFirst().getRegions();
 			assertEquals(TickTemplate.COLUMNS.indexOf(TickTemplate.COL_STARS), regions.getCellRangeAddress(0).getFirstColumn());
 			assertEquals(1, regions.getCellRangeAddress(0).getFirstRow());
