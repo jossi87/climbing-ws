@@ -157,7 +157,7 @@ public class UsersController {
 		var authUserId = requestContext.getAuthenticatedUserId();
 		byte[] bytes = userRepo.getUserTicks(authUserId, requestContext.getLanguageId(request));
 		return ResponseEntity.ok()
-				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(FilenameUtil.generateFilename("Buldreinfo_BratteLinjer", StorageType.XLSX)))
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(FilenameUtil.generateFilename("climbing_ticks", StorageType.XLSX)))
 				.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
 				.contentType(MediaType.valueOf("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
 				.body(bytes);
@@ -169,7 +169,7 @@ public class UsersController {
 	public ResponseEntity<byte[]> getUsersTicksTemplate() {
 		byte[] bytes = TickTemplate.build();
 		return ResponseEntity.ok()
-				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(FilenameUtil.generateFilename("Buldreinfo_Ticks", StorageType.XLSX)))
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(FilenameUtil.generateFilename("climbing_tick_template", StorageType.XLSX)))
 				.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
 				.contentType(MediaType.valueOf(StorageType.XLSX.getMimeType()))
 				.body(bytes);
