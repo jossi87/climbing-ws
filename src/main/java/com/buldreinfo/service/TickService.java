@@ -1,5 +1,6 @@
 package com.buldreinfo.service;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,5 +36,21 @@ public class TickService {
         tickRepo.setTick(authUserId, t);
         activityRepo.fillActivity(List.of(t.idProblem()));
         problemRepo.updateProblemConsensusGrade(t.idProblem());
+    }
+
+    @Transactional
+    public void setTicks(int userId, List<Tick> ticks) {
+        if (ticks == null || ticks.isEmpty()) {
+            return;
+        }
+        var problemIds = new LinkedHashSet<Integer>();
+        for (var t : ticks) {
+            tickRepo.setTick(Optional.of(userId), t);
+            problemIds.add(t.idProblem());
+        }
+        activityRepo.fillActivity(List.copyOf(problemIds));
+        for (var idProblem : problemIds) {
+            problemRepo.updateProblemConsensusGrade(idProblem);
+        }
     }
 }

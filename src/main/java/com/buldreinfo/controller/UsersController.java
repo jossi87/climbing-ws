@@ -10,17 +10,22 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.config.OpenApiConfig;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
+import com.buldreinfo.excel.TickTemplate;
 import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.model.AdminUser;
 import com.buldreinfo.model.MergeDismissal;
+import com.buldreinfo.model.TickImportResult;
 import com.buldreinfo.model.UserSearchResult;
+import com.buldreinfo.service.TickImportService;
 import com.buldreinfo.util.FilenameUtil;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,11 +40,13 @@ public class UsersController {
 	private final RequestContext requestContext;
 	private final RegionRepository regionRepo;
 	private final UserRepository userRepo;
+	private final TickImportService tickImportService;
 
-	public UsersController(RequestContext requestContext, RegionRepository regionRepo, UserRepository userRepo) {
+	public UsersController(RequestContext requestContext, RegionRepository regionRepo, UserRepository userRepo, TickImportService tickImportService) {
 		this.requestContext = requestContext;
 		this.regionRepo = regionRepo;
 		this.userRepo = userRepo;
+		this.tickImportService = tickImportService;
 	}
 
 	@Operation(summary = "Search for user")
@@ -154,6 +161,27 @@ public class UsersController {
 				.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
 				.contentType(MediaType.valueOf("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
 				.body(bytes);
+	}
+
+	@Operation(summary = "Get template (xlsx) for batch registration of ticks")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
+	@GetMapping(value = "/ticks/template", produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	public ResponseEntity<byte[]> getUsersTicksTemplate() {
+		byte[] bytes = TickTemplate.build();
+		return ResponseEntity.ok()
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(FilenameUtil.generateFilename("Buldreinfo_Ticks", StorageType.XLSX)))
+				.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
+				.contentType(MediaType.valueOf(StorageType.XLSX.getMimeType()))
+				.body(bytes);
+	}
+
+	@Operation(summary = "Preview (dryRun=true) or import (dryRun=false) ticks from an uploaded Excel file (xlsx)")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
+	@PostMapping(value = "/ticks/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<TickImportResult> postUsersTicksImport(@RequestParam(name = "dryRun", defaultValue = "true") boolean dryRun,
+			@RequestPart("file") MultipartFile file) {
+		var authUserId = requestContext.getAuthenticatedUserId().orElseThrow();
+		return ResponseEntity.ok(dryRun ? tickImportService.preview(authUserId, file) : tickImportService.commit(authUserId, file));
 	}
 
 	@Operation(summary = "Update visible regions")

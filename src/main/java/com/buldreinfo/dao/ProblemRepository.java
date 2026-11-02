@@ -39,6 +39,7 @@ import com.buldreinfo.model.ProblemComment;
 import com.buldreinfo.model.ProblemSearchResult;
 import com.buldreinfo.model.ProblemSection;
 import com.buldreinfo.model.ProblemTick;
+import com.buldreinfo.model.TickImportCandidate;
 import com.buldreinfo.model.Trail;
 import com.buldreinfo.model.Type;
 import com.buldreinfo.model.User;
@@ -634,6 +635,29 @@ public class ProblemRepository {
 				""")
 				.params(userId, sectorId, problemId, rock)
 				.query((rs, _) -> new Neighbour(rs.getInt("id"), rs.getInt("nr"), rs.getString("name"), rs.getString("grade"), rs.getBoolean("tick"), rs.getBoolean("todo")))
+				.list();
+	}
+
+	@Transactional(readOnly = true)
+	public List<TickImportCandidate> getTickImportCandidates(int userId, List<String> normalizedNames) {
+		if (normalizedNames == null || normalizedNames.isEmpty()) {
+			return List.of();
+		}
+		return jdbcClient.sql("""
+				SELECT p.id, p.name, s.name sector_name, a.name area_name
+				FROM problem p
+				JOIN sector s ON p.sector_id = s.id
+				JOIN area a ON s.area_id = a.id
+				LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = :userId
+				WHERE LOWER(TRIM(p.name)) IN (:names)
+				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
+				  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
+				  AND a.trash IS NULL
+				ORDER BY a.name, s.name, p.name
+				""")
+				.param("userId", userId)
+				.param("names", normalizedNames)
+				.query((rs, _) -> new TickImportCandidate(rs.getInt("id"), rs.getString("name"), rs.getString("sector_name"), rs.getString("area_name")))
 				.list();
 	}
 }

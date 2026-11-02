@@ -2,8 +2,10 @@ package com.buldreinfo.dao;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -116,6 +118,18 @@ public class TickRepository {
 				upsertTickRepeats(t.id(), t.repeats());
 			}
 		}
+	}
+
+	@Transactional(readOnly = true)
+	public Set<Integer> getTickedProblemIds(int userId, Collection<Integer> problemIds) {
+		if (problemIds == null || problemIds.isEmpty()) {
+			return Set.of();
+		}
+		return Set.copyOf(jdbcClient.sql("SELECT problem_id FROM tick WHERE user_id = :userId AND problem_id IN (:ids)")
+				.param("userId", userId)
+				.param("ids", problemIds)
+				.query(Integer.class)
+				.list());
 	}
 
 	/**
