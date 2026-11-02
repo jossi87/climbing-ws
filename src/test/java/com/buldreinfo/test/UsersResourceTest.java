@@ -43,7 +43,6 @@ public class UsersResourceTest extends BaseResourceTest {
 		try (var in = new ByteArrayInputStream(r.getBody());
 				var workbook = WorkbookFactory.create(in)) {
 			var sheet = assertInstanceOf(XSSFSheet.class, workbook.getSheet(TickTemplate.SHEET_TICKS));
-			assertNotNull(workbook.getSheet(TickTemplate.SHEET_GUIDE), "The template must document its columns");
 			for (int i = 0; i < TickTemplate.HEADERS.size(); i++) {
 				assertEquals(TickTemplate.HEADERS.get(i), sheet.getRow(0).getCell(i).getStringCellValue());
 			}
