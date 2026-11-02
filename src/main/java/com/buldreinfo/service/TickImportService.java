@@ -30,13 +30,8 @@ import com.buldreinfo.model.TickImportResult;
 import com.buldreinfo.model.TickImportRow;
 import com.buldreinfo.model.TickImportRow.Status;
 
-/**
- * Batch registration of ticks from an uploaded spreadsheet. The same parsing and matching is used for the preview
- * (dry run) and the commit, so what the user sees in the preview is exactly what gets saved.
- */
 @Service
 public class TickImportService {
-	/** Upper limit per upload, so a single bad file cannot turn into an endless amount of work. */
 	public static final int MAX_ROWS = 500;
 	private static final int MAX_COMMENT_LENGTH = 4000;
 	private static final String COL_DESCRIPTION = "DESCRIPTION";
@@ -71,7 +66,8 @@ public class TickImportService {
 		} catch (IOException e) {
 			throw new ValidationFailedException("Unable to read the uploaded file: " + e.getMessage());
 		}
-		var results = resolve(userId, parsed);
+		var resolution = resolve(userId, parsed);
+		var results = resolution.results();
 		int numSaved = 0;
 		int numSkipped = 0;
 		int numFailed = 0;
@@ -91,7 +87,7 @@ public class TickImportService {
 			return new TickImportResult(List.copyOf(results.values()), numSaved, numSkipped, numFailed, false);
 		}
 		if (!toSave.isEmpty()) {
-			tickService.setTicks(userId, toSave.stream().map(p -> toTick(results.get(p.row()))).toList());
+			tickService.setTicks(userId, toSave.stream().map(p -> toTick(results.get(p.row()), resolution.matches().get(p.row()))).toList());
 			for (var p : toSave) {
 				var saved = results.get(p.row());
 				results.put(p.row(), new TickImportRow(saved.row(), saved.area(), saved.sector(), saved.name(), saved.date(), saved.stars(), saved.comment(), saved.idProblem(), Status.SAVED, "Saved"));
@@ -155,7 +151,7 @@ public class TickImportService {
 		return new ParsedRow(row.rowNumber(), area, sector, name, dateText, date, stars, comment, invalidMessage);
 	}
 
-	private Map<Integer, TickImportRow> resolve(int userId, List<ParsedRow> parsed) {
+	private Resolution resolve(int userId, List<ParsedRow> parsed) {
 		var results = new TreeMap<Integer, TickImportRow>();
 		var pending = new ArrayList<ParsedRow>();
 		for (var p : parsed) {
@@ -166,7 +162,7 @@ public class TickImportService {
 			}
 		}
 		if (pending.isEmpty()) {
-			return results;
+			return new Resolution(results, Map.of());
 		}
 		var names = pending.stream().map(p -> normalize(p.name())).distinct().toList();
 		var candidatesByName = problemRepo.getTickImportCandidates(userId, names).stream()
@@ -200,7 +196,7 @@ public class TickImportService {
 				results.put(p.row(), p.toResult(match, Status.OK, "Ready to be saved"));
 			}
 		}
-		return results;
+		return new Resolution(results, matches);
 	}
 
 	private static void validateUpload(MultipartFile file) {
@@ -215,10 +211,10 @@ public class TickImportService {
 		}
 	}
 
-	private static Tick toTick(TickImportRow row) {
-		// An empty grade counts as "no personal grade", and stars=-1 counts as "no rating" (see TickRepository.setTick)
+	private static Tick toTick(TickImportRow row, TickImportCandidate problem) {
+		// stars=-1 counts as "no rating" (see TickRepository.setTick)
 		double stars = row.stars() == null ? -1 : row.stars();
-		return new Tick(false, -1, row.idProblem(), row.comment(), row.date(), stars, "", null);
+		return new Tick(false, -1, row.idProblem(), row.comment(), row.date(), stars, problem.grade(), null);
 	}
 
 	private static String where(ParsedRow p) {
@@ -232,7 +228,6 @@ public class TickImportService {
 		return parts.isEmpty() ? "" : " in " + String.join(", ", parts);
 	}
 
-	/** Case, accents (through the column collation) and repeated whitespace must not decide whether a name matches. */
 	private static String normalize(String value) {
 		return value == null ? "" : WHITESPACE.matcher(value.replace('\u00A0', ' ').strip()).replaceAll(" ").toLowerCase(Locale.ROOT);
 	}
@@ -250,6 +245,9 @@ public class TickImportService {
 			var dateOut = date == null ? dateText : date.toString();
 			return new TickImportRow(row, area, sector, name, dateOut, stars, comment, match == null ? null : match.id(), status, message);
 		}
+	}
+
+	private record Resolution(Map<Integer, TickImportRow> results, Map<Integer, TickImportCandidate> matches) {
 	}
 }
 

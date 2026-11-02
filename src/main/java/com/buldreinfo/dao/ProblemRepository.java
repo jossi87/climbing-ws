@@ -644,10 +644,11 @@ public class ProblemRepository {
 			return List.of();
 		}
 		return jdbcClient.sql("""
-				SELECT p.id, p.name, s.name sector_name, a.name area_name
+				SELECT p.id, p.name, s.name sector_name, a.name area_name, g.grade
 				FROM problem p
 				JOIN sector s ON p.sector_id = s.id
 				JOIN area a ON s.area_id = a.id
+				JOIN grade g ON p.consensus_grade_id = g.id
 				LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = :userId
 				WHERE LOWER(TRIM(p.name)) IN (:names)
 				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
@@ -657,7 +658,7 @@ public class ProblemRepository {
 				""")
 				.param("userId", userId)
 				.param("names", normalizedNames)
-				.query((rs, _) -> new TickImportCandidate(rs.getInt("id"), rs.getString("name"), rs.getString("sector_name"), rs.getString("area_name")))
+				.query((rs, _) -> new TickImportCandidate(rs.getInt("id"), rs.getString("name"), rs.getString("sector_name"), rs.getString("area_name"), rs.getString("grade")))
 				.list();
 	}
 }
