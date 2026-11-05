@@ -6,7 +6,7 @@ Used by [https://github.com/jossi87/climbing-web](https://github.com/jossi87/cli
 ## :link: Live sites
 
 - Bouldering: [buldreinfo.com](https://buldreinfo.com)
-- Route climbing: [brattelinjer.no](https://brattelinjer.no)
+- Sport climbing: [brattelinjer.no](https://brattelinjer.no)
 - Ice climbing: [is.brattelinjer.no](https://is.brattelinjer.no)
 
 ## :rocket: Onboarding
