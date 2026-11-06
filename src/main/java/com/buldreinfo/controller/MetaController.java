@@ -26,6 +26,7 @@ import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.model.ArdManifest;
 import com.buldreinfo.model.GradeDistribution;
+import com.buldreinfo.model.GradeGraph;
 import com.buldreinfo.model.Meta;
 import com.buldreinfo.model.SecurityTxt;
 import com.buldreinfo.model.Toc;
@@ -73,10 +74,10 @@ public class MetaController {
 		return ResponseEntity.ok(hierarchyRepo.getGradeDistribution(authUserId, idArea, idSector, setup.idLanguage()));
 	}
 
-	@Operation(summary = "Get graph (number of boulders/routes grouped by grade)")
+	@Operation(summary = "Get graph (number of boulders/routes grouped by grade), one graph per grade system")
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@GetMapping(value = "/graph", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Collection<GradeDistribution>> getGraph(HttpServletRequest request) {
+	public ResponseEntity<Collection<GradeGraph>> getGraph(HttpServletRequest request) {
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
 		return ResponseEntity.ok(hierarchyRepo.getContentGraph(authUserId, setup));

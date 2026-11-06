@@ -23,6 +23,7 @@ import com.buldreinfo.helpers.HitsFormatter;
 import com.buldreinfo.model.Coordinates;
 import com.buldreinfo.model.DangerousArea;
 import com.buldreinfo.model.GradeDistribution;
+import com.buldreinfo.model.GradeGraph;
 import com.buldreinfo.model.MediaIdentity;
 import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.RestrictionsRegion;
@@ -102,12 +103,19 @@ public class HierarchyRepository {
 	}
 
 	@Transactional(readOnly = true)
-	public Collection<GradeDistribution> getContentGraph(Optional<Integer> authUserId, Setup setup) {
+	public Collection<GradeGraph> getContentGraph(Optional<Integer> authUserId, Setup setup) {
 		String sql = """
 				WITH req AS (SELECT ? auth_user_id, ? region_id, ? language_id),
 				target_systems AS (
-				  SELECT DISTINCT rgs.grade_system_id FROM req 
-				  JOIN region_grade_system rgs ON req.region_id = rgs.region_id
+				  SELECT rgs.grade_system_id, MAX(CASE WHEN r.id = req.region_id THEN 1 ELSE 0 END) is_active_region
+				  FROM req
+				  JOIN region r ON 1=1
+				  JOIN region_type rt ON r.id = rt.region_id
+				  JOIN region_grade_system rgs ON rgs.region_id = r.id
+				  LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.auth_user_id
+				  WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
+				    AND (r.id = req.region_id OR ur.user_id IS NOT NULL)
+				  GROUP BY rgs.grade_system_id
 				),
 				  -- Counts are keyed by grade label *and* system: a label is not unique across systems ('3', '4', ...
 				  -- appear in several systems, and every system has 'n/a'), so joining on the label alone would
@@ -128,33 +136,41 @@ public class HierarchyRepository {
 				    AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				  GROUP BY r.id, r.name, g.label_major, g.grade_system_id, ty.id
 				)
-				SELECT g.label_major grade, clr.hex_code color, x.region_id, x.region,
+				SELECT ts.grade_system_id, COALESCE(gst.name, gs.name) grade_system,
+				       g.label_major grade, clr.hex_code color, x.region_id, x.region,
 				       ty2.id type_id, COALESCE(tt2.type, ty2.type) type, COALESCE(tt2.subtype, ty2.subtype) subtype, ty2.is_bolted, ty2.trad_gear,
 				       CASE WHEN d2.is_bouldering=1 OR d2.is_ice_climbing=1 OR ty2.is_bolted=1 THEN 1 ELSE 0 END is_primary,
 				       COALESCE(x.num, 0) num
-				FROM req JOIN target_systems ts ON 1=1
+				FROM req
+				JOIN target_systems ts ON 1=1
+				JOIN grade_system gs ON gs.id = ts.grade_system_id
+				LEFT JOIN grade_system_translation gst ON gst.grade_system_id = gs.id AND gst.language_id = req.language_id
 				JOIN (SELECT label_major, grade_system_id, grade_color_id, MIN(weight) sort FROM grade GROUP BY label_major, grade_system_id, grade_color_id) g ON g.grade_system_id = ts.grade_system_id
 				JOIN grade_color clr ON g.grade_color_id = clr.id
 				LEFT JOIN x ON g.label_major = x.g_base AND g.grade_system_id = x.g_system
 				LEFT JOIN type ty2 ON ty2.id = x.type_id
 				LEFT JOIN type_translation tt2 ON tt2.type_id = ty2.id AND tt2.language_id = req.language_id
 				LEFT JOIN discipline d2 ON ty2.discipline_id = d2.id
-				ORDER BY g.sort, x.region, x.type_id
+				ORDER BY ts.is_active_region DESC, ts.grade_system_id, g.sort, x.region, x.type_id
 				""";
-		Map<String, GradeDistribution> res = new LinkedHashMap<>();
+		Map<Integer, GradeGraph> res = new LinkedHashMap<>();
 		jdbcClient.sql(sql)
 		.params(authUserId.orElse(0), setup.idRegion(), setup.idLanguage())
 		.query(rs -> {
-			var label = rs.getString("grade");
-			var color = rs.getString("color");
-			var dist = res.computeIfAbsent(label, k -> new GradeDistribution(k, color));
+			int gradeSystemId = rs.getInt("grade_system_id");
+			var gradeSystem = rs.getString("grade_system");
+			var graph = res.computeIfAbsent(gradeSystemId, _ -> new GradeGraph(gradeSystemId, gradeSystem));
+			var dist = graph.addGrade(rs.getString("grade"), rs.getString("color"));
 			int regionId = rs.getInt("region_id");
 			if (!rs.wasNull()) {
 				dist.addSector(regionId, rs.getString("region"), readType(rs), rs.getBoolean("is_primary"), rs.getInt("num"));
 			}
 		});
 
-		return res.values();
+		var declaredSystems = new HashSet<>(setup.regionGradeSystemIds());
+		return res.values().stream()
+				.filter(graph -> graph.getNum() > 0 || declaredSystems.contains(graph.getGradeSystemId()))
+				.toList();
 	}
 
 	@Transactional(readOnly = true)

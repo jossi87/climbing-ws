@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,9 @@ import org.springframework.http.HttpHeaders;
 import com.buldreinfo.controller.MetaController;
 import com.buldreinfo.dao.GradeSystemRepository;
 import com.buldreinfo.model.ArdManifest;
+import com.buldreinfo.model.Grade;
+import com.buldreinfo.model.GradeGraph;
+import com.buldreinfo.model.GradeSystem;
 import com.buldreinfo.model.Meta;
 import com.buldreinfo.model.Toc;
 
@@ -60,6 +64,47 @@ public class MetaResourceTest extends BaseResourceTest {
 					"The feed domain must always contain the active region's systems (user " + userId + ")");
 			assertEquals(systemIds.size(), systemIds.stream().distinct().count(),
 					"The feed domain must not repeat a system shared by several regions (user " + userId + ")");
+		}
+	}
+
+	@Test
+	public void testGetGraphReturnsOneGraphPerGradeSystem() {
+		for (var region : List.of(Region.buldreinfo, Region.brattelinjer)) {
+			var setup = getSetup(region);
+			var r = tester.getGraph(getRequest(region));
+			assertEquals(OK, r.getStatusCode());
+			var graphs = r.getBody();
+			assertFalse(graphs.isEmpty(), "No graph for " + region);
+			var systemIds = graphs.stream().map(GradeGraph::getGradeSystemId).toList();
+			assertEquals(systemIds.size(), systemIds.stream().distinct().count(),
+					"Each grade system must have its own graph: " + systemIds);
+			// The site's own systems are always there (also before the first problem is registered) and come first.
+			assertEquals(setup.regionGradeSystemIds(),
+					systemIds.stream().filter(id -> setup.regionGradeSystemIds().contains(id)).toList(),
+					"Declared grade system missing from the graph, or not first: " + systemIds);
+			var gradesBySystem = gradeSystemRepo.getGradeSystems(setup.idLanguage()).stream()
+					.collect(Collectors.toMap(GradeSystem::id,
+							system -> system.grades().stream().map(Grade::labelMajor).collect(Collectors.toSet())));
+			var total = 0;
+			for (var graph : graphs) {
+				assertFalse(graph.getGradeSystem().isBlank(), "Unnamed grade system " + graph.getGradeSystemId());
+				assertFalse(graph.getGradeDistribution().isEmpty(), "No bars in grade system " + graph.getGradeSystem());
+				var labels = gradesBySystem.get(graph.getGradeSystemId());
+				var num = 0;
+				for (var dist : graph.getGradeDistribution()) {
+					// A graph may only carry grades of its own system: the same label exists in several systems.
+					assertTrue(labels.contains(dist.getGrade()),
+							dist.getGrade() + " does not belong to the grade system " + graph.getGradeSystem());
+					assertEquals(dist.getPrim() + dist.getSec(), dist.getNum(),
+							dist.getGrade() + " in grade system " + graph.getGradeSystem());
+					num += dist.getNum();
+				}
+				assertEquals(num, graph.getNum(), "Total mismatch in grade system " + graph.getGradeSystem());
+				assertTrue(num > 0 || setup.regionGradeSystemIds().contains(graph.getGradeSystemId()),
+						"Grade system " + graph.getGradeSystem() + " has no problems and is not declared by this site");
+				total += num;
+			}
+			assertTrue(total > 0, "No problems in any graph for " + region);
 		}
 	}
 
