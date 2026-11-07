@@ -10,9 +10,9 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -89,7 +89,7 @@ public class ProblemRepository {
 
 	@Transactional(readOnly = true)
 	public Problem getProblemBase(Optional<Integer> authUserId, Setup setup, int reqId,
-			CompletableFuture<List<ExternalLink>> linksFuture,
+			Supplier<List<ExternalLink>> linksSupplier,
 			Function<Integer, List<Coordinates>> outlineResolver,
 			Function<Integer, List<Trail>> trailsResolver,
 			ProblemMediaResolver mediaResolver,
@@ -225,7 +225,7 @@ public class ProblemRepository {
 		                        sections.set(sections.indexOf(section), section.withMedia(sectionMedia));
 		                    }
 		                }
-		                return new Problem(null, areaId, rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getString("area_name"), areaCoordinates, rs.getString("area_access_info"), rs.getString("area_access_closed"), rs.getBoolean("area_no_dogs_allowed"), rs.getInt("area_sun_from_hour"), rs.getInt("area_sun_to_hour"), sectorId, rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), rs.getString("sector_name"), rs.getString("sector_access_info"), rs.getString("sector_access_closed"), rs.getInt("sector_sun_from_hour"), rs.getInt("sector_sun_to_hour"), parking, outline, wallDirCalc, wallDirMan, trails, neighbours, id, rs.getString("broken"), false, rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getInt("nr"), rs.getString("name"), rock, rs.getString("description"), rs.getString("grade"), rs.getString("original_grade"), rs.getString("fa_date"), rs.getString("fa_date_hr"), fa, rs.getInt("length_meter"), coords, media, rs.getInt("num_ticks"), rs.getDouble("stars"), rs.getBoolean("ticked"), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new Type(rs.getInt("type_id"), rs.getString("type"), rs.getString("subtype"), rs.getBoolean("is_bolted"), rs.getBoolean("trad_gear")), sections, isTodo, linksFuture.join(), HitsFormatter.formatHits(rs.getLong("hits")), null, rs.getString("trivia"), triviaMedia, rs.getString("starting_altitude"), rs.getString("aspect"), rs.getString("descent"), rs.getInt("grade_system_id"));
+		                return new Problem(null, areaId, rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getString("area_name"), areaCoordinates, rs.getString("area_access_info"), rs.getString("area_access_closed"), rs.getBoolean("area_no_dogs_allowed"), rs.getInt("area_sun_from_hour"), rs.getInt("area_sun_to_hour"), sectorId, rs.getBoolean("sector_locked_admin"), rs.getBoolean("sector_locked_superadmin"), rs.getString("sector_name"), rs.getString("sector_access_info"), rs.getString("sector_access_closed"), rs.getInt("sector_sun_from_hour"), rs.getInt("sector_sun_to_hour"), parking, outline, wallDirCalc, wallDirMan, trails, neighbours, id, rs.getString("broken"), false, rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getInt("nr"), rs.getString("name"), rock, rs.getString("description"), rs.getString("grade"), rs.getString("original_grade"), rs.getString("fa_date"), rs.getString("fa_date_hr"), fa, rs.getInt("length_meter"), coords, media, rs.getInt("num_ticks"), rs.getDouble("stars"), rs.getBoolean("ticked"), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new Type(rs.getInt("type_id"), rs.getString("type"), rs.getString("subtype"), rs.getBoolean("is_bolted"), rs.getBoolean("trad_gear")), sections, isTodo, linksSupplier.get(), HitsFormatter.formatHits(rs.getLong("hits")), null, rs.getString("trivia"), triviaMedia, rs.getString("starting_altitude"), rs.getString("aspect"), rs.getString("descent"), rs.getInt("grade_system_id"));
 		        })
 		        .optional()
 		        .orElse(null);

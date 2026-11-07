@@ -6,7 +6,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,10 +59,15 @@ public class ProblemService {
 
 	@Transactional(readOnly = true)
 	public Problem getProblem(Optional<Integer> authUserId, Setup setup, int reqId, boolean showHiddenMedia) {
-		var linksFuture = CompletableFuture.supplyAsync(() -> externalLinksRepo.getExternalLinks(0, 0, reqId));
-
+		// The links are resolved lazily by getProblemBase() on this thread, i.e. on the same pooled
+		// connection as the rest of the problem. Do not fetch them with CompletableFuture
+		// .supplyAsync() (which defaults to ForkJoinPool.commonPool()) and join inside the row
+		// mapper: that needs a second pool connection while this read-only transaction already
+		// holds one, and parks the request behind the long running pdf/image jobs that share the
+		// common pool. With a few concurrent requests the pool is exhausted (connections idle in
+		// Sleep) and /problems stops answering.
 		Problem p = problemRepo.getProblemBase(authUserId, setup, reqId,
-				linksFuture,
+				() -> externalLinksRepo.getExternalLinks(0, 0, reqId),
 				sectorId -> sectorRepo.getSectorOutline(sectorId),
 				sectorId -> sectorRepo.getSectorTrails(Collections.singleton(sectorId), trailIds -> mediaService.getMediaTrails(authUserId, trailIds, setup.idLanguage())).get(sectorId),
 				(sectorId, problemId) -> mediaService.getMediaProblem(setup, authUserId, sectorId, problemId, showHiddenMedia),
