@@ -13,6 +13,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -264,6 +265,27 @@ public class UserRepository {
 			throw new IllegalStateException("Failed to create user: " + name);
 		}
 		return usId;
+	}
+
+	/** Ids of the users whose full name (firstname + lastname) matches one of {@code names}, keyed by lower case name. */
+	@Transactional(readOnly = true)
+	public Map<String, Integer> getUserIdsByNames(Collection<String> names) {
+		if (names == null || names.isEmpty()) {
+			return Map.of();
+		}
+		var keys = names.stream().map(name -> name.strip().toLowerCase(Locale.ROOT)).filter(key -> !key.isEmpty()).distinct().toList();
+		if (keys.isEmpty()) {
+			return Map.of();
+		}
+		Map<String, Integer> result = new HashMap<>();
+		jdbcClient.sql("""
+				SELECT id, LOWER(TRIM(CONCAT(firstname, ' ', COALESCE(lastname, '')))) name
+				FROM user
+				WHERE LOWER(TRIM(CONCAT(firstname, ' ', COALESCE(lastname, '')))) IN (:names)
+				""")
+				.param("names", keys)
+				.query((RowCallbackHandler) rs -> result.putIfAbsent(rs.getString("name"), rs.getInt("id")));
+		return result;
 	}
 
 	/**

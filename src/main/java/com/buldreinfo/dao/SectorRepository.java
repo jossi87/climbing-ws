@@ -37,6 +37,7 @@ import com.buldreinfo.util.StringUtils;
 
 @Repository
 public class SectorRepository {
+	public record ImportSector(int id, int areaId, String name) {}
 	private final JdbcClient jdbcClient;
 	private final JdbcTemplate jdbcTemplate;
 
@@ -72,6 +73,51 @@ public class SectorRepository {
 				.param(sectorId)
 				.query((rs, _) -> rs.getInt(1))
 				.single();
+	}
+
+	@Transactional(readOnly = true)
+	public List<ImportSector> getSectorsForImport(int regionId) {
+		return jdbcClient.sql("""
+				SELECT s.id, s.area_id, s.name
+				FROM sector s
+				JOIN area a ON s.area_id=a.id
+				WHERE a.region_id=? AND s.trash IS NULL AND a.trash IS NULL
+				ORDER BY s.name
+				""")
+				.param(regionId)
+				.query((rs, _) -> new ImportSector(rs.getInt("id"), rs.getInt("area_id"), rs.getString("name")))
+				.list();
+	}
+
+	@Transactional
+	public int insertImportSector(int areaId, String name) {
+		var keyHolder = new GeneratedKeyHolder();
+		jdbcClient.sql("""
+				INSERT INTO sector (area_id, name, last_updated)
+				VALUES (?, ?, now())
+				""")
+				.params(areaId, StringUtils.stripToNull(name))
+				.update(keyHolder, "id");
+		jdbcClient.sql("UPDATE area SET last_updated=now() WHERE id=?").param(areaId).update();
+		return keyHolder.getKey().intValue();
+	}
+
+	/**
+	 * Renumbers a sector's problems to 1..n, keeping the order they were entered (nr, then id). The import keeps the
+	 * numbers the user typed, so a sector that already had problems ends up with gaps or collisions.
+	 */
+	@Transactional
+	public void normalizeProblemOrder(int sectorId) {
+		var problemIds = jdbcClient.sql("SELECT id FROM problem WHERE sector_id=? ORDER BY nr, id")
+				.param(sectorId)
+				.query(Integer.class)
+				.list();
+		var order = new ArrayList<SectorProblemOrder>(problemIds.size());
+		int nr = 0;
+		for (int problemId : problemIds) {
+			order.add(new SectorProblemOrder(problemId, null, ++nr));
+		}
+		setSectorProblemOrder(order);
 	}
 
 	@Transactional(readOnly = true)

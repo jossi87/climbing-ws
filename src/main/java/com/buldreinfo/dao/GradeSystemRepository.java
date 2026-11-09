@@ -149,6 +149,10 @@ public class GradeSystemRepository {
 				.list();
 	}
 
+	public GradeConverter getConverterForArea(int areaId) {
+		return getConverter(getAreaGradeSystem(areaId).orElseThrow(() -> new ValidationFailedException("Unknown area id=" + areaId)));
+	}
+
 	public GradeConverter getConverterForSector(int sectorId) {
 		return getConverter(getSectorGradeSystem(sectorId)
 				.orElseThrow(() -> new ValidationFailedException("Unknown sector id=" + sectorId)));

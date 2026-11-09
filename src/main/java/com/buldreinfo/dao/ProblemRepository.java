@@ -52,6 +52,7 @@ public class ProblemRepository {
 	public interface ProblemMediaResolver {
 		List<Media> resolve(int sectorId, int problemId);
 	}
+	public record ImportProblem(int id, int sectorId, String name, int nr) {}
 	private final JdbcClient jdbcClient;
 	private final JsonHelper jsonHelper;
 	private final GradeSystemRepository gradeSystemRepo;
@@ -359,6 +360,44 @@ public class ProblemRepository {
 			}
 		}
 
+		return idProblem;
+	}
+
+	@Transactional(readOnly = true)
+	public List<ImportProblem> getProblemsForImport(int regionId) {
+		return jdbcClient.sql("""
+				SELECT p.id, p.sector_id, p.name, p.nr
+				FROM problem p
+				JOIN sector s ON p.sector_id=s.id
+				JOIN area a ON s.area_id=a.id
+				WHERE a.region_id=? AND p.trash IS NULL AND s.trash IS NULL AND a.trash IS NULL
+				""")
+				.param(regionId)
+				.query((rs, _) -> new ImportProblem(rs.getInt("id"), rs.getInt("sector_id"), rs.getString("name"), rs.getInt("nr")))
+				.list();
+	}
+
+	@Transactional
+	public int insertImportProblem(int sectorId, int nr, String name, String description, int typeId, int gradeId,
+			LocalDate faDate, List<Integer> faUserIds) {
+		var keyHolder = new GeneratedKeyHolder();
+		jdbcClient.sql("""
+				INSERT INTO problem (sector_id, name, description, nr, type_id, grade_id, consensus_grade_id, fa_date, last_updated)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, now())
+				""")
+				.params(sectorId, StringUtils.stripToNull(name), StringUtils.stripToNull(description), nr, typeId, gradeId, gradeId, faDate)
+				.update(keyHolder, "id");
+		int idProblem = keyHolder.getKey().intValue();
+		for (int userId : faUserIds) {
+			jdbcClient.sql("INSERT INTO fa (problem_id, user_id) VALUES (?, ?)").params(idProblem, userId).update();
+		}
+		jdbcClient.sql("""
+				UPDATE problem p, sector s, area a
+				SET p.last_updated=now(), s.last_updated=now(), a.last_updated=now()
+				WHERE p.id=? AND p.sector_id=s.id AND s.area_id=a.id
+				""")
+				.param(idProblem)
+				.update();
 		return idProblem;
 	}
 

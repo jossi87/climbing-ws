@@ -11,16 +11,21 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.config.OpenApiConfig;
+import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.exception.InternalServerErrorException;
 import com.buldreinfo.exception.ValidationFailedException;
+import com.buldreinfo.excel.ProblemTemplate;
 import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Problem;
+import com.buldreinfo.model.ProblemImportResult;
 import com.buldreinfo.model.ProblemSearchResult;
 import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Svg;
@@ -29,6 +34,7 @@ import com.buldreinfo.pdf.PdfText;
 import com.buldreinfo.service.AreaService;
 import com.buldreinfo.service.LeafletPrintService;
 import com.buldreinfo.service.MediaService;
+import com.buldreinfo.service.ProblemImportService;
 import com.buldreinfo.service.ProblemService;
 import com.buldreinfo.service.SectorService;
 import com.buldreinfo.tracking.HitTrackingListener;
@@ -45,28 +51,34 @@ import jakarta.servlet.http.HttpServletRequest;
 public class ProblemsController {
 	private final ApplicationEventPublisher eventPublisher;
 	private final RequestContext requestContext;
+	private final RegionRepository regionRepo;
 	private final StorageManager storage;
 	private final LeafletPrintService leafletPrintService;
 	private final AreaService areaService;
 	private final MediaService mediaService;
+	private final ProblemImportService problemImportService;
 	private final ProblemService problemService;
 	private final SectorService sectorService;
 
 	public ProblemsController(
 			ApplicationEventPublisher eventPublisher,
 			RequestContext requestContext,
+			RegionRepository regionRepo,
 			StorageManager storage,
 			LeafletPrintService leafletPrintService,
 			AreaService areaService,
 			MediaService mediaService,
+			ProblemImportService problemImportService,
 			ProblemService problemService,
 			SectorService sectorService) {
 		this.eventPublisher = eventPublisher;
 		this.requestContext = requestContext;
+		this.regionRepo = regionRepo;
 		this.storage = storage;
 		this.leafletPrintService = leafletPrintService;
 		this.areaService = areaService;
 		this.mediaService = mediaService;
+		this.problemImportService = problemImportService;
 		this.problemService = problemService;
 		this.sectorService = sectorService;
 	}
@@ -115,6 +127,21 @@ public class ProblemsController {
 				.body(stream);
 	}
 
+	@Operation(summary = "Get template (xlsx) for batch registration of problems and sectors")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
+	@GetMapping(value = "/import/template", produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	public ResponseEntity<byte[]> getProblemsImportTemplate(HttpServletRequest request) {
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		regionRepo.ensureAdminWriteRegion(setup, authUserId);
+		byte[] bytes = ProblemTemplate.build(regionRepo.getTypes(setup.idRegion(), requestContext.getLanguageId(request)));
+		return ResponseEntity.ok()
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(FilenameUtil.generateFilename("climbing_problem_template", StorageType.XLSX)))
+				.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
+				.contentType(MediaType.valueOf(StorageType.XLSX.getMimeType()))
+				.body(bytes);
+	}
+
 	@Operation(summary = "Search for problem")
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@GetMapping(value = "/search", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -135,6 +162,22 @@ public class ProblemsController {
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
 		return ResponseEntity.ok(problemService.setProblem(authUserId, setup, p));
+	}
+
+	@Operation(summary = "Preview (dryRun=true) or import (dryRun=false) problems and their sectors from an uploaded Excel file (xlsx)")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
+	@PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<ProblemImportResult> postProblemsImport(HttpServletRequest request,
+			@RequestParam(name = "dryRun", defaultValue = "true") boolean dryRun,
+			@RequestPart("file") MultipartFile file) {
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		regionRepo.ensureAdminWriteRegion(setup, authUserId);
+		int userId = authUserId.orElseThrow();
+		int idLanguage = requestContext.getLanguageId(request);
+		return ResponseEntity.ok(dryRun
+				? problemImportService.preview(userId, setup.idRegion(), idLanguage, file)
+				: problemImportService.commit(userId, setup.idRegion(), idLanguage, file));
 	}
 
 	@Operation(summary = "Update SVG for problem media")

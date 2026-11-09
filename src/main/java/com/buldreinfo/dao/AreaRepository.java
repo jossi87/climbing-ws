@@ -31,6 +31,7 @@ import com.buldreinfo.util.StringUtils;
 
 @Repository
 public class AreaRepository {
+	public record ImportArea(int id, String name) {}
 	private final ExternalLinksRepository externalLinksRepo;
 	private final GradeSystemRepository gradeSystemRepo;
 	private final JdbcClient jdbcClient;
@@ -120,6 +121,19 @@ public class AreaRepository {
 							rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getBoolean("for_developers"), 
 							rs.getString("name"), coords);
 				}).list();
+	}
+
+	@Transactional(readOnly = true)
+	public List<ImportArea> getAreasForImport(int regionId) {
+		return jdbcClient.sql("""
+				SELECT a.id, a.name
+				FROM area a
+				WHERE a.region_id=? AND a.trash IS NULL
+				ORDER BY a.name
+				""")
+				.param(regionId)
+				.query((rs, _) -> new ImportArea(rs.getInt("id"), rs.getString("name")))
+				.list();
 	}
 
 	public Map<Integer, AreaSector> getAreaSectors(Setup setup, Optional<Integer> authUserId, int areaId, String areaName) {
