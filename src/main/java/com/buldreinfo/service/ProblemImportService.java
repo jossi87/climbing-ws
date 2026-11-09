@@ -40,6 +40,13 @@ import com.buldreinfo.model.ProblemImportRow;
 import com.buldreinfo.model.ProblemImportRow.Status;
 import com.buldreinfo.model.Type;
 
+/**
+ * Bulk import of problems, and the sectors they belong to, from the spreadsheet written by {@link ProblemTemplate}.
+ *
+ * One {@link #plan} behind two entry points: {@link #preview} reports what would happen and writes nothing, while
+ * {@link #commit} applies the very same plan. Every write in this class lives in {@link #apply}, so a code path that
+ * stops at the plan cannot change the database.
+ */
 @Service
 public class ProblemImportService {
 	public static final int MAX_ROWS = 500;
@@ -73,15 +80,23 @@ public class ProblemImportService {
 
 	@Transactional(readOnly = true)
 	public ProblemImportResult preview(int userId, int regionId, int idLanguage, MultipartFile file) {
-		return process(userId, regionId, idLanguage, file, false);
+		return plan(userId, regionId, idLanguage, file).toPreviewResult();
 	}
 
 	@Transactional
 	public ProblemImportResult commit(int userId, int regionId, int idLanguage, MultipartFile file) {
-		return process(userId, regionId, idLanguage, file, true);
+		return apply(plan(userId, regionId, idLanguage, file));
 	}
 
-	private ProblemImportResult process(int userId, int regionId, int idLanguage, MultipartFile file, boolean commit) {
+	/**
+	 * Everything an import decides, and nothing it changes: the upload is parsed, every row is matched against the
+	 * region, and the outcome is the same list of rows {@link #apply} then saves.
+	 *
+	 * Preview stops here - it never reaches {@link #apply} - and the read-only transaction it runs in would reject a
+	 * write anyway, so a preview can be repeated as often as wanted without leaving a trace. Keep the "reads here,
+	 * writes in apply" split: a write on this path is a write the preview performs too.
+	 */
+	private Plan plan(int userId, int regionId, int idLanguage, MultipartFile file) {
 		validateUpload(file);
 		var types = regionRepo.getTypes(regionId, idLanguage);
 		List<ParsedRow> parsed;
@@ -106,23 +121,30 @@ public class ProblemImportService {
 				default -> numFailed++;
 			}
 		}
-		if (!commit) {
-			return new ProblemImportResult(List.copyOf(results.values()), numSaved, numSkipped, numFailed,
-					resolution.numSectorsCreated(), resolution.numUsersCreated(), false);
-		}
+		return new Plan(results, resolution.faUserIds(), resolution.typeIds(), resolution.gradeIds(), toSave, numSaved,
+				numSkipped, numFailed, resolution.numSectorsCreated(), resolution.numUsersCreated());
+	}
+
+	/**
+	 * Saves the rows {@link #plan} accepted. The only method in this class that writes: a sector missing from the
+	 * database and an unknown FA user are created on demand, the touched sectors are renumbered, and the new problems
+	 * are given their activity rows.
+	 */
+	private ProblemImportResult apply(Plan plan) {
+		var results = plan.results();
 		var createdSectors = new HashMap<String, Integer>();
 		var touchedSectors = new LinkedHashSet<Integer>();
 		var createdProblems = new ArrayList<Integer>();
-		for (var p : toSave) {
+		for (var p : plan.toSave()) {
 			var row = results.get(p.row());
 			int idSector = row.idSector() != null ? row.idSector()
 					: createdSectors.computeIfAbsent(sectorKey(row.idArea(), p.sector()), _ -> sectorRepo.insertImportSector(row.idArea(), p.sector()));
-			var faUserIds = new ArrayList<>(resolution.faUserIds().getOrDefault(p.row(), List.of()));
+			var faUserIds = new ArrayList<>(plan.faUserIds().getOrDefault(p.row(), List.of()));
 			for (var name : row.newUsers()) {
 				faUserIds.add(userRepo.getExistingOrInsertUser(name));
 			}
 			int idProblem = problemRepo.insertImportProblem(idSector, row.nr(), p.name(), p.description(),
-					resolution.typeIds().get(p.row()), resolution.gradeIds().get(p.row()), p.faDate(), faUserIds);
+					plan.typeIds().get(p.row()), plan.gradeIds().get(p.row()), p.faDate(), faUserIds);
 			createdProblems.add(idProblem);
 			touchedSectors.add(idSector);
 			results.put(p.row(), row.withResult(idSector, idProblem, Status.SAVED, "Saved"));
@@ -133,8 +155,8 @@ public class ProblemImportService {
 		// The FA rows are stamped with the FA date (see ActivityRepository#applyIdOffset), so the imported problems
 		// enter the activity feed at the date they were established and not today.
 		activityRepo.fillActivity(createdProblems);
-		return new ProblemImportResult(List.copyOf(results.values()), numSaved, numSkipped, numFailed,
-				createdSectors.size(), resolution.numUsersCreated(), true);
+		return new ProblemImportResult(List.copyOf(results.values()), plan.numSaved(), plan.numSkipped(), plan.numFailed(),
+				createdSectors.size(), plan.numUsersCreated(), true);
 	}
 
 	private List<ParsedRow> read(InputStream in) throws IOException {
@@ -410,6 +432,19 @@ public class ProblemImportService {
 			return new ProblemImportRow(row, area, sector, nr, name, description, type, grade, dateOut,
 					faUsers.isEmpty() ? null : String.join(", ", faUsers), idArea, idSector, idProblem, newSector,
 					newUsers, status, message);
+		}
+	}
+
+	/**
+	 * What an import would do, computed without touching the database. {@link #toPreviewResult()} renders it as the
+	 * dry-run response; {@link ProblemImportService#apply} turns it into the saved rows.
+	 */
+	private record Plan(Map<Integer, ProblemImportRow> results, Map<Integer, List<Integer>> faUserIds,
+			Map<Integer, Integer> typeIds, Map<Integer, Integer> gradeIds, List<ParsedRow> toSave, int numSaved,
+			int numSkipped, int numFailed, int numSectorsCreated, int numUsersCreated) {
+		ProblemImportResult toPreviewResult() {
+			return new ProblemImportResult(List.copyOf(results.values()), numSaved, numSkipped, numFailed,
+					numSectorsCreated, numUsersCreated, false);
 		}
 	}
 
