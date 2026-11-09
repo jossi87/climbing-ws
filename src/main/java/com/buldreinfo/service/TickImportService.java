@@ -30,6 +30,14 @@ import com.buldreinfo.model.TickImportResult;
 import com.buldreinfo.model.TickImportRow;
 import com.buldreinfo.model.TickImportRow.Status;
 
+/**
+ * Import of ticks from the spreadsheet written by {@link TickTemplate}: each row is matched against the problems the
+ * user can tick, and the matched ones are saved as ticks.
+ *
+ * One {@link #plan} behind two entry points: {@link #preview} reports what would happen and writes nothing, while
+ * {@link #commit} applies the very same plan. Every write in this class lives in {@link #apply}, so a code path that
+ * stops at the plan cannot change the database.
+ */
 @Service
 public class TickImportService {
 	public static final int MAX_ROWS = 500;
@@ -50,15 +58,23 @@ public class TickImportService {
 
 	@Transactional(readOnly = true)
 	public TickImportResult preview(int userId, MultipartFile file) {
-		return process(userId, file, false);
+		return plan(userId, file).toPreviewResult();
 	}
 
 	@Transactional
 	public TickImportResult commit(int userId, MultipartFile file) {
-		return process(userId, file, true);
+		return apply(userId, plan(userId, file));
 	}
 
-	private TickImportResult process(int userId, MultipartFile file, boolean commit) {
+	/**
+	 * Everything an import decides, and nothing it changes: the upload is parsed, every row is matched against the
+	 * problems the user can tick, and the outcome is the same list of rows {@link #apply} then saves.
+	 *
+	 * Preview stops here - it never reaches {@link #apply} - and the read-only transaction it runs in would reject a
+	 * write anyway, so a preview can be repeated as often as wanted without leaving a trace. Keep the "reads here,
+	 * writes in apply" split: a write on this path is a write the preview performs too.
+	 */
+	private Plan plan(int userId, MultipartFile file) {
 		validateUpload(file);
 		List<ParsedRow> parsed;
 		try (InputStream in = file.getInputStream()) {
@@ -83,17 +99,23 @@ public class TickImportService {
 				default -> numFailed++;
 			}
 		}
-		if (!commit) {
-			return new TickImportResult(List.copyOf(results.values()), numSaved, numSkipped, numFailed, false);
-		}
-		if (!toSave.isEmpty()) {
-			tickService.setTicks(userId, toSave.stream().map(p -> toTick(results.get(p.row()), resolution.matches().get(p.row()))).toList());
-			for (var p : toSave) {
+		return new Plan(results, resolution.matches(), toSave, numSaved, numSkipped, numFailed);
+	}
+
+	/**
+	 * Saves the rows {@link #plan} accepted. The only method in this class that writes: the ticks are handed to
+	 * {@link TickService#setTicks}, which stores them and their activity rows.
+	 */
+	private TickImportResult apply(int userId, Plan plan) {
+		var results = plan.results();
+		if (!plan.toSave().isEmpty()) {
+			tickService.setTicks(userId, plan.toSave().stream().map(p -> toTick(results.get(p.row()), plan.matches().get(p.row()))).toList());
+			for (var p : plan.toSave()) {
 				var saved = results.get(p.row());
 				results.put(p.row(), new TickImportRow(saved.row(), saved.area(), saved.sector(), saved.name(), saved.date(), saved.stars(), saved.comment(), saved.idProblem(), Status.SAVED, "Saved"));
 			}
 		}
-		return new TickImportResult(List.copyOf(results.values()), numSaved, numSkipped, numFailed, true);
+		return new TickImportResult(List.copyOf(results.values()), plan.numSaved(), plan.numSkipped(), plan.numFailed(), true);
 	}
 
 	private List<ParsedRow> read(InputStream in) throws IOException {
@@ -244,6 +266,17 @@ public class TickImportService {
 		TickImportRow toResult(TickImportCandidate match, Status status, String message) {
 			var dateOut = date == null ? dateText : date.toString();
 			return new TickImportRow(row, area, sector, name, dateOut, stars, comment, match == null ? null : match.id(), status, message);
+		}
+	}
+
+	/**
+	 * What an import would do, computed without touching the database. {@link #toPreviewResult()} renders it as the
+	 * dry-run response; {@link TickImportService#apply} turns it into the saved ticks.
+	 */
+	private record Plan(Map<Integer, TickImportRow> results, Map<Integer, TickImportCandidate> matches,
+			List<ParsedRow> toSave, int numSaved, int numSkipped, int numFailed) {
+		TickImportResult toPreviewResult() {
+			return new TickImportResult(List.copyOf(results.values()), numSaved, numSkipped, numFailed, false);
 		}
 	}
 
