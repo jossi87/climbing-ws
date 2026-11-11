@@ -186,19 +186,18 @@ public class VideoService {
 	public void generateHls(Path src, Path outDir) throws IOException, InterruptedException {
 		int sourceHeight = probeSourceHeight(src);
 		String audioCodec = probeAudioCodec(src);
-		boolean hasAudio = !audioCodec.isEmpty();
 		boolean copyAudio = canCopyAudio(src);
 		List<HlsRung> rungs = selectRungs(sourceHeight);
 		Files.createDirectories(outDir);
 		logger.info("Generating HLS: {} ({}p, audio={}) -> {} rung(s) {}", src, sourceHeight, audioCodec.isEmpty() ? "none" : audioCodec, rungs.size(), rungs);
 
-		encodeHls(src, outDir, rungs, hasAudio, copyAudio);
+		encodeHls(src, outDir, rungs, audioCodec, copyAudio);
 	}
 
 	/** Runs the single ffmpeg pass producing every rung, copying the audio when {@link #canCopyAudio(Path)} allows it. */
-	private void encodeHls(Path src, Path outDir, List<HlsRung> rungs, boolean hasAudio, boolean copyAudio)
+	private void encodeHls(Path src, Path outDir, List<HlsRung> rungs, String audioCodec, boolean copyAudio)
 			throws IOException, InterruptedException {
-		List<String> cmd = buildEncodeCommand(ffmpegPath, src, rungs, hasAudio, copyAudio);
+		List<String> cmd = buildEncodeCommand(ffmpegPath, src, rungs, audioCodec, copyAudio);
 		runCommand(outDir, cmd.toArray(String[]::new), HLS_ENCODE_TIMEOUT_MINUTES);
 	}
 
@@ -207,8 +206,9 @@ public class VideoService {
 	 * side by side, so everything that keeps the pass affordable — the graph's threads, the lookahead, and the
 	 * threads each rung gets — has to be on this command line.
 	 */
-	static List<String> buildEncodeCommand(String ffmpegPath, Path src, List<HlsRung> rungs, boolean hasAudio,
+	static List<String> buildEncodeCommand(String ffmpegPath, Path src, List<HlsRung> rungs, String audioCodec,
 			boolean copyAudio) {
+		boolean hasAudio = !audioCodec.isEmpty();
 		List<String> cmd = new ArrayList<>();
 		cmd.add(ffmpegPath);
 		cmd.add("-y");
@@ -256,6 +256,18 @@ public class VideoService {
 			cmd.add("-c:a");
 			if (copyAudio) {
 				cmd.add("copy");
+				// ADTS-framed AAC — which is what every mpegts source carries, Vimeo/HLS downloads included —
+				// has no AudioSpecificConfig, and the fMP4 muxer refuses to write the esds without one
+				// ("Malformed AAC bitstream detected: use the audio bitstream filter 'aac_adtstoasc'"), aborting
+				// the whole ladder with "Operation not permitted" a few frames in. The filter rewrites each ADTS
+				// frame to raw AAC plus an ASC, and passes packets that are not ADTS straight through, so an AAC
+				// source that already carries an ASC keeps its audio packets byte for byte. Only AAC is offered
+				// the filter: it refuses any other codec outright, and {@link #canCopyAudio(Path)} lets a codec
+				// outside {@link #HLS_COPY_AUDIO_CODECS} reach this copy branch as it is.
+				if (HLS_COPY_AUDIO_CODECS.contains(audioCodec)) {
+					cmd.add("-bsf:a");
+					cmd.add("aac_adtstoasc");
+				}
 			} else {
 				cmd.add("aac");
 				cmd.add("-b:a");
