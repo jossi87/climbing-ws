@@ -1,5 +1,6 @@
 package com.buldreinfo.config;
 
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 import org.springframework.cache.CacheManager;
@@ -10,10 +11,13 @@ import org.springframework.context.annotation.Configuration;
 
 import com.buldreinfo.infrastructure.CacheConstants;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Expiry;
 
 @Configuration
 @EnableCaching
 public class CacheConfig {
+	private static final Duration CACHE_TTL = Duration.ofMinutes(30);
+	private static final Duration CACHE_NEGATIVE_TTL = Duration.ofMinutes(1);
 
 	@Bean
 	public CacheManager cacheManager() {
@@ -28,7 +32,7 @@ public class CacheConfig {
 
 		cacheManager.setCaffeine(Caffeine.newBuilder()
 				.recordStats()
-				.expireAfterWrite(30, TimeUnit.MINUTES)
+				.expireAfter(new ValueLifetime())
 				.maximumSize(200000));
 
 		cacheManager.registerCustomCache(CacheConstants.FRONTPAGE_CACHE_NAME,
@@ -47,5 +51,27 @@ public class CacheConfig {
 				.build());
 
 		return cacheManager;
+	}
+
+	@SuppressWarnings("unused")
+	private static final class ValueLifetime implements Expiry<Object, Object> {
+		@Override
+		public long expireAfterCreate(Object key, Object value, long currentTime) {
+			return ttlNanos(value);
+		}
+
+		@Override
+		public long expireAfterUpdate(Object key, Object value, long currentTime, long currentDuration) {
+			return ttlNanos(value);
+		}
+
+		@Override
+		public long expireAfterRead(Object key, Object value, long currentTime, long currentDuration) {
+			return currentDuration;
+		}
+
+		private static long ttlNanos(Object value) {
+			return (Boolean.FALSE.equals(value) ? CACHE_NEGATIVE_TTL : CACHE_TTL).toNanos();
+		}
 	}
 }

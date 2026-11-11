@@ -113,6 +113,13 @@ public final class StorageManager {
 		}
 	}
 
+	/**
+	 * Whether {@code objectKey} is in the bucket, remembered by {@link com.buldreinfo.config.CacheConfig}: half an
+	 * hour for a yes, a minute for a no. The short life on a no is deliberate — the maintenance batch uploads the HLS
+	 * ladders and the originals from a separate process, so its {@code put(objectKey, true)} in {@link #uploadBytes}
+	 * never reaches this cache, and a page requested between the upload and the expiry would be told the file does not
+	 * exist.
+	 */
 	public boolean exists(String objectKey) {
 		if (objectKey == null) return false;
 		var cache = cacheManager.getCache(CacheConstants.EXISTS_CACHE_NAME);
