@@ -24,12 +24,16 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.buldreinfo.beans.Auth0Profile;
 import com.buldreinfo.beans.Setup;
@@ -91,9 +95,12 @@ public class UserRepository {
 	}
 
 	private final JdbcClient jdbcClient;
+	private final TransactionTemplate newUserTransaction;
 
-	public UserRepository(JdbcClient jdbcClient) {
+	public UserRepository(JdbcClient jdbcClient, PlatformTransactionManager transactionManager) {
 		this.jdbcClient = jdbcClient;
+		this.newUserTransaction = new TransactionTemplate(transactionManager);
+		this.newUserTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 	}
 
 	/**
@@ -1197,6 +1204,33 @@ public class UserRepository {
 	}
 
 	private int addUser(String email, String firstname, String lastname) {
+		if (email == null || email.isBlank()) {
+			return insertUser(null, firstname, lastname);
+		}
+
+		// user_email.email is unique and the creation is committed before this returns, so when two first requests
+		// arrive at once the database rolls back the losing creation instead of committing a second user row.
+		String normalizedEmail = email.toLowerCase();
+		try {
+			return newUserTransaction.execute(_ -> insertUser(normalizedEmail, firstname, lastname));
+		} catch (DuplicateKeyException _) {
+			// The parallel request got there first and its user row is committed, so continue as that user.
+			Integer userId = newUserTransaction.execute(_ -> jdbcClient
+					.sql("SELECT user_id FROM user_email WHERE email=?")
+					.param(normalizedEmail)
+					.query(Integer.class)
+					.optional()
+					.orElse(null));
+			if (userId != null) {
+				logger.info("User for email={} already created by a parallel request, using user id={}", normalizedEmail, userId);
+				return userId;
+			}
+			// The row is gone again (merged away, for instance), so create the account instead of failing the login.
+			return newUserTransaction.execute(_ -> insertUser(normalizedEmail, firstname, lastname));
+		}
+	}
+
+	private int insertUser(String email, String firstname, String lastname) {
 		var keyHolder = new GeneratedKeyHolder();
 
 		jdbcClient.sql("INSERT INTO user (firstname, lastname) VALUES (?, ?)")
@@ -1210,11 +1244,7 @@ public class UserRepository {
 		}
 
 		if (email != null && !email.isBlank()) {
-			jdbcClient.sql("""
-					INSERT INTO user_email (user_id, email) 
-					VALUES (?, ?) 
-					ON DUPLICATE KEY UPDATE user_id=user_id
-					""")
+			jdbcClient.sql("INSERT INTO user_email (user_id, email) VALUES (?, ?)")
 			.params(id, email.toLowerCase())
 			.update();
 		}
