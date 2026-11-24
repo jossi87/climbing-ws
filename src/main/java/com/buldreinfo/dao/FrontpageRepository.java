@@ -44,8 +44,8 @@ public class FrontpageRepository {
 				    WHERE p1.fa_date IS NOT NULL AND p1.trash IS NULL
 				      AND (ar1.region_id = (SELECT region_id FROM req) OR ur1.user_id IS NOT NULL)
 				      AND ar1.region_id IN (
-				          SELECT r.id FROM region r 
-				          JOIN region_type rt ON r.id = rt.region_id 
+				          SELECT r.id FROM region r
+				          JOIN region_type rt ON r.id = rt.region_id
 				          WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = (SELECT region_id FROM req))
 				      )
 				      AND ar1.trash IS NULL AND ((ar1.locked_admin=0 AND ar1.locked_superadmin=0) OR (ur1.superadmin_read=1) OR (ur1.admin_read=1 AND ar1.locked_superadmin=0))
@@ -53,7 +53,7 @@ public class FrontpageRepository {
 				      AND p1.trash IS NULL AND ((p1.locked_admin=0 AND p1.locked_superadmin=0) OR (ur1.superadmin_read=1) OR (ur1.admin_read=1 AND p1.locked_superadmin=0))
 				    ORDER BY p1.fa_date DESC, p1.id DESC LIMIT 8
 				)
-				SELECT 
+				SELECT
 				    x.activity_timestamp, a.id AS area_id, a.name AS area_name,
 				    p.id AS problem_id, p.name AS problem_name, p.locked_admin AS problem_locked_admin, p.locked_superadmin AS problem_locked_superadmin, COALESCE(tt.subtype, ty.subtype) AS problem_subtype, ty.trad_gear AS problem_trad_gear,
 				    g.grade AS grade,
@@ -62,14 +62,14 @@ public class FrontpageRepository {
 				            JSON_OBJECT(
 				                'id', u.id,
 				                'name', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))),
-				                'mediaIdentity', IF(m.id IS NOT NULL, 
+				                'mediaIdentity', IF(m.id IS NOT NULL,
 				                    JSON_OBJECT(
 				                        'id', m.id,
 				                        'versionStamp', UNIX_TIMESTAMP(m.updated_at),
 				                        'focusX', COALESCE(mma.focus_x, 0),
 				                        'focusY', COALESCE(mma.focus_y, 0),
 				                        'primaryColorHex', mma.primary_color_hex
-				                    ), 
+				                    ),
 				                NULL)
 				            )
 				        ),
@@ -77,9 +77,9 @@ public class FrontpageRepository {
 				FROM x
 				JOIN problem p ON x.problem_id = p.id
 				LEFT JOIN type_translation tt ON tt.type_id = p.type_id AND tt.language_id = (SELECT language_id FROM req)
-				JOIN type ty ON p.type_id = ty.id 
-				JOIN sector s ON p.sector_id = s.id 
-				JOIN area a ON s.area_id = a.id 
+				JOIN type ty ON p.type_id = ty.id
+				JOIN sector s ON p.sector_id = s.id
+				JOIN area a ON s.area_id = a.id
 				JOIN grade g ON p.consensus_grade_id = g.id
 				LEFT JOIN fa ON p.id = fa.problem_id
 				LEFT JOIN user u ON fa.user_id = u.id
@@ -125,12 +125,12 @@ public class FrontpageRepository {
 				LEFT JOIN media m ON u.media_id = m.id
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				JOIN problem p ON g.problem_id = p.id
-				JOIN sector s ON p.sector_id = s.id 
-				JOIN area a ON s.area_id = a.id 
+				JOIN sector s ON p.sector_id = s.id
+				JOIN area a ON s.area_id = a.id
 				LEFT JOIN user_region ur ON (a.region_id = ur.region_id AND ur.user_id = (SELECT auth_user_id FROM req))
 				WHERE a.region_id IN (
-				    SELECT r.id FROM region r 
-				    JOIN region_type rt ON r.id = rt.region_id 
+				    SELECT r.id FROM region r
+				    JOIN region_type rt ON r.id = rt.region_id
 				    LEFT JOIN user_region ur2 ON (r.id = ur2.region_id AND ur2.user_id = (SELECT auth_user_id FROM req))
 				    WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = (SELECT region_id FROM req))
 				      AND (r.id = (SELECT region_id FROM req) OR ur2.user_id IS NOT NULL)
@@ -180,8 +180,8 @@ public class FrontpageRepository {
 				    JOIN area a ON s.area_id = a.id
 				    LEFT JOIN user_region ur1 ON (a.region_id = ur1.region_id AND ur1.user_id = (SELECT auth_user_id FROM req))
 				    WHERE a.region_id IN (
-				        SELECT r.id FROM region r 
-				        JOIN region_type rt ON r.id = rt.region_id 
+				        SELECT r.id FROM region r
+				        JOIN region_type rt ON r.id = rt.region_id
 				        LEFT JOIN user_region ur2 ON (r.id = ur2.region_id AND ur2.user_id = (SELECT auth_user_id FROM req))
 				        WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = (SELECT region_id FROM req))
 				          AND (r.id = (SELECT region_id FROM req) OR ur2.user_id IS NOT NULL)
@@ -203,9 +203,9 @@ public class FrontpageRepository {
 				LEFT JOIN grade g ON ra.grade_id = g.id
 				LEFT JOIN media m ON u.media_id = m.id
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
-				JOIN type ty ON p.type_id = ty.id 
-				JOIN sector s ON p.sector_id = s.id 
-				JOIN area a ON s.area_id = a.id 
+				JOIN type ty ON p.type_id = ty.id
+				JOIN sector s ON p.sector_id = s.id
+				JOIN area a ON s.area_id = a.id
 				LEFT JOIN user_region ur ON (a.region_id = ur.region_id AND ur.user_id = (SELECT auth_user_id FROM req))
 				WHERE a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
 				  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
@@ -258,8 +258,8 @@ public class FrontpageRepository {
 				    LEFT JOIN user_region ur1 ON (ar1.region_id = ur1.region_id AND ur1.user_id = (SELECT auth_user_id FROM req))
 				    WHERE m.deleted_user_id IS NULL
 				      AND ar1.region_id IN (
-				          SELECT r.id FROM region r 
-				          JOIN region_type rt ON r.id = rt.region_id 
+				          SELECT r.id FROM region r
+				          JOIN region_type rt ON r.id = rt.region_id
 				          LEFT JOIN user_region ur2 ON (r.id = ur2.region_id AND ur2.user_id = (SELECT auth_user_id FROM req))
 				          WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = (SELECT region_id FROM req))
 				            AND (r.id = (SELECT region_id FROM req) OR ur2.user_id IS NOT NULL)
@@ -270,7 +270,7 @@ public class FrontpageRepository {
 				    ORDER BY m.id DESC
 				    LIMIT 12
 				)
-				SELECT 
+				SELECT
 				    ml.media_id, UNIX_TIMESTAMP(m.updated_at) AS media_version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex AS media_primary_color_hex, m.is_movie, m.is_360,
 				    p.id AS problem_id, p.name AS problem_name, p.locked_admin AS problem_locked_admin, p.locked_superadmin AS problem_locked_superadmin,
 				    g.grade
@@ -376,10 +376,10 @@ public class FrontpageRepository {
 				JOIN area a ON s.area_id = a.id
 				JOIN grade g ON p.consensus_grade_id = g.id
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
-				LEFT JOIN user u ON m.photographer_user_id = u.id AND u.id != 1049 
+				LEFT JOIN user u ON m.photographer_user_id = u.id AND u.id != 1049
 				LEFT JOIN media ma ON u.media_id = ma.id
 				LEFT JOIN media_ml_analysis mma_u ON ma.id = mma_u.media_id
-				LEFT JOIN media_user mu ON m.id = mu.media_id AND mu.user_id != 1049 
+				LEFT JOIN media_user mu ON m.id = mu.media_id AND mu.user_id != 1049
 				LEFT JOIN user u2 ON mu.user_id = u2.id
 				LEFT JOIN media ma2 ON u2.media_id = ma2.id
 				LEFT JOIN media_ml_analysis mma_u2 ON ma2.id = mma_u2.media_id
@@ -431,7 +431,7 @@ public class FrontpageRepository {
 				        WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = (SELECT region_id FROM req))
 				    )
 				    AND (a.region_id = (SELECT region_id FROM req) OR ur.user_id IS NOT NULL)
-				    AND a.trash IS NULL 
+				    AND a.trash IS NULL
 				    AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
 				),
 				valid_problems AS (
@@ -439,12 +439,12 @@ public class FrontpageRepository {
 				    FROM valid_areas va
 				    JOIN sector s ON va.area_id = s.area_id
 				    JOIN problem p ON s.id = p.sector_id
-				    WHERE s.trash IS NULL 
+				    WHERE s.trash IS NULL
 				      AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (va.superadmin_read=1) OR (va.admin_read=1 AND s.locked_superadmin=0))
-				      AND p.trash IS NULL 
+				      AND p.trash IS NULL
 				      AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (va.superadmin_read=1) OR (va.admin_read=1 AND p.locked_superadmin=0))
 				)
-				SELECT 
+				SELECT
 				    (SELECT COUNT(*) FROM valid_areas) AS areas,
 				    (SELECT COUNT(*) FROM valid_problems) AS problems,
 				    (SELECT COUNT(*) FROM tick t WHERE EXISTS (SELECT 1 FROM valid_problems vp WHERE vp.problem_id = t.problem_id)) AS ticks;

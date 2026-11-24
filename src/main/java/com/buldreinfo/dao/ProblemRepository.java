@@ -68,14 +68,14 @@ public class ProblemRepository {
 		int userId = authUserId.orElseThrow(() -> new UnauthorizedException("User not authenticated"));
 
 		boolean ok = jdbcClient.sql("""
-				SELECT ur.admin_write, ur.superadmin_write 
+				SELECT ur.admin_write, ur.superadmin_write
 				FROM problem p
 				JOIN sector s ON p.sector_id = s.id
 				JOIN area a ON s.area_id = a.id
 				JOIN user_region ur ON a.region_id = ur.region_id
 				WHERE p.id = ? AND ur.user_id = ?
-				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0)) 
-				  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0)) 
+				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
+				  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
 				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				""")
 				.params(problemId, userId)
@@ -157,10 +157,10 @@ public class ProblemRepository {
 		            ) sorted_sections
 		            GROUP BY problem_id
 		        )
-		        SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, ac.id area_coordinates_id, ac.latitude area_coordinates_latitude, ac.longitude area_coordinates_longitude, ac.elevation area_coordinates_elevation, ac.elevation_source area_coordinates_elevation_source, 
-		               s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, s.access_info sector_access_info, s.access_closed sector_access_closed, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour, 
-		               sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, 
-		               s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, 
+		        SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, ac.id area_coordinates_id, ac.latitude area_coordinates_latitude, ac.longitude area_coordinates_longitude, ac.elevation area_coordinates_elevation, ac.elevation_source area_coordinates_elevation_source,
+		               s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, s.access_info sector_access_info, s.access_closed sector_access_closed, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour,
+		               sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source,
+		               s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual,
 		               p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m/%y') fa_date_hr,
 		               gf.grade grade, go.grade original_grade,
 		               c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source,
@@ -168,7 +168,7 @@ public class ProblemRepository {
 		               p.length_meter,
 		               COALESCE(sc_data.num_ticks, 0) num_ticks, sc_data.stars,
 		               IF(EXISTS(SELECT 1 FROM tick WHERE problem_id = req.problem_id AND user_id = req.auth_user_id) OR
-		                  EXISTS(SELECT 1 FROM fa WHERE problem_id = req.problem_id AND user_id = req.auth_user_id), 1, 0) AS ticked, 
+		                  EXISTS(SELECT 1 FROM fa WHERE problem_id = req.problem_id AND user_id = req.auth_user_id), 1, 0) AS ticked,
 		               ty.id type_id, COALESCE(tt.type, ty.type) type, COALESCE(tt.subtype, ty.subtype) subtype, ty.is_bolted, ty.trad_gear,
 		               p.trivia, p.starting_altitude, p.aspect, p.descent,
 		               sd.sections_json AS compiled_sections,
@@ -306,9 +306,9 @@ public class ProblemRepository {
 		} else {
 			var keyHolder = new GeneratedKeyHolder();
 			jdbcClient.sql("""
-					INSERT INTO problem (sector_id, name, rock, description, grade_id, consensus_grade_id, fa_date, 
-					                     coordinates_id, broken, locked_admin, locked_superadmin, nr, type_id, 
-					                     trivia, starting_altitude, aspect, length_meter, descent) 
+					INSERT INTO problem (sector_id, name, rock, description, grade_id, consensus_grade_id, fa_date,
+					                     coordinates_id, broken, locked_admin, locked_superadmin, nr, type_id,
+					                     trivia, starting_altitude, aspect, length_meter, descent)
 					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 					""")
 			.params(p.sectorId(), StringUtils.stripToNull(p.name()), StringUtils.stripToNull(p.rock()), 
@@ -421,7 +421,7 @@ public class ProblemRepository {
 				        AND NOT EXISTS (
 				            SELECT 1 FROM tick t_check
 				            JOIN fa f_check ON t_check.user_id = f_check.user_id
-				            WHERE t_check.problem_id = p_inner.id 
+				            WHERE t_check.problem_id = p_inner.id
 				              AND f_check.problem_id = p_inner.id
 				              AND t_check.grade_id = p_inner.grade_id
 				        )
@@ -484,12 +484,12 @@ public class ProblemRepository {
 	private List<ProblemComment> fetchComments(Optional<Integer> authUserId, int problemId, Function<Integer, List<Media>> mediaGuestbookResolver) {
 		List<ProblemComment> comments = new ArrayList<>();
 		jdbcClient.sql("""
-				SELECT g.id, CAST(g.post_time AS char) date, u.id user_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, 
+				SELECT g.id, CAST(g.post_time AS char) date, u.id user_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp,
 				       mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 				       CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, g.message, g.danger, g.resolved
-				FROM guestbook g 
-				JOIN user u ON g.user_id=u.id 
-				LEFT JOIN media m ON u.media_id=m.id 
+				FROM guestbook g
+				JOIN user u ON g.user_id=u.id
+				LEFT JOIN media m ON u.media_id=m.id
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				WHERE g.problem_id=? ORDER BY g.post_time DESC
 				""")
@@ -524,10 +524,10 @@ public class ProblemRepository {
 		jdbcClient.sql("""
 				SELECT DATE_FORMAT(a.aid_date,'%Y-%m-%d') aid_date, DATE_FORMAT(a.aid_date,'%d/%m-%y') aid_date_hr, a.aid_description, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
 				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex
-				FROM fa_aid a 
-				LEFT JOIN fa_aid_user au ON a.problem_id=au.problem_id 
-				LEFT JOIN user u ON au.user_id=u.id 
-				LEFT JOIN media m ON u.media_id=m.id 
+				FROM fa_aid a
+				LEFT JOIN fa_aid_user au ON a.problem_id=au.problem_id
+				LEFT JOIN user u ON au.user_id=u.id
+				LEFT JOIN media m ON u.media_id=m.id
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				WHERE a.problem_id=?
 				""")
@@ -550,14 +550,14 @@ public class ProblemRepository {
 	private List<ProblemTick> fetchTicks(Optional<Integer> authUserId, int problemId) {
 		Map<Integer, ProblemTick> tickLookup = new LinkedHashMap<>();
 		jdbcClient.sql("""
-				SELECT t.id id_tick, u.id id_user, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, 
+				SELECT t.id id_tick, u.id id_user, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp,
 				       mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
-				       CAST(t.date AS char) date, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, 
+				       CAST(t.date AS char) date, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name,
 				       t.comment, t.stars, g.grade
-				FROM tick t 
-				LEFT JOIN grade g ON t.grade_id=g.id 
-				JOIN user u ON t.user_id=u.id 
-				LEFT JOIN media m ON u.media_id=m.id 
+				FROM tick t
+				LEFT JOIN grade g ON t.grade_id=g.id
+				JOIN user u ON t.user_id=u.id
+				LEFT JOIN media m ON u.media_id=m.id
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				WHERE t.problem_id=?
 				ORDER BY t.date DESC, t.id DESC
@@ -583,9 +583,9 @@ public class ProblemRepository {
 					));
 		});
 		jdbcClient.sql("""
-				SELECT r.id, r.tick_id, r.date, r.comment 
-				FROM tick t, tick_repeat r 
-				WHERE t.problem_id=? AND t.id=r.tick_id 
+				SELECT r.id, r.tick_id, r.date, r.comment
+				FROM tick t, tick_repeat r
+				WHERE t.problem_id=? AND t.id=r.tick_id
 				ORDER BY r.tick_id, r.date, r.id
 				""")
 		.param(problemId)
@@ -615,7 +615,7 @@ public class ProblemRepository {
 		if (rock == null) {
 			return jdbcClient.sql("""
 					WITH req AS (SELECT ? AS user_id, ? AS sector_id, ? AS problem_id)
-					SELECT n_id, n_nr, n_name, n_grade, n_tick, n_todo         
+					SELECT n_id, n_nr, n_name, n_grade, n_tick, n_todo
 					FROM (
 					    SELECT p.id,
 					        LAG(p.id) OVER (ORDER BY p.nr) AS prev_id, LAG(p.nr) OVER (ORDER BY p.nr) AS prev_nr,
@@ -647,7 +647,7 @@ public class ProblemRepository {
 					    SELECT COALESCE(prev_id, last_id) AS n_id, COALESCE(prev_nr, last_nr) AS n_nr, COALESCE(prev_name, last_name) AS n_name, COALESCE(prev_grade, last_grade) AS n_grade, COALESCE(prev_tick, last_tick) AS n_tick, COALESCE(prev_todo, last_todo) AS n_todo
 					    UNION ALL
 					    SELECT COALESCE(next_id, first_id), COALESCE(next_nr, first_nr), COALESCE(next_name, first_name), COALESCE(next_grade, first_grade), COALESCE(next_tick, first_tick), COALESCE(next_todo, first_todo)
-					) AS n         
+					) AS n
 					WHERE sub.id = req.problem_id AND n_id != req.problem_id
 					""")
 					.params(userId, sectorId, problemId)
@@ -659,8 +659,8 @@ public class ProblemRepository {
 		}
 		return jdbcClient.sql("""
 				WITH req AS (SELECT ? AS user_id, ? AS sector_id, ? AS problem_id, ? AS rock)
-				SELECT p.id, p.name, p.nr, g.grade, 
-				       CASE WHEN f.user_id IS NOT NULL OR tick.id IS NOT NULL THEN 1 ELSE 0 END tick, 
+				SELECT p.id, p.name, p.nr, g.grade,
+				       CASE WHEN f.user_id IS NOT NULL OR tick.id IS NOT NULL THEN 1 ELSE 0 END tick,
 				       CASE WHEN todo.user_id IS NOT NULL THEN 1 ELSE 0 END todo
 				FROM req JOIN sector s ON req.sector_id = s.id JOIN problem p ON s.id = p.sector_id
 				JOIN area a ON s.area_id = a.id JOIN grade g ON p.consensus_grade_id = g.id

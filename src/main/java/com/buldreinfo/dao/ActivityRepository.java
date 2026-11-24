@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,11 +23,9 @@ import com.buldreinfo.model.MediaIdentity;
 @Repository
 public class ActivityRepository {
 	private final JdbcClient jdbcClient;
-	private final JdbcTemplate jdbcTemplate;
 
-	public ActivityRepository(JdbcClient jdbcClient, JdbcTemplate jdbcTemplate) {
+	public ActivityRepository(JdbcClient jdbcClient) {
 		this.jdbcClient = jdbcClient;
-		this.jdbcTemplate = jdbcTemplate;
 	}
 
 	@Transactional
@@ -174,19 +171,11 @@ public class ActivityRepository {
 		}
 
 		if (!batch.isEmpty()) {
-			jdbcTemplate.batchUpdate(
-					"INSERT INTO activity (activity_timestamp, type, problem_id, media_id, user_id, guestbook_id, tick_repeat_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-					batch,
-					100,
-					(ps, b) -> {
-						ps.setObject(1, b.ts());
-						ps.setString(2, b.type());
-						ps.setInt(3, b.pid());
-						ps.setObject(4, b.mid());
-						ps.setObject(5, b.uid());
-						ps.setObject(6, b.gid());
-						ps.setObject(7, b.rid());
-					});
+			var insert = jdbcClient.sql("INSERT INTO activity (activity_timestamp, type, problem_id, media_id, user_id, guestbook_id, tick_repeat_id) VALUES (?, ?, ?, ?, ?, ?, ?)")
+					.batch();
+			batch.forEach(b -> insert.entry(
+					e -> e.param(b.ts()).param(b.type()).param(b.pid()).param(b.mid()).param(b.uid()).param(b.gid()).param(b.rid())));
+			insert.update();
 		}
 	}
 
@@ -222,14 +211,14 @@ public class ActivityRepository {
 				),
 				grade_filter AS (%s),
 				x AS (
-				  SELECT a1.id, a1.type, a1.activity_timestamp, a1.problem_id 
+				  SELECT a1.id, a1.type, a1.activity_timestamp, a1.problem_id
 				  FROM req CROSS JOIN activity a1
 				  JOIN problem p1 ON a1.problem_id = p1.id
 				  JOIN sector s1 ON p1.sector_id = s1.id
 				  JOIN area ar1 ON s1.area_id = ar1.id
 				  WHERE ar1.region_id IN (
-				      SELECT r.id FROM region r 
-				      JOIN region_type rt ON r.id = rt.region_id 
+				      SELECT r.id FROM region r
+				      JOIN region_type rt ON r.id = rt.region_id
 				      LEFT JOIN user_region ur ON (r.id = ur.region_id AND ur.user_id = req.auth_user_id)
 				      WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
 				        AND (r.id = req.region_id OR ur.user_id IS NOT NULL)
@@ -248,16 +237,16 @@ public class ActivityRepository {
 				  ORDER BY a1.activity_timestamp DESC, a1.problem_id DESC
 				  LIMIT 50 OFFSET ?
 				)
-				SELECT x.activity_timestamp, a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, 
-				       s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, 
-				       x.problem_id, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, p.name problem_name, 
+				SELECT x.activity_timestamp, a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name,
+				       s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name,
+				       x.problem_id, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, p.name problem_name,
 				       COALESCE(tt.subtype, ty.subtype) problem_subtype, ty.trad_gear problem_trad_gear, g.grade, GROUP_CONCAT(DISTINCT concat(x.id,'-',x.type) SEPARATOR ',') activities,
-				       MIN(a.grade_system_id) grade_system_id 
+				       MIN(a.grade_system_id) grade_system_id
 				FROM req CROSS JOIN x
 				JOIN problem p ON x.problem_id = p.id
-				JOIN type ty ON p.type_id = ty.id LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = req.language_id 
-				JOIN sector s ON p.sector_id = s.id 
-				JOIN area a ON s.area_id = a.id 
+				JOIN type ty ON p.type_id = ty.id LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = req.language_id
+				JOIN sector s ON p.sector_id = s.id
+				JOIN area a ON s.area_id = a.id
 				JOIN grade g ON p.consensus_grade_id = g.id
 				LEFT JOIN user_region ur ON (a.region_id = ur.region_id AND ur.user_id = req.auth_user_id)
 				WHERE a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
@@ -436,11 +425,11 @@ public class ActivityRepository {
 				var pIds = res.stream().filter(a -> a.getActivityIds().stream().anyMatch(faIds::contains)).map(Activity::getProblemId).collect(Collectors.toSet());
 				if (!pIds.isEmpty()) {
 					jdbcClient.sql("""
-							SELECT mp.problem_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.is_movie, m.is_360, m.embed_url 
-							FROM media_problem mp 
-							JOIN media m ON mp.media_id = m.id 
-							LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id 
-							WHERE mp.problem_id IN (:activityIds) AND m.deleted_user_id IS NULL 
+							SELECT mp.problem_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.is_movie, m.is_360, m.embed_url
+							FROM media_problem mp
+							JOIN media m ON mp.media_id = m.id
+							LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
+							WHERE mp.problem_id IN (:activityIds) AND m.deleted_user_id IS NULL
 							ORDER BY mp.sorting
 							""")
 					.param("activityIds", pIds)

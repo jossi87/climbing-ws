@@ -14,7 +14,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
@@ -39,11 +38,9 @@ import com.buldreinfo.util.StringUtils;
 public class SectorRepository {
 	public record ImportSector(int id, int areaId, String name) {}
 	private final JdbcClient jdbcClient;
-	private final JdbcTemplate jdbcTemplate;
 
-	public SectorRepository(JdbcClient jdbcClient, JdbcTemplate jdbcTemplate) {
+	public SectorRepository(JdbcClient jdbcClient) {
 		this.jdbcClient = jdbcClient;
-		this.jdbcTemplate = jdbcTemplate;
 	}
 
 	@Transactional(readOnly = true)
@@ -242,7 +239,7 @@ public class SectorRepository {
 				    JOIN sector s ON s.id = p.sector_id
 				    JOIN area a ON s.area_id = a.id
 				    LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = (SELECT auth_user_id FROM req)
-				    WHERE (( (SELECT area_id FROM req) > 0 AND a.id = (SELECT area_id FROM req)) 
+				    WHERE (( (SELECT area_id FROM req) > 0 AND a.id = (SELECT area_id FROM req))
 				        OR ((SELECT sector_id FROM req) > 0 AND p.sector_id = (SELECT sector_id FROM req)))
 				      AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				),
@@ -364,11 +361,11 @@ public class SectorRepository {
 
 		if (s.id() > 0) {
 			jdbcClient.sql("""
-					UPDATE sector s, area a, user_region ur 
-					SET s.name=?, s.description=?, s.access_info=?, s.access_closed=?, s.sun_from_hour=?, s.sun_to_hour=?, 
-					    s.parking_coordinates_id=?, s.locked_admin=?, s.locked_superadmin=?, s.compass_direction_id_calculated=?, 
-					    s.compass_direction_id_manual=?, s.trash=CASE WHEN ? THEN NOW() ELSE NULL END, s.trash_by=? 
-					WHERE s.id=? AND s.area_id=a.id AND a.region_id=ur.region_id AND ur.user_id=? 
+					UPDATE sector s, area a, user_region ur
+					SET s.name=?, s.description=?, s.access_info=?, s.access_closed=?, s.sun_from_hour=?, s.sun_to_hour=?,
+					    s.parking_coordinates_id=?, s.locked_admin=?, s.locked_superadmin=?, s.compass_direction_id_calculated=?,
+					    s.compass_direction_id_manual=?, s.trash=CASE WHEN ? THEN NOW() ELSE NULL END, s.trash_by=?
+					WHERE s.id=? AND s.area_id=a.id AND a.region_id=ur.region_id AND ur.user_id=?
 					  AND (ur.admin_write=1 OR ur.superadmin_write=1)
 					""")
 			.params(StringUtils.stripToNull(s.name()), StringUtils.stripToNull(s.comment()), 
@@ -382,15 +379,15 @@ public class SectorRepository {
 
 			if (setPermissionRecursive) {
 				jdbcClient.sql("""
-						UPDATE (area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id 
-						SET a.last_updated=now(), s.last_updated=now(), s.locked_admin=?, s.locked_superadmin=?, 
+						UPDATE (area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id
+						SET a.last_updated=now(), s.last_updated=now(), s.locked_admin=?, s.locked_superadmin=?,
 						    p.last_updated=now(), p.locked_admin=?, p.locked_superadmin=? WHERE s.id=?
 						""")
 				.params(isLockedAdmin, s.lockedSuperadmin(), isLockedAdmin, s.lockedSuperadmin(), idSector)
 				.update();
 			} else {
 				jdbcClient.sql("""
-						UPDATE (area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id 
+						UPDATE (area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id
 						SET a.last_updated=now(), s.last_updated=now(), p.last_updated=now() WHERE s.id=?
 						""")
 				.param(idSector)
@@ -399,8 +396,8 @@ public class SectorRepository {
 		} else {
 			var keyHolder = new GeneratedKeyHolder();
 			jdbcClient.sql("""
-					INSERT INTO sector (area_id, name, description, access_info, access_closed, parking_coordinates_id, 
-					locked_admin, locked_superadmin, compass_direction_id_calculated, compass_direction_id_manual, last_updated) 
+					INSERT INTO sector (area_id, name, description, access_info, access_closed, parking_coordinates_id,
+					locked_admin, locked_superadmin, compass_direction_id_calculated, compass_direction_id_manual, last_updated)
 					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
 					""")
 			.params(s.areaId(), s.name(), StringUtils.stripToNull(s.comment()), StringUtils.stripToNull(s.accessInfo()), 
@@ -426,15 +423,9 @@ public class SectorRepository {
 	@Transactional
 	public void setSectorProblemOrder(List<SectorProblemOrder> lst) {
 		if (lst == null || lst.isEmpty()) return;
-		jdbcTemplate.batchUpdate(
-				"UPDATE problem SET nr=? WHERE id=?",
-				lst,
-				100,
-				(ps, item) -> {
-					ps.setInt(1, item.nr());
-					ps.setInt(2, item.id());
-				}
-				);
+		var batch = jdbcClient.sql("UPDATE problem SET nr=? WHERE id=?").batch();
+		lst.forEach(item -> batch.entry(e -> e.param(item.nr()).param(item.id())));
+		batch.update();
 	}
 
 	@Transactional

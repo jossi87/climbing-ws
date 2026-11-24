@@ -33,9 +33,9 @@ public class TrashRepository {
 				JOIN area a ON r.id=a.region_id
 				JOIN user u ON a.trash_by=u.id
 				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
-				WHERE a.trash IS NOT NULL 
-				  AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id) 
-				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL) 
+				WHERE a.trash IS NOT NULL
+				  AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
+				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL)
 				  AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
 				GROUP BY area_id, sector_id, problem_id, media_id, name, trash, trash_by
 
@@ -50,10 +50,10 @@ public class TrashRepository {
 				JOIN sector s ON a.id=s.area_id
 				JOIN user u ON s.trash_by=u.id
 				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
-				WHERE a.trash IS NULL 
-				  AND s.trash IS NOT NULL 
-				  AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id) 
-				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL) 
+				WHERE a.trash IS NULL
+				  AND s.trash IS NOT NULL
+				  AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
+				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL)
 				  AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
 				GROUP BY area_id, sector_id, problem_id, media_id, name, trash, trash_by
 
@@ -69,11 +69,11 @@ public class TrashRepository {
 				JOIN problem p ON s.id=p.sector_id
 				JOIN user u ON p.trash_by=u.id
 				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
-				WHERE a.trash IS NULL 
-				  AND s.trash IS NULL 
-				  AND p.trash IS NOT NULL 
-				  AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id) 
-				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL) 
+				WHERE a.trash IS NULL
+				  AND s.trash IS NULL
+				  AND p.trash IS NOT NULL
+				  AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
+				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL)
 				  AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				GROUP BY area_id, sector_id, problem_id, media_id, name, trash, trash_by
 
@@ -89,9 +89,9 @@ public class TrashRepository {
 				JOIN media m ON ma.media_id=m.id
 				JOIN user u ON m.deleted_user_id=u.id
 				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
-				WHERE m.deleted_user_id IS NOT NULL 
-				  AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id) 
-				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL) 
+				WHERE m.deleted_user_id IS NOT NULL
+				  AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
+				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL)
 				  AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
 				GROUP BY area_id, sector_id, problem_id, media_id, name, trash, trash_by
 
@@ -108,9 +108,9 @@ public class TrashRepository {
 				JOIN media m ON ms.media_id=m.id
 				JOIN user u ON m.deleted_user_id=u.id
 				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
-				WHERE m.deleted_user_id IS NOT NULL 
-				  AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id) 
-				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL) 
+				WHERE m.deleted_user_id IS NOT NULL
+				  AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
+				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL)
 				  AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
 				GROUP BY area_id, sector_id, problem_id, media_id, name, trash, trash_by
 
@@ -128,9 +128,9 @@ public class TrashRepository {
 				JOIN media m ON mp.media_id=m.id
 				JOIN user u ON m.deleted_user_id=u.id
 				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
-				WHERE m.deleted_user_id IS NOT NULL 
-				  AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id) 
-				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL) 
+				WHERE m.deleted_user_id IS NOT NULL
+				  AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
+				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL)
 				  AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
 				GROUP BY area_id, sector_id, problem_id, media_id, name, trash, trash_by
 

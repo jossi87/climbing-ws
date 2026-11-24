@@ -57,14 +57,11 @@ public class MediaRepository {
 
 	@Transactional
 	public void appendProblems(int mediaId, List<MediaProblem> problems) {
-		jdbcTemplate.batchUpdate("INSERT INTO media_problem (media_id, problem_id, pitch, trivia, milliseconds) VALUES (?, ?, ?, ?, ?)",
-				problems, 50, (ps, p) -> {
-					ps.setInt(1, mediaId);
-					ps.setInt(2, p.problemId());
-					ps.setInt(3, p.problemPitch());
-					ps.setBoolean(4, p.trivia());
-					ps.setLong(5, p.milliseconds());
-				});
+		var batch = jdbcClient.sql("INSERT INTO media_problem (media_id, problem_id, pitch, trivia, milliseconds) VALUES (?, ?, ?, ?, ?)")
+				.batch();
+		problems.forEach(p -> batch.entry(
+				e -> e.param(mediaId).param(p.problemId()).param(p.problemPitch()).param(p.trivia()).param(p.milliseconds())));
+		batch.update();
 	}
 
 	@Transactional
@@ -217,9 +214,9 @@ public class MediaRepository {
 				               'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL THEN true ELSE false END,
 				               'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = req.auth_user_id) IS NOT NULL THEN true ELSE false END,
 				               'dangerous', COALESCE((
-				                   SELECT gb3.danger 
-				                   FROM guestbook gb3 
-				                   WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1) 
+				                   SELECT gb3.danger
+				                   FROM guestbook gb3
+				                   WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1)
 				                   ORDER BY gb3.id DESC LIMIT 1
 				               ), 0) = 1
 				           ))
@@ -258,7 +255,7 @@ public class MediaRepository {
 				    SELECT ? auth_user_id, ? area_id, ? language_id
 				)
 				SELECT a.name as area_name, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, UNIX_TIMESTAMP(m.updated_at) version_stamp, m.description, ma.trivia, m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds,
-				       m.date_created, m.date_taken, 
+				       m.date_created, m.date_taken,
 				       p.id photographer_id, TRIM(CONCAT(p.firstname, ' ', COALESCE(p.lastname,''))) photographer_name,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT('id', tu.id, 'name', TRIM(CONCAT(tu.firstname, ' ', COALESCE(tu.lastname,'')))))
@@ -342,9 +339,9 @@ public class MediaRepository {
 				               'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL THEN true ELSE false END,
 				               'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = req.auth_user_id) IS NOT NULL THEN true ELSE false END,
 				               'dangerous', COALESCE((
-				                   SELECT gb3.danger 
-				                   FROM guestbook gb3 
-				                   WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1) 
+				                   SELECT gb3.danger
+				                   FROM guestbook gb3
+				                   WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1)
 				                   ORDER BY gb3.id DESC LIMIT 1
 				               ), 0) = 1
 				           ))
@@ -411,9 +408,9 @@ public class MediaRepository {
 				LEFT JOIN media_problem mp ON p.id = mp.problem_id AND mp.media_id = req.media_id
 				LEFT JOIN sector_trail st ON s.id = st.sector_id
 				LEFT JOIN media_trail mt ON st.trail_id = mt.trail_id AND m.id = mt.media_id
-				WHERE ma.media_id IS NOT NULL 
-				   OR ms.media_id IS NOT NULL 
-				   OR mp.media_id IS NOT NULL 
+				WHERE ma.media_id IS NOT NULL
+				   OR ms.media_id IS NOT NULL
+				   OR mp.media_id IS NOT NULL
 				   OR mt.media_id IS NOT NULL
 				GROUP BY ur.admin_write, ur.superadmin_write, m.uploader_user_id
 				""")
@@ -530,9 +527,9 @@ public class MediaRepository {
 				               'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL THEN true ELSE false END,
 				               'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = req.auth_user_id) IS NOT NULL THEN true ELSE false END,
 				               'dangerous', COALESCE((
-				                   SELECT gb3.danger 
-				                   FROM guestbook gb3 
-				                   WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1) 
+				                   SELECT gb3.danger
+				                   FROM guestbook gb3
+				                   WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1)
 				                   ORDER BY gb3.id DESC LIMIT 1
 				               ), 0) = 1
 				           ))
@@ -693,9 +690,9 @@ public class MediaRepository {
 				               'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL THEN true ELSE false END,
 				               'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = req.auth_user_id) IS NOT NULL THEN true ELSE false END,
 				               'dangerous', COALESCE((
-				                   SELECT gb3.danger 
-				                   FROM guestbook gb3 
-				                   WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1) 
+				                   SELECT gb3.danger
+				                   FROM guestbook gb3
+				                   WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1)
 				                   ORDER BY gb3.id DESC LIMIT 1
 				               ), 0) = 1
 				           ))
@@ -802,9 +799,9 @@ public class MediaRepository {
 				               'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL THEN true ELSE false END,
 				               'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = req.auth_user_id) IS NOT NULL THEN true ELSE false END,
 				               'dangerous', COALESCE((
-				                   SELECT gb3.danger 
-				                   FROM guestbook gb3 
-				                   WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1) 
+				                   SELECT gb3.danger
+				                   FROM guestbook gb3
+				                   WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1)
 				                   ORDER BY gb3.id DESC LIMIT 1
 				               ), 0) = 1
 				           ))
@@ -942,9 +939,9 @@ public class MediaRepository {
 				               'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = :authUserId LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = :authUserId LIMIT 1) IS NOT NULL THEN true ELSE false END,
 				               'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = :authUserId) IS NOT NULL THEN true ELSE false END,
 				               'dangerous', COALESCE((
-				                   SELECT gb3.danger 
-				                   FROM guestbook gb3 
-				                   WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1) 
+				                   SELECT gb3.danger
+				                   FROM guestbook gb3
+				                   WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1)
 				                   ORDER BY gb3.id DESC LIMIT 1
 				               ), 0) = 1
 				           ))
@@ -1083,9 +1080,9 @@ public class MediaRepository {
 				               'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL THEN true ELSE false END,
 				               'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = req.auth_user_id) IS NOT NULL THEN true ELSE false END,
 				               'dangerous', COALESCE((
-				                   SELECT gb3.danger 
-				                   FROM guestbook gb3 
-				                   WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1) 
+				                   SELECT gb3.danger
+				                   FROM guestbook gb3
+				                   WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1)
 				                   ORDER BY gb3.id DESC LIMIT 1
 				               ), 0) = 1
 				           ))
@@ -1107,7 +1104,7 @@ public class MediaRepository {
 				       COALESCE((SELECT mg.guestbook_id FROM media_guestbook mg WHERE mg.media_id = m.id LIMIT 1), 0) guestbook_id
 				FROM req
 				JOIN media m ON m.deleted_user_id IS NULL AND (
-				    (req.is_captured = TRUE AND m.photographer_user_id = req.target_user_id) OR 
+				    (req.is_captured = TRUE AND m.photographer_user_id = req.target_user_id) OR
 				    (req.is_captured = FALSE AND EXISTS (SELECT 1 FROM media_user mu WHERE mu.media_id = m.id AND mu.user_id = req.target_user_id))
 				)
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
@@ -1155,7 +1152,7 @@ public class MediaRepository {
 		var keyHolder = new GeneratedKeyHolder();
 
 		int affectedRows = jdbcClient.sql("""
-				INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, thumbnail_seconds, embed_url) 
+				INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, thumbnail_seconds, embed_url)
 				VALUES (?, ?, ?, ?, NOW(), ?, ?, ?)
 				""")
 				.params(
@@ -1269,30 +1266,23 @@ public class MediaRepository {
 
 		if (!failed) {
 			if (labels != null && !labels.isEmpty()) {
-				jdbcTemplate.batchUpdate("INSERT INTO media_ml_label (media_id, description, score) VALUES (?, ?, ?)",
-						labels, labels.size(), (ps, label) -> {
-							ps.setInt(1, mediaId);
-							ps.setString(2, label.description());
-							ps.setFloat(3, label.score());
-						});
+				var batch = jdbcClient.sql("INSERT INTO media_ml_label (media_id, description, score) VALUES (?, ?, ?)").batch();
+				labels.forEach(label -> batch.entry(e -> e.param(mediaId).param(label.description()).param(label.score())));
+				batch.update();
 			}
 
 			if (objects != null && !objects.isEmpty()) {
-				jdbcTemplate.batchUpdate("INSERT INTO media_ml_object (media_id, name, score, x_min, y_min, x_max, y_max) VALUES (?, ?, ?, ?, ?, ?, ?)",
-						objects, objects.size(), (ps, obj) -> {
-							float xMin = obj.boundingPoly().normalizedVertices().stream().map(NormalizedVertex::x).min(Float::compare).orElse(0f);
-							float xMax = obj.boundingPoly().normalizedVertices().stream().map(NormalizedVertex::x).max(Float::compare).orElse(0f);
-							float yMin = obj.boundingPoly().normalizedVertices().stream().map(NormalizedVertex::y).min(Float::compare).orElse(0f);
-							float yMax = obj.boundingPoly().normalizedVertices().stream().map(NormalizedVertex::y).max(Float::compare).orElse(0f);
+				var batch = jdbcClient.sql("INSERT INTO media_ml_object (media_id, name, score, x_min, y_min, x_max, y_max) VALUES (?, ?, ?, ?, ?, ?, ?)")
+						.batch();
+				objects.forEach(obj -> {
+					float xMin = obj.boundingPoly().normalizedVertices().stream().map(NormalizedVertex::x).min(Float::compare).orElse(0f);
+					float xMax = obj.boundingPoly().normalizedVertices().stream().map(NormalizedVertex::x).max(Float::compare).orElse(0f);
+					float yMin = obj.boundingPoly().normalizedVertices().stream().map(NormalizedVertex::y).min(Float::compare).orElse(0f);
+					float yMax = obj.boundingPoly().normalizedVertices().stream().map(NormalizedVertex::y).max(Float::compare).orElse(0f);
 
-							ps.setInt(1, mediaId);
-							ps.setString(2, obj.name());
-							ps.setFloat(3, obj.score());
-							ps.setFloat(4, xMin);
-							ps.setFloat(5, yMin);
-							ps.setFloat(6, xMax);
-							ps.setFloat(7, yMax);
-						});
+					batch.entry(e -> e.param(mediaId).param(obj.name()).param(obj.score()).param(xMin).param(yMin).param(xMax).param(yMax));
+				});
+				batch.update();
 			}
 		}
 	}
@@ -1305,23 +1295,30 @@ public class MediaRepository {
 		}
 
 		switch (associations) {
-		case AREAS -> jdbcTemplate.batchUpdate("INSERT INTO media_area (media_id, area_id, trivia) VALUES (?, ?, ?)",
-				m.areas(), 50, (ps, a) -> { ps.setInt(1, mediaId); ps.setInt(2, a.areaId()); ps.setBoolean(3, a.trivia()); });
-		case SECTORS -> jdbcTemplate.batchUpdate("INSERT INTO media_sector (media_id, sector_id, trivia) VALUES (?, ?, ?)",
-				m.sectors(), 50, (ps, s) -> { ps.setInt(1, mediaId); ps.setInt(2, s.sectorId()); ps.setBoolean(3, s.trivia()); });
+		case AREAS -> {
+			var batch = jdbcClient.sql("INSERT INTO media_area (media_id, area_id, trivia) VALUES (?, ?, ?)").batch();
+			m.areas().forEach(a -> batch.entry(e -> e.param(mediaId).param(a.areaId()).param(a.trivia())));
+			batch.update();
+		}
+		case SECTORS -> {
+			var batch = jdbcClient.sql("INSERT INTO media_sector (media_id, sector_id, trivia) VALUES (?, ?, ?)").batch();
+			m.sectors().forEach(s -> batch.entry(e -> e.param(mediaId).param(s.sectorId()).param(s.trivia())));
+			batch.update();
+		}
 		case PROBLEMS -> appendProblems(mediaId, m.problems());
-		case TRAILS -> jdbcTemplate.batchUpdate("INSERT INTO media_trail (media_id, trail_id) VALUES (?, ?)",
-				m.trails(), 50, (ps, t) -> { ps.setInt(1, mediaId); ps.setInt(2, t.trailId()); });
+		case TRAILS -> {
+			var batch = jdbcClient.sql("INSERT INTO media_trail (media_id, trail_id) VALUES (?, ?)").batch();
+			m.trails().forEach(t -> batch.entry(e -> e.param(mediaId).param(t.trailId())));
+			batch.update();
+		}
 		case GUESTBOOK -> jdbcTemplate.update("INSERT INTO media_guestbook (media_id, guestbook_id) VALUES (?, ?)", mediaId, m.guestbookId());
 		case USER_AVATAR -> jdbcTemplate.update("UPDATE user SET media_id=? WHERE id=?", mediaId, m.userAvatarId());
 		}
 
 		if (resolvedTaggedUserIds != null && !resolvedTaggedUserIds.isEmpty()) {
-			jdbcTemplate.batchUpdate("INSERT INTO media_user (media_id, user_id) VALUES (?, ?)",
-					resolvedTaggedUserIds, 50, (ps, userId) -> {
-						ps.setInt(1, mediaId);
-						ps.setInt(2, userId);
-					});
+			var batch = jdbcClient.sql("INSERT INTO media_user (media_id, user_id) VALUES (?, ?)").batch();
+			resolvedTaggedUserIds.forEach(userId -> batch.entry(e -> e.param(mediaId).param(userId)));
+			batch.update();
 		}
 	}
 
@@ -1381,18 +1378,18 @@ public class MediaRepository {
 				    ) t
 				    WHERE rn = 1
 				) best_person ON mla.media_id = best_person.media_id
-				SET 
-				    mla.focus_x = CASE 
+				SET
+				    mla.focus_x = CASE
 				        WHEN best_person.y_min IS NOT NULL THEN ROUND(((best_person.x_min + best_person.x_max) / 2) * 100)
 				        ELSE mla.focus_x
 				    END,
 
-				    mla.focus_y = CASE 
-				        WHEN best_person.y_min IS NOT NULL THEN 
-				            CASE 
-				                WHEN m.height > m.width THEN 
-				                    CASE 
-				                        WHEN best_person.y_max > 0.80 AND (best_person.y_max - best_person.y_min) < 0.60 
+				    mla.focus_y = CASE
+				        WHEN best_person.y_min IS NOT NULL THEN
+				            CASE
+				                WHEN m.height > m.width THEN
+				                    CASE
+				                        WHEN best_person.y_max > 0.80 AND (best_person.y_max - best_person.y_min) < 0.60
 				                            THEN ROUND(best_person.y_max * 100)
 				                        ELSE ROUND((best_person.y_min + (best_person.y_max - best_person.y_min) * 0.85) * 100)
 				                    END

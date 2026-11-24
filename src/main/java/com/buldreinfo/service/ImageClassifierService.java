@@ -12,7 +12,8 @@ import org.springframework.stereotype.Service;
 
 import com.buldreinfo.config.AppConfig;
 import com.buldreinfo.util.JsonHelper;
-import com.fasterxml.jackson.databind.JsonNode;
+
+import tools.jackson.databind.JsonNode;
 
 @Service
 public class ImageClassifierService {
@@ -80,7 +81,7 @@ public class ImageClassifierService {
 		List<MediaLabel> labels = new ArrayList<>();
 		for (JsonNode node : root.path("labelAnnotations")) {
 			labels.add(new MediaLabel(
-					node.path("description").asText(),
+					node.path("description").asString(),
 					(float) node.path("score").asDouble()
 					));
 		}
@@ -98,7 +99,7 @@ public class ImageClassifierService {
 						));
 			}
 			objects.add(new MediaObject(
-					node.path("name").asText(),
+					node.path("name").asString(),
 					(float) node.path("score").asDouble(),
 					new MediaObject.BoundingPoly(vertices)
 					));

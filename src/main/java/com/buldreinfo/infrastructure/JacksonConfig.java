@@ -1,27 +1,28 @@
 package com.buldreinfo.infrastructure;
 
+import org.springframework.boot.jackson.autoconfigure.JsonMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 
 import com.buldreinfo.infrastructure.json.CoercionModule;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.cfg.DateTimeFeature;
 
 @Configuration
 public class JacksonConfig {
 
+    /**
+     * Customizes the auto-configured {@code JsonMapper} instead of replacing it, so Spring Boot keeps its own
+     * Jackson setup (modules, handler instantiator, properties) while the climbing coercion rules still apply.
+     */
     @Bean
-    @Primary
-    public ObjectMapper objectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.registerModule(new CoercionModule());
-        mapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
-        mapper.configure(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES, false);
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        return mapper;
+    public JsonMapperBuilderCustomizer climbingJsonMapperCustomizer() {
+        return builder -> {
+            builder.addModule(new CoercionModule());
+            builder.disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS);
+            builder.disable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES);
+            builder.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+        };
     }
 }

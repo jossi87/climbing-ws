@@ -6,7 +6,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,27 +15,20 @@ import com.buldreinfo.model.Coordinates;
 @Repository
 public class GeoRepository {
 	private final JdbcClient jdbcClient;
-	private final JdbcTemplate jdbcTemplate;
 
-	public GeoRepository(JdbcClient jdbcClient, JdbcTemplate jdbcTemplate) {
+	public GeoRepository(JdbcClient jdbcClient) {
 		this.jdbcClient = jdbcClient;
-		this.jdbcTemplate = jdbcTemplate;
 	}
 
 	@Transactional
 	public void insertCoordinates(List<Coordinates> coordinates) {
 		if (coordinates == null || coordinates.isEmpty()) return;
 
-		jdbcTemplate.batchUpdate(
-				"INSERT IGNORE INTO coordinates (latitude, longitude, elevation, elevation_source) VALUES (?, ?, ?, ?)",
-				coordinates,
-				100,
-				(ps, coord) -> {
-					ps.setDouble(1, coord.latitude());
-					ps.setDouble(2, coord.longitude());
-					ps.setDouble(3, coord.elevation());
-					ps.setString(4, coord.elevationSource());
-				});
+		var batch = jdbcClient.sql("INSERT IGNORE INTO coordinates (latitude, longitude, elevation, elevation_source) VALUES (?, ?, ?, ?)")
+				.batch();
+		coordinates.forEach(coord -> batch.entry(
+				e -> e.param(coord.latitude()).param(coord.longitude()).param(coord.elevation()).param(coord.elevationSource())));
+		batch.update();
 	}
 
 	@Transactional(readOnly = true)
@@ -53,8 +45,8 @@ public class GeoRepository {
 				.collect(Collectors.joining(", "));
 
 		String sql = """
-				SELECT id, latitude, longitude, elevation, elevation_source 
-				FROM coordinates 
+				SELECT id, latitude, longitude, elevation, elevation_source
+				FROM coordinates
 				WHERE (latitude, longitude) IN (%s)
 				""".formatted(inSql);
 

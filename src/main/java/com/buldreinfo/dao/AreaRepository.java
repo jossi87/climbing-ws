@@ -213,28 +213,28 @@ public class AreaRepository {
 
 		var sqlStr = """
 				WITH all_labels AS (
-				  SELECT 
-				    g.label_compact, 
-				    g.grade_system_id, 
-				    clr.hex_code, 
+				  SELECT
+				    g.label_compact,
+				    g.grade_system_id,
+				    clr.hex_code,
 				    MIN(g.weight) as sort_weight
 				  FROM grade g
 				  JOIN grade_color clr ON g.grade_color_id = clr.id
 				  WHERE g.grade_system_id = :gradeSystemId
 				  GROUP BY g.label_compact, g.grade_system_id, clr.hex_code
 				)
-				SELECT 
-				    s.id as sector_id, 
-				    al.label_compact, 
-				    al.hex_code as color, 
+				SELECT
+				    s.id as sector_id,
+				    al.label_compact,
+				    al.hex_code as color,
 				    COUNT(p.id) as num
 				FROM sector s
 				CROSS JOIN all_labels al
-				LEFT JOIN problem p ON s.id = p.sector_id 
+				LEFT JOIN problem p ON s.id = p.sector_id
 				    AND EXISTS (
-				        SELECT 1 FROM grade g_p 
-				        WHERE p.consensus_grade_id = g_p.id 
-				        AND g_p.label_compact = al.label_compact 
+				        SELECT 1 FROM grade g_p
+				        WHERE p.consensus_grade_id = g_p.id
+				        AND g_p.label_compact = al.label_compact
 				        AND g_p.grade_system_id = al.grade_system_id
 				    )
 				    AND p.trash IS NULL AND p.locked_admin = 0 AND p.locked_superadmin = 0
@@ -279,8 +279,8 @@ public class AreaRepository {
 			setPermissionRecursive = currArea.lockedAdmin() != isLockedAdmin || currArea.lockedSuperadmin() != a.lockedSuperadmin();
 
 			jdbcClient.sql("""
-					UPDATE area SET name=?, description=?, coordinates_id=?, locked_admin=?, locked_superadmin=?, 
-					for_developers=?, access_info=?, access_closed=?, no_dogs_allowed=?, sun_from_hour=?, sun_to_hour=?, grade_system_id=COALESCE(?, grade_system_id), 
+					UPDATE area SET name=?, description=?, coordinates_id=?, locked_admin=?, locked_superadmin=?,
+					for_developers=?, access_info=?, access_closed=?, no_dogs_allowed=?, sun_from_hour=?, sun_to_hour=?, grade_system_id=COALESCE(?, grade_system_id),
 					trash=CASE WHEN ? THEN NOW() ELSE NULL END, trash_by=? WHERE id=?
 					""")
 			.params(StringUtils.stripToNull(a.name()), StringUtils.stripToNull(a.comment()), 
@@ -300,9 +300,9 @@ public class AreaRepository {
 
 			if (setPermissionRecursive) {
 				jdbcClient.sql("""
-						UPDATE area a LEFT JOIN sector s ON a.id=s.area_id LEFT JOIN problem p ON s.id=p.sector_id 
-						SET a.last_updated=now(), a.locked_admin=?, a.locked_superadmin=?, 
-						s.last_updated=now(), s.locked_admin=?, s.locked_superadmin=?, 
+						UPDATE area a LEFT JOIN sector s ON a.id=s.area_id LEFT JOIN problem p ON s.id=p.sector_id
+						SET a.last_updated=now(), a.locked_admin=?, a.locked_superadmin=?,
+						s.last_updated=now(), s.locked_admin=?, s.locked_superadmin=?,
 						p.last_updated=now(), p.locked_admin=?, p.locked_superadmin=? WHERE a.id=?
 						""")
 				.params(isLockedAdmin, a.lockedSuperadmin(), isLockedAdmin, a.lockedSuperadmin(), 
@@ -310,7 +310,7 @@ public class AreaRepository {
 				.update();
 			} else {
 				jdbcClient.sql("""
-						UPDATE area a LEFT JOIN sector s ON a.id=s.area_id LEFT JOIN problem p ON s.id=p.sector_id 
+						UPDATE area a LEFT JOIN sector s ON a.id=s.area_id LEFT JOIN problem p ON s.id=p.sector_id
 						SET a.last_updated=now(), s.last_updated=now(), p.last_updated=now() WHERE a.id=?
 						""")
 				.param(idArea)
@@ -320,8 +320,8 @@ public class AreaRepository {
 			final Integer gradeSystemId = gradeSystemRepo.resolveAreaGradeSystemId(s.idRegion(), a.gradeSystemId());
 			var keyHolder = new GeneratedKeyHolder();
 			jdbcClient.sql("""
-					INSERT INTO area (region_id, name, description, coordinates_id, locked_admin, locked_superadmin, 
-					for_developers, access_info, access_closed, no_dogs_allowed, grade_system_id, last_updated) 
+					INSERT INTO area (region_id, name, description, coordinates_id, locked_admin, locked_superadmin,
+					for_developers, access_info, access_closed, no_dogs_allowed, grade_system_id, last_updated)
 					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
 					""")
 			.params(s.idRegion(), StringUtils.stripToNull(a.name()), StringUtils.stripToNull(a.comment()), 

@@ -29,9 +29,9 @@ import com.buldreinfo.exception.InternalServerErrorException;
 import com.buldreinfo.exception.TooManyRequestsException;
 import com.buldreinfo.exception.UnauthorizedException;
 import com.buldreinfo.exception.ValidationFailedException;
-import com.fasterxml.jackson.core.JsonProcessingException;
 
 import jakarta.servlet.http.HttpServletResponse;
+import tools.jackson.core.JacksonException;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
@@ -102,7 +102,7 @@ public class GlobalExceptionHandler {
 			logger.error("Database tracking or data execution exception", dae);
 			yield jsonError(HttpStatus.INTERNAL_SERVER_ERROR, "Database error occurred");
 		}
-		case JsonProcessingException jpe -> {
+		case JacksonException jpe -> {
 			logger.error("Jackson JSON mapping failed", jpe);
 			yield jsonError(HttpStatus.INTERNAL_SERVER_ERROR, "Internal JSON processing error");
 		}

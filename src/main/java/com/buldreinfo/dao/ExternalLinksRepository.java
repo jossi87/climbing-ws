@@ -24,7 +24,7 @@ public class ExternalLinksRepository {
 				    SELECT ? AS req_area_id, ? AS req_sector_id, ? AS req_problem_id
 				),
 				resolved_hierarchy AS (
-				    SELECT 
+				    SELECT
 				        p.id AS problem_id,
 				        s.id AS sector_id,
 				        a.id AS area_id
@@ -50,9 +50,9 @@ public class ExternalLinksRepository {
 				    JOIN external_link_problem ep ON h.problem_id = ep.problem_id
 				    JOIN external_link e ON ep.external_link_id = e.id
 				)
-				SELECT 
+				SELECT
 				    u.id, u.url, u.title,
-				    CASE 
+				    CASE
 				        WHEN r.req_problem_id > 0 AND u.source_type = 'problem' THEN 0
 				        WHEN r.req_problem_id = 0 AND r.req_sector_id > 0 AND u.source_type = 'sector' THEN 0
 				        WHEN r.req_problem_id = 0 AND r.req_sector_id = 0 AND r.req_area_id > 0 AND u.source_type = 'area' THEN 0

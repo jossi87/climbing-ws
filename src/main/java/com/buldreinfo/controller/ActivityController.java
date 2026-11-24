@@ -40,7 +40,7 @@ public class ActivityController {
 	public ResponseEntity<List<Activity>> getActivity(HttpServletRequest request,
 			@RequestParam(name = "idArea") int idArea,
 			@RequestParam(name = "idSector") int idSector,
-			/**
+			/*
 			 * Lowest grade per grade system, formatted as `gradeSystemId:weight` (comma-separated or repeated).
 			 * A threshold only applies to problems graded in its own system, so several systems can be filtered
 			 * independently (e.g. a Saxon threshold does not hide Uiaa-graded problems).

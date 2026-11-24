@@ -1,25 +1,25 @@
 package com.buldreinfo.infrastructure.json;
 
-import java.io.IOException;
 import java.io.Serial;
 import java.io.Serializable;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.databind.BeanDescription;
-import com.fasterxml.jackson.databind.DeserializationConfig;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.deser.ValueInstantiator;
-import com.fasterxml.jackson.databind.deser.ValueInstantiators;
-import com.fasterxml.jackson.databind.deser.std.StdValueInstantiator;
-import com.fasterxml.jackson.databind.module.SimpleModule;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.JsonToken;
+import tools.jackson.databind.BeanDescription;
+import tools.jackson.databind.DeserializationConfig;
+import tools.jackson.databind.DeserializationContext;
+import tools.jackson.databind.ValueDeserializer;
+import tools.jackson.databind.deser.ValueInstantiator;
+import tools.jackson.databind.deser.ValueInstantiators;
+import tools.jackson.databind.deser.std.StdValueInstantiator;
+import tools.jackson.databind.module.SimpleModule;
 
-public class CoercionModule extends SimpleModule {
-	private static class BooleanCoercionDeserializer extends JsonDeserializer<Boolean> implements Serializable {
+public final class CoercionModule extends SimpleModule {
+	private static class BooleanCoercionDeserializer extends ValueDeserializer<Boolean> implements Serializable {
 		@Serial private static final long serialVersionUID = 1L;
 		@Override
-		public Boolean deserialize(JsonParser p, @SuppressWarnings("unused") DeserializationContext ctxt) throws IOException {
+		public Boolean deserialize(JsonParser p, @SuppressWarnings("unused") DeserializationContext ctxt) throws JacksonException {
 			if (p.currentToken() == JsonToken.VALUE_NUMBER_INT) return p.getIntValue() != 0;
 			if (p.currentToken() == JsonToken.VALUE_TRUE) return true;
 			if (p.currentToken() == JsonToken.VALUE_FALSE) return false;
@@ -27,10 +27,10 @@ public class CoercionModule extends SimpleModule {
 		}
 	}
 
-	private static class IntegerCoercionDeserializer extends JsonDeserializer<Integer> implements Serializable {
+	private static class IntegerCoercionDeserializer extends ValueDeserializer<Integer> implements Serializable {
 		@Serial private static final long serialVersionUID = 1L;
 		@Override
-		public Integer deserialize(JsonParser p, @SuppressWarnings("unused") DeserializationContext ctxt) throws IOException {
+		public Integer deserialize(JsonParser p, @SuppressWarnings("unused") DeserializationContext ctxt) throws JacksonException {
 			if (p.currentToken() == JsonToken.VALUE_NUMBER_INT) return p.getIntValue();
 			if (p.currentToken() == JsonToken.VALUE_STRING) {
 				String str = p.getValueAsString();
@@ -45,7 +45,7 @@ public class CoercionModule extends SimpleModule {
 		public RecordNullHandlingInstantiator(StdValueInstantiator src) { super(src); }
 
 		@Override
-		public Object createFromObjectWith(DeserializationContext ctxt, Object[] args) throws IOException {
+		public Object createFromObjectWith(DeserializationContext ctxt, Object[] args) throws JacksonException {
 			for (int i = 0; i < args.length; i++) {
 				if (args[i] == null) {
 					Class<?> paramType = _constructorArguments[i].getType().getRawClass();
@@ -72,8 +72,9 @@ public class CoercionModule extends SimpleModule {
 		super.setupModule(context);
 		context.addValueInstantiators(new ValueInstantiators.Base() {
 			@Override
-			public ValueInstantiator findValueInstantiator(@SuppressWarnings("unused") DeserializationConfig config, BeanDescription beanDesc, ValueInstantiator defaultInstantiator) {
-				if (beanDesc.getBeanClass().isRecord() && defaultInstantiator instanceof StdValueInstantiator std) {
+			public ValueInstantiator modifyValueInstantiator(@SuppressWarnings("unused") DeserializationConfig config,
+					BeanDescription.Supplier beanDesc, ValueInstantiator defaultInstantiator) {
+				if (beanDesc.get().isRecordType() && defaultInstantiator instanceof StdValueInstantiator std) {
 					return new RecordNullHandlingInstantiator(std);
 				}
 				return defaultInstantiator;

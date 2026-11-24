@@ -277,11 +277,11 @@ public class HierarchyRepository {
 				  FROM req
 				  JOIN sector s ON (CASE WHEN req.sector_id != 0 THEN s.id = req.sector_id ELSE s.area_id = req.area_id END)
 				  JOIN area a ON s.area_id = a.id
-				  JOIN problem p ON s.id = p.sector_id 
-				  JOIN type ty ON p.type_id = ty.id 
+				  JOIN problem p ON s.id = p.sector_id
+				  JOIN type ty ON p.type_id = ty.id
 				  JOIN grade g ON p.consensus_grade_id = g.id
 				  JOIN target_systems ts ON g.grade_system_id = ts.grade_system_id
-				  LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.auth_user_id 
+				  LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.auth_user_id
 				  WHERE p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				  GROUP BY s.sorting, s.id, s.name, g.label_major, ty.id
 				)
@@ -292,7 +292,7 @@ public class HierarchyRepository {
 				FROM req
 				JOIN target_systems ts ON 1=1
 				JOIN (
-				  SELECT label_major, grade_system_id, grade_color_id, MIN(weight) sort 
+				  SELECT label_major, grade_system_id, grade_color_id, MIN(weight) sort
 				  FROM grade GROUP BY label_major, grade_system_id, grade_color_id
 				) g ON g.grade_system_id = ts.grade_system_id
 				JOIN grade_color clr ON g.grade_color_id = clr.id
@@ -439,7 +439,7 @@ public class HierarchyRepository {
 				   LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				   WHERE mp.trivia=0
 				)
-				(SELECT 'AREA' result_type, a.id, a.name title, NULL sub_title, r.name breadcrumb, 
+				(SELECT 'AREA' result_type, a.id, a.name title, NULL sub_title, r.name breadcrumb,
 				        ma.media_id, ma.media_version_stamp, ma.media_focus_x, ma.media_focus_y, ma.media_primary_color_hex,
 				        a.hits, NULL external_url,
 				        a.locked_admin, a.locked_superadmin
@@ -453,7 +453,7 @@ public class HierarchyRepository {
 				 GROUP BY a.id, r.name, ma.media_id, ma.media_version_stamp, ma.media_focus_x, ma.media_focus_y, ma.media_primary_color_hex, a.hits, a.locked_admin, a.locked_superadmin
 				 ORDER BY a.hits DESC, a.name LIMIT 8)
 				UNION ALL
-				(SELECT 'EXTERNAL' result_type, a_ext.id, a_ext.name title, NULL sub_title, r_ext.name breadcrumb, 
+				(SELECT 'EXTERNAL' result_type, a_ext.id, a_ext.name title, NULL sub_title, r_ext.name breadcrumb,
 				        ma_ext.media_id, ma_ext.media_version_stamp, ma_ext.media_focus_x, ma_ext.media_focus_y, ma_ext.media_primary_color_hex,
 				        a_ext.hits, CONCAT(r_ext.url, '/area/', a_ext.id) external_url,
 				        a_ext.locked_admin, a_ext.locked_superadmin
@@ -690,7 +690,7 @@ public class HierarchyRepository {
 				),
 				filtered_problems AS (
 				    SELECT p.id AS pid, p.sector_id, p.consensus_grade_id, p.type_id, p.coordinates_id,
-				           p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, 
+				           p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description,
 				           p.length_meter, p.starting_altitude, p.fa_date,
 				           r.id AS region_id, r.name AS region_name, r.url AS region_url,
 				           a.id AS area_id, a.name AS area_name, a.coordinates_id AS area_coordinates_id,
@@ -743,13 +743,13 @@ public class HierarchyRepository {
 				    WHERE a.problem_id IN (SELECT pid FROM filtered_problems)
 				    GROUP BY a.problem_id, a.aid_date
 				)
-				SELECT 
-				    p.region_id, p.region_name, p.area_id, CONCAT(p.region_url, '/area/', p.area_id) AS area_url, p.area_name, 
-				    ac.id AS area_coordinates_id, ac.latitude AS area_latitude, ac.longitude AS area_longitude, ac.elevation AS area_elevation, ac.elevation_source AS area_elevation_source, 
+				SELECT
+				    p.region_id, p.region_name, p.area_id, CONCAT(p.region_url, '/area/', p.area_id) AS area_url, p.area_name,
+				    ac.id AS area_coordinates_id, ac.latitude AS area_latitude, ac.longitude AS area_longitude, ac.elevation AS area_elevation, ac.elevation_source AS area_elevation_source,
 				    p.area_grade_system_id, p.area_locked_admin, p.area_locked_superadmin, p.area_sun_from_hour, p.area_sun_to_hour,
-				    p.sector_id_val AS sector_id, CONCAT(p.region_url, '/sector/', p.sector_id_val) AS sector_url, p.sector_name, p.sector_sorting, p.sector_sun_from_hour, p.sector_sun_to_hour, 
-				    sc.id AS sector_parking_coordinates_id, sc.latitude AS sector_parking_latitude, sc.longitude AS sector_parking_longitude, sc.elevation AS sector_parking_elevation, sc.elevation_source AS sector_parking_elevation_source, 
-				    p.sector_compass_direction_id_calculated, p.sector_compass_direction_id_manual, 
+				    p.sector_id_val AS sector_id, CONCAT(p.region_url, '/sector/', p.sector_id_val) AS sector_url, p.sector_name, p.sector_sorting, p.sector_sun_from_hour, p.sector_sun_to_hour,
+				    sc.id AS sector_parking_coordinates_id, sc.latitude AS sector_parking_latitude, sc.longitude AS sector_parking_longitude, sc.elevation AS sector_parking_elevation, sc.elevation_source AS sector_parking_elevation_source,
+				    p.sector_compass_direction_id_calculated, p.sector_compass_direction_id_manual,
 				    p.sector_locked_admin, p.sector_locked_superadmin,
 				    p.pid AS id, CONCAT(p.region_url, '/problem/', p.pid) AS url, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, p.length_meter, REGEXP_SUBSTR(p.starting_altitude, '[0-9]+') AS starting_altitude,
 				    c.id AS coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source,
@@ -758,12 +758,12 @@ public class HierarchyRepository {
 				    COALESCE(fa_aid.fa_aid_date, 0) AS fa_year,
 				    fa.ffa_names AS ffa_user,
 				    COALESCE(YEAR(p.fa_date), 0) AS ffa_year,
-				    COALESCE(t.num_ticks, 0) AS num_ticks, 
-				    COALESCE(t.stars, 0) AS stars, 
+				    COALESCE(t.num_ticks, 0) AS num_ticks,
+				    COALESCE(t.stars, 0) AS stars,
 				    GREATEST(COALESCE(t.user_ticked, 0), COALESCE(fa.user_is_fa, 0)) AS ticked,
 				    CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END AS todo,
-				    ty.id AS type_id, COALESCE(tt.type, ty.type) type, COALESCE(tt.subtype, ty.subtype) subtype, ty.is_bolted, ty.trad_gear, 
-				    (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p.pid) AS num_pitches 
+				    ty.id AS type_id, COALESCE(tt.type, ty.type) type, COALESCE(tt.subtype, ty.subtype) subtype, ty.is_bolted, ty.trad_gear,
+				    (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p.pid) AS num_pitches
 				FROM filtered_problems p
 				JOIN type ty ON p.type_id = ty.id
 				LEFT JOIN type_translation tt ON tt.type_id = ty.id AND tt.language_id = (SELECT language_id FROM req)
@@ -881,8 +881,8 @@ public class HierarchyRepository {
 				JOIN type ty ON p.type_id=ty.id
 				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
 				WHERE (a.region_id=? OR ur.user_id IS NOT NULL)
-				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0)) 
-				  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0)) 
+				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
+				  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
 				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				GROUP BY r.name, r.url, p.id, a.name, s.name, p.name, ps.nr, g.grade, ps.description
 				ORDER BY r.name, a.name, COALESCE(s.sorting,0), s.name, p.nr, ps.nr
@@ -948,7 +948,7 @@ public class HierarchyRepository {
 				    JOIN fa_aid_user aid ON p.id = aid.problem_id
 				    WHERE (a.id = req.area_id OR s.id = req.sector_id) AND p.broken IS NULL AND aid.user_id IS NOT NULL
 				)
-				SELECT 
+				SELECT
 				    u.id AS user_id,
 				    TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))) AS name,
 				    m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,

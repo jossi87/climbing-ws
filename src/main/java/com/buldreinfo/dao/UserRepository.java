@@ -163,14 +163,14 @@ public class UserRepository {
 		return jdbcClient.sql("""
 				SELECT u.id,
 				       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) AS name,
-				       (SELECT GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') 
-				        FROM user_email e 
+				       (SELECT GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';')
+				        FROM user_email e
 				        WHERE e.user_id = u.id AND e.email NOT LIKE '%@missing-email.com'
 				        AND u.email_visible_to_all = 1) AS emails,
-				       m.id AS media_id, 
-				       UNIX_TIMESTAMP(m.updated_at) AS media_version_stamp, 
-				       mma.focus_x AS media_focus_x, 
-				       mma.focus_y AS media_focus_y, 
+				       m.id AS media_id,
+				       UNIX_TIMESTAMP(m.updated_at) AS media_version_stamp,
+				       mma.focus_x AS media_focus_x,
+				       mma.focus_y AS media_focus_y,
 				       mma.primary_color_hex AS media_primary_color_hex,
 				       l.when AS last_login
 				FROM user_region ur
@@ -615,7 +615,7 @@ public class UserRepository {
 				LEFT JOIN media m ON u.media_id = m.id
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				LEFT JOIN (SELECT user_id, GROUP_CONCAT(DISTINCT email ORDER BY email SEPARATOR ';') AS emails
-				           FROM user_email WHERE email NOT LIKE '%@missing-email.com' GROUP BY user_id) e 
+				           FROM user_email WHERE email NOT LIKE '%@missing-email.com' GROUP BY user_id) e
 				           ON e.user_id = u.id AND u.email_visible_to_all = 1
 				LEFT JOIN (SELECT user_id, MAX(`when`) AS last_login FROM user_login GROUP BY user_id) l ON l.user_id = u.id
 				WHERE u.id = ?
@@ -669,7 +669,7 @@ public class UserRepository {
 				      AND (m.photographer_user_id = req.user_id OR EXISTS (SELECT 1 FROM media_user mu WHERE mu.media_id = m.id AND mu.user_id = req.user_id))
 				      AND (mp.media_id IS NOT NULL OR ms.media_id IS NOT NULL OR ma.media_id IS NOT NULL OR mt.media_id IS NOT NULL)
 				)
-				SELECT 
+				SELECT
 				    COUNT(DISTINCT CASE WHEN vm.photographer_user_id = req.user_id AND vm.is_movie = 0 THEN vm.id END) as created_img,
 				    COUNT(DISTINCT CASE WHEN vm.photographer_user_id = req.user_id AND vm.is_movie = 1 THEN vm.id END) as created_vid,
 				    COUNT(DISTINCT CASE WHEN mu.user_id = req.user_id AND vm.is_movie = 0 THEN vm.id END) as tagged_img,
@@ -740,7 +740,7 @@ public class UserRepository {
 				WITH req AS (SELECT ? user_id, ? auth_user_id, ? language_id)
 				SELECT a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
 				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
-				       t.id todo_id, p.id problem_id, p.nr problem_nr, p.name problem_name, g.grade problem_grade, g.weight problem_grade_weight, 
+				       t.id todo_id, p.id problem_id, p.nr problem_nr, p.name problem_name, g.grade problem_grade, g.weight problem_grade_weight,
 				       p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, COALESCE(tt.subtype, ty.subtype) problem_subtype, ty.trad_gear problem_trad_gear, COALESCE(dt.name, d.name) discipline, d.is_bouldering, d.is_rope_climbing, d.is_ice_climbing, COUNT(DISTINCT ps.id) num_pitches,
 				       COALESCE(pc.id, oc.id, sc.id, ac.id) coord_id,
 				       COALESCE(pc.latitude, oc.latitude, sc.latitude, ac.latitude) lat,
@@ -938,8 +938,8 @@ public class UserRepository {
 			};
 
 			jdbcClient.sql("""
-					SELECT 
-					    COALESCE(tt.type, ty.type) AS type, COALESCE(tt.subtype, pt.subtype) AS subtype, r.url, a.name AS area_name, s.name AS sector_name, p.name, 
+					SELECT
+					    COALESCE(tt.type, ty.type) AS type, COALESCE(tt.subtype, pt.subtype) AS subtype, r.url, a.name AS area_name, s.name AS sector_name, p.name,
 					    IF(t.id IS NOT NULL, t.comment, p.description) AS comment,
 					    DATE_FORMAT(IF(t.date IS NULL AND f.user_id IS NOT NULL, p.fa_date, t.date), '%Y-%m-%d') AS date,
 					    t.stars, IF(f.user_id IS NOT NULL, 1, 0) AS fa, g.grade,
@@ -964,8 +964,8 @@ public class UserRepository {
 			.query(handler);
 
 			jdbcClient.sql("""
-					SELECT 
-					    CONCAT(COALESCE(tt.type, ty.type), ' (repeats)') AS type, COALESCE(tt.subtype, pt.subtype) AS subtype, r.url, a.name AS area_name, s.name AS sector_name, p.name, 
+					SELECT
+					    CONCAT(COALESCE(tt.type, ty.type), ' (repeats)') AS type, COALESCE(tt.subtype, pt.subtype) AS subtype, r.url, a.name AS area_name, s.name AS sector_name, p.name,
 					    tr.comment, DATE_FORMAT(tr.date, '%Y-%m-%d') AS date, t.stars, 0 AS fa, g.grade,
 					    COUNT(DISTINCT ps.id) AS num_pitches
 					FROM problem p
@@ -987,8 +987,8 @@ public class UserRepository {
 			.query(handler);
 
 			jdbcClient.sql("""
-					SELECT 
-					    p.id AS problem_id, r.url, a.name AS area_name, s.name AS sector_name, p.name, 
+					SELECT
+					    p.id AS problem_id, r.url, a.name AS area_name, s.name AS sector_name, p.name,
 					    aid.aid_description AS comment, DATE_FORMAT(aid.aid_date, '%Y-%m-%d') AS date
 					FROM problem p
 					JOIN sector s ON p.sector_id = s.id JOIN area a ON s.area_id = a.id JOIN region r ON a.region_id = r.id
@@ -1090,9 +1090,9 @@ public class UserRepository {
 						: null;
 
 		jdbcClient.sql("""
-				UPDATE user 
-				SET firstname=?, lastname=?, email_visible_to_all=?, 
-				    theme_preference=COALESCE(theme_preference, ?), 
+				UPDATE user
+				SET firstname=?, lastname=?, email_visible_to_all=?,
+				    theme_preference=COALESCE(theme_preference, ?),
 				    language_id=COALESCE(language_id, (SELECT id FROM language WHERE code=?))
 				WHERE id=?
 				""")
@@ -1166,9 +1166,9 @@ public class UserRepository {
 	@Transactional
 	public void upsertPermissionUser(Setup setup, PermissionUser u) {
 		jdbcClient.sql("""
-				INSERT INTO user_region (user_id, region_id, admin_read, admin_write, superadmin_read, superadmin_write) 
-				VALUES (?, ?, ?, ?, ?, ?) 
-				ON DUPLICATE KEY UPDATE 
+				INSERT INTO user_region (user_id, region_id, admin_read, admin_write, superadmin_read, superadmin_write)
+				VALUES (?, ?, ?, ?, ?, ?)
+				ON DUPLICATE KEY UPDATE
 				admin_read=?, admin_write=?, superadmin_read=?, superadmin_write=?
 				""")
 		.params(
@@ -1186,7 +1186,7 @@ public class UserRepository {
 		.update();
 
 		jdbcClient.sql("""
-				DELETE FROM user_region 
+				DELETE FROM user_region
 				WHERE admin_read=0 AND admin_write=0 AND superadmin_read=0 AND superadmin_write=0 AND region_visible=0
 				""")
 		.update();
@@ -1195,7 +1195,7 @@ public class UserRepository {
 	@Transactional
 	public void upsertUserLogin(Setup setup, int userId, String headers) {
 		jdbcClient.sql("""
-				INSERT INTO user_login (user_id, region_id, headers) 
+				INSERT INTO user_login (user_id, region_id, headers)
 				VALUES (?, ?, ?) AS new_rows
 				ON DUPLICATE KEY UPDATE `when` = CURRENT_TIMESTAMP, headers = new_rows.headers
 				""")
@@ -1258,19 +1258,19 @@ public class UserRepository {
 		}
 
 		String sql = """
-				SELECT p.id id_problem, COALESCE(pc.id,c.id,sc.id,ac.id) coordinates_id, 
-				       COALESCE(pc.latitude,c.latitude,sc.latitude,ac.latitude) latitude, 
-				       COALESCE(pc.longitude,c.longitude,sc.longitude,ac.longitude) longitude, 
-				       COALESCE(pc.elevation,c.elevation,sc.elevation,ac.elevation) elevation, 
-				       COALESCE(pc.elevation_source,c.elevation_source,sc.elevation_source,ac.elevation_source) elevation_source 
-				FROM problem p 
-				JOIN sector s ON p.sector_id=s.id 
-				JOIN area a ON s.area_id=a.id 
-				JOIN coordinates ac ON a.coordinates_id=ac.id 
-				LEFT JOIN coordinates sc ON s.parking_coordinates_id=sc.id 
-				LEFT JOIN coordinates pc ON p.coordinates_id=pc.id 
-				LEFT JOIN sector_outline so ON s.id=so.sector_id AND so.sorting=1 
-				LEFT JOIN coordinates c ON so.coordinates_id=c.id 
+				SELECT p.id id_problem, COALESCE(pc.id,c.id,sc.id,ac.id) coordinates_id,
+				       COALESCE(pc.latitude,c.latitude,sc.latitude,ac.latitude) latitude,
+				       COALESCE(pc.longitude,c.longitude,sc.longitude,ac.longitude) longitude,
+				       COALESCE(pc.elevation,c.elevation,sc.elevation,ac.elevation) elevation,
+				       COALESCE(pc.elevation_source,c.elevation_source,sc.elevation_source,ac.elevation_source) elevation_source
+				FROM problem p
+				JOIN sector s ON p.sector_id=s.id
+				JOIN area a ON s.area_id=a.id
+				JOIN coordinates ac ON a.coordinates_id=ac.id
+				LEFT JOIN coordinates sc ON s.parking_coordinates_id=sc.id
+				LEFT JOIN coordinates pc ON p.coordinates_id=pc.id
+				LEFT JOIN sector_outline so ON s.id=so.sector_id AND so.sorting=1
+				LEFT JOIN coordinates c ON so.coordinates_id=c.id
 				WHERE p.id IN (:problemIds)
 				""";
 

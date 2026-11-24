@@ -436,7 +436,7 @@ public class PdfGenerator implements AutoCloseable {
 					}
 				}
 				try {
-					CompletableFuture.allOf(preFlightFutures.toArray(new CompletableFuture[0])).get();
+					CompletableFuture.allOf(preFlightFutures.toArray(new CompletableFuture<?>[0])).get();
 				} catch (Exception e) {
 					logger.error("Error during multi-pitch parallel execution pre-flight", e);
 				}

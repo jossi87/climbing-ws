@@ -20,8 +20,9 @@ import org.springframework.stereotype.Service;
 
 import com.buldreinfo.config.AppConfig;
 import com.buldreinfo.util.JsonHelper;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 @Service
 public class InstagramService {
@@ -169,8 +170,8 @@ public class InstagramService {
 			}
 
 			JsonNode runData = jsonHelper.parseTree(startResponse.body()).path("data");
-			String runId = runData.path("id").asText();
-			String defaultDatasetId = runData.path("defaultDatasetId").asText();
+			String runId = runData.path("id").asString();
+			String defaultDatasetId = runData.path("defaultDatasetId").asString();
 
 			HttpRequest statusRequest = HttpRequest.newBuilder()
 					.uri(URI.create("https://api.apify.com/v2/actor-runs/" + runId))
@@ -185,7 +186,7 @@ public class InstagramService {
 				HttpResponse<String> statusResponse = httpClient.send(statusRequest, HttpResponse.BodyHandlers.ofString());
 				if (statusResponse.statusCode() == 200) {
 					JsonNode statusData = jsonHelper.parseTree(statusResponse.body()).path("data");
-					String status = statusData.path("status").asText();
+					String status = statusData.path("status").asString();
 
 					if ("SUCCEEDED".equals(status)) {
 						success = true;
@@ -222,8 +223,8 @@ public class InstagramService {
 			for (int i = 0; i < resultArray.size(); i++) {
 				JsonNode entry = resultArray.get(i);
 				if (entry.hasNonNull("download_url")) {
-					String cdnUrl = entry.get("download_url").asText().replaceAll("&amp;", "&");
-					String mediaType = entry.hasNonNull("media_type") ? entry.get("media_type").asText() : "image";
+					String cdnUrl = entry.get("download_url").asString().replaceAll("&amp;", "&");
+					String mediaType = entry.hasNonNull("media_type") ? entry.get("media_type").asString() : "image";
 					boolean isVideo = "video".equalsIgnoreCase(mediaType);
 					int apiMediaIndex = entry.hasNonNull("media_index") ? entry.get("media_index").asInt() : i;
 

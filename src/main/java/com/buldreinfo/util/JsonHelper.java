@@ -7,11 +7,12 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 import com.buldreinfo.model.MediaSvgElement;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.MissingNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.MissingNode;
+import tools.jackson.databind.node.ObjectNode;
 
 @Component
 public class JsonHelper {
@@ -32,7 +33,7 @@ public class JsonHelper {
 		}
 		try {
 			return List.of(objectMapper.readValue(json, clazz));
-		} catch (JsonProcessingException e) {
+		} catch (JacksonException e) {
 			throw new RuntimeException("Error parsing JSON array to " + clazz.getSimpleName(), e);
 		}
 	}
@@ -51,7 +52,7 @@ public class JsonHelper {
 		}
 		try {
 			return objectMapper.readValue(json, clazz);
-		} catch (JsonProcessingException e) {
+		} catch (JacksonException e) {
 			throw new RuntimeException("Error parsing JSON object to " + clazz.getSimpleName(), e);
 		}
 	}
@@ -63,7 +64,7 @@ public class JsonHelper {
 			for (JsonNode obj : objectMapper.readTree(json)) {
 				int id = obj.get("id").asInt();
 				if (obj.hasNonNull("path")) {
-					list.add(MediaSvgElement.fromPath(id, obj.get("path").asText()));
+					list.add(MediaSvgElement.fromPath(id, obj.get("path").asString()));
 				} else {
 					list.add(MediaSvgElement.fromRappel(id, obj.path("rappelX").asInt(), 
 							obj.path("rappelY").asInt(), 
@@ -71,7 +72,7 @@ public class JsonHelper {
 				}
 			}
 			return list;
-		} catch (JsonProcessingException e) {
+		} catch (JacksonException e) {
 			throw new RuntimeException("Error parsing MediaSvgElements", e);
 		}
 	}
@@ -82,7 +83,7 @@ public class JsonHelper {
 	    }
 	    try {
 	        return objectMapper.readTree(json);
-	    } catch (JsonProcessingException e) {
+	    } catch (JacksonException e) {
 	        throw new RuntimeException("Error parsing JSON string to tree", e);
 	    }
 	}
@@ -90,7 +91,7 @@ public class JsonHelper {
 	public String toJson(Object object) {
 	    try {
 	        return objectMapper.writeValueAsString(object);
-	    } catch (JsonProcessingException e) {
+	    } catch (JacksonException e) {
 	        throw new RuntimeException("Error serializing object to JSON", e);
 	    }
 	}

@@ -212,7 +212,7 @@ public class ImageService {
 					.GET().build();
 			HttpResponse<String> response = httpClient.send(request, BodyHandlers.ofString());
 			if (response.statusCode() == 200) {
-				imgUrl = jsonHelper.parseTree(response.body()).path("thumbnail_url").asText();
+				imgUrl = jsonHelper.parseTree(response.body()).path("thumbnail_url").asString();
 			}
 		}
 		if (imgUrl == null || imgUrl.isEmpty()) {
