@@ -24,7 +24,7 @@ public class S3BucketUploadBatch {
 	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	private final Path localMediaRoot;
 	private final StorageManager storage;
-	private final ExecutorService executor = Executors.newFixedThreadPool(16);
+	private final ExecutorService executor = Executors.newFixedThreadPool(12);
 	private final AtomicInteger uploadCount = new AtomicInteger(0);
 	private final AtomicInteger skipCount = new AtomicInteger(0);
 	private final AtomicLong totalBytesUploaded = new AtomicLong(0);
